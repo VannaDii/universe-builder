@@ -13,19 +13,23 @@ The approved logo MUST be used anywhere UB branding appears; see the
 Existing installed bundles and shortcuts retain their old icon until replaced
 using the normal whole-bundle update or explicit shortcut recreation procedure.
 
-`cargo run --locked -p xtask -- package-release` builds
-`target/distribution/Multiverse MCP.app`, including the public `multiverse-mcp`
-launcher. Its default desktop is the persistent author workspace. The bundle is
-ad-hoc signed and targets macOS 15 or later. This minimum is a build constraint,
-not evidence of full clean-machine/native acceptance on every supported Mac.
+`dart run apps/ub_cli/tool/package_macos.dart --mode release` builds
+`apps/ub_app/build/macos/Build/Products/Release/Universe Builder.app`, including
+the Flutter workspace, bundled web assets and public `multiverse-mcp` launcher.
+The bundle is ad-hoc signed. The release workflow targets macOS 15 or later;
+this build constraint does not establish clean-machine support on every Mac.
 
-After setting the workspace version in `Cargo.toml`, updating `Cargo.lock` and
-committing the intended source, a matching `vVERSION` tag triggers
-`.github/workflows/release.yml`. Both architectures must pass workspace checks,
-contract validation, bundle tamper checks, packaged MCP/installation checks and
-public-launcher checks before the workflow creates a draft prerelease. Source
-version, manifest version and tag must match exactly. A dirty source tree is
-rejected for release archives; `--allow-dirty` is only for local verification.
+Use the pinned Flutter version in `.flutter-version` with its bundled Dart,
+then `flutter pub get --enforce-lockfile`. Keep the app version in
+`apps/ub_app/pubspec.yaml`, CLI version and public launcher's `--version`
+consistent. After committing the intended source, a matching `vVERSION` tag
+triggers `.github/workflows/release.yml`. Creating/pushing a release tag and
+publishing its draft require explicit authorization. The workflow builds Apple
+Silicon and Intel packages, checks generated schema/contracts and Dart tests,
+then installs each archive through Homebrew and runs the existing CLI/MCP
+functional tests against its installed launcher. Archive version and tag must
+match exactly. Dirty source is rejected; `--allow-dirty` is for local checks.
+The workflow conversion has not yet been run on hosted CI.
 
 The workflow uses its actual GitHub repository as the release destination. It
 attaches two `multiverse-mcp-VERSION-TARGET.tar.gz` files, their SHA256 files, and
@@ -36,7 +40,7 @@ checksums or mutable `latest` download URLs. The template is
 To render manually after both archives exist:
 
 ```sh
-python3 scripts/distribution.py formula --assets dist --version VERSION \
+dart run apps/ub_cli/tool/distribution.dart formula --assets dist --version VERSION \
   --repository OWNER/REPOSITORY --output dist/multiverse-mcp.rb
 ```
 
@@ -62,19 +66,32 @@ paired `--installation PATH --profile ID` to remember an existing connection.
 Remove the generated shortcut explicitly if desired after uninstalling; user
 installations, profiles and backups are always outside the Homebrew prefix.
 
-For local verification, `scripts/distribution.py formula --local` emits file
-URLs into a temporary test tap. Do not commit or distribute that formula.
-`scripts/verify_launcher.py --bin-dir APP/Contents/MacOS` checks command
-forwarding, installation initialization/status/shutdown, literal shortcut
-execution and overwrite refusal without opening a native window.
+For local packaging, `dart run apps/ub_cli/tool/distribution.dart archive
+--bundle APP --output dist --tag vVERSION` creates the archive and checksum
+sidecar. `distribution.dart formula --local` emits file URLs for a temporary
+test tap. Do not distribute that local formula. The former Python archive and
+formula commands have been retired.
 
 ## Build and inspect
 
-On the verified build host, use `DEVELOPER_DIR=/Library/Developer/CommandLineTools` with Cargo. Run `cargo run --locked -p xtask -- check`, `cargo run --locked -p xtask -- validate-contracts`, and `cargo run --locked -p xtask -- package-fixture`. The independent Python checks require the `jsonschema` package; select an existing environment with `UNIVERSE_PYTHON` when invoking xtask.
+The Flutter assembly command enforces the pinned SDKs, checks that its runner
+and helpers support the engine's actual architecture, and signs the complete
+bundle with the app/helper entitlements. `release-manifest.json` records the
+version, build mode, architecture, source revision, dirty-source flag and helper
+checksums. It declares `release_accepted: false`; this is a local preview, not a
+notarized distribution. The archive command checks the sealed signature before
+packaging and the Homebrew formula pins the actual archive checksum.
 
-The app contains the desktop executable, engine, MCP adapter and command-line client. Its resources contain `release-manifest.json` and `components.json`. The manifest records architecture, build-host OS, Rust compiler, helper SHA256 values and the component-list digest. It always declares `release_accepted: false`. The component list comes from locked, offline Cargo metadata and includes transitive packages, versions, licenses and registry/git origins; it is a build inventory, not an assertion that every target-specific package is linked or vulnerability-free.
-
-Use `scripts/verify_release.py --bundle PATH` to verify the sealed bundle and demonstrate rejection of a modified helper. This copies the bundle to a disposable directory and never opens the desktop. `scripts/mcp_smoke.py --bin-dir PATH/Contents/MacOS` and `scripts/installation_smoke.py --bin-dir PATH/Contents/MacOS` exercise packaged helpers through an independent MCP client. Their restricted PATH checks do not establish that the Mac has no developer tools installed.
+From `apps/ub_cli`, `dart test test/distribution_test.dart` covers formula
+metadata, archive links/signatures and tamper rejection on macOS. Existing
+functional tests accept `UB_TEST_MACOS_BUNDLE=/absolute/Universe Builder.app`:
+run `dart test test/universe_cli_test.dart --name 'standalone universe command'`
+from `apps/ub_cli` and `dart test test/mcp_cli_test.dart --name 'stdio reaches
+real service'` from `apps/ub_mcp`. They use disposable installations and launch
+the packaged command outside the checkout with an empty PATH. This does not
+establish that the host has no developer tools installed. They do not open the
+desktop. Rust fixture packaging and its remaining Python checks are legacy
+migration tooling, not the version-tag distribution route.
 
 ## Workload and recovery drill
 

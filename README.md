@@ -98,8 +98,8 @@ has a SHA-256 sidecar. Generate its local Homebrew formula with
 For release URLs, replace `--local` with `--repository OWNER/REPO`; both arm64
 and x86_64 archives must be present. Formulas pin checksums from the actual
 archive bytes and install `Universe Builder.app`. These commands neither upload
-assets nor publish a release. The older Rust release workflow remains a
-transitional route until its cutover.
+assets nor publish a release. The version-tag workflow uses this Flutter/Dart
+route and creates a draft preview for explicit publication review.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only

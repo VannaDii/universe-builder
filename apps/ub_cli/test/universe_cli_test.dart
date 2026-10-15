@@ -421,37 +421,47 @@ void main() {
 
   test('standalone universe command initializes and authors on a long path using its installed sibling', () async {
     await server.close();
-    final library = await Isolate.resolvePackageUri(
-      Uri.parse('package:ub_cli/universe_cli.dart'),
-    );
-    final app = File.fromUri(library!).parent.parent;
-    final workspace = app.parent.parent;
-    final builds = [
-      ('${app.path}/bin/universe.dart', '${root.path}/cli-build'),
-      (
-        '${workspace.path}/apps/ub_engine/bin/universe-engine.dart',
-        '${root.path}/engine-build',
-      ),
-    ];
-    for (final (entry, destination) in builds) {
-      final built = await Process.run(Platform.resolvedExecutable, [
-        'build',
-        'cli',
-        '--target',
-        entry,
-        '--output',
-        destination,
-        '--verbosity=error',
-      ]);
-      expect(
-        built.exitCode,
-        0,
-        reason: 'Standalone command fixture compilation failed',
+    final packaged = Platform.environment['UB_TEST_MACOS_BUNDLE'];
+    late String binary;
+    final prefix = <String>[];
+    if (packaged != null) {
+      binary =
+          '${Directory(packaged).absolute.path}/Contents/MacOS/multiverse-mcp';
+      prefix.add('admin');
+      expect(File(binary).existsSync(), isTrue);
+    } else {
+      final library = await Isolate.resolvePackageUri(
+        Uri.parse('package:ub_cli/universe_cli.dart'),
       );
+      final app = File.fromUri(library!).parent.parent;
+      final workspace = app.parent.parent;
+      final builds = [
+        ('${app.path}/bin/universe.dart', '${root.path}/cli-build'),
+        (
+          '${workspace.path}/apps/ub_engine/bin/universe-engine.dart',
+          '${root.path}/engine-build',
+        ),
+      ];
+      for (final (entry, destination) in builds) {
+        final built = await Process.run(Platform.resolvedExecutable, [
+          'build',
+          'cli',
+          '--target',
+          entry,
+          '--output',
+          destination,
+          '--verbosity=error',
+        ]);
+        expect(
+          built.exitCode,
+          0,
+          reason: 'Standalone command fixture compilation failed',
+        );
+      }
+      binary = '${root.path}/cli-build/bundle/bin/universe';
+      Link('${root.path}/cli-build/bundle/bin/universe-engine')
+          .createSync('${root.path}/engine-build/bundle/bin/universe-engine');
     }
-    final binary = '${root.path}/cli-build/bundle/bin/universe';
-    Link('${root.path}/cli-build/bundle/bin/universe-engine')
-        .createSync('${root.path}/engine-build/bundle/bin/universe-engine');
     const environment = {
       'PATH': '',
       'UB_USE_POSTGRES': 'false',
@@ -464,6 +474,7 @@ void main() {
         Process.run(
           binary,
           [
+            ...prefix,
             '--installation',
             installation,
             if (profile != null) ...['--profile', profile],

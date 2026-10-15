@@ -216,20 +216,31 @@ void main() {
         await secondOutput.close();
       }
 
-      final bundle = '${root.path}/compiled';
-      final built = await Process.run(Platform.resolvedExecutable, [
-        'build',
-        'cli',
-        '--target',
-        'bin/universe-mcp.dart',
-        '--output',
-        bundle,
-        '--verbosity=error',
-      ]);
-      expect(built.exitCode, 0, reason: '${built.stderr}');
+      final packaged = Platform.environment['UB_TEST_MACOS_BUNDLE'];
+      late String binary;
+      final prefix = <String>[];
+      if (packaged != null) {
+        binary =
+            '${Directory(packaged).absolute.path}/Contents/MacOS/multiverse-mcp';
+        prefix.add('serve');
+        expect(File(binary).existsSync(), isTrue);
+      } else {
+        final bundle = '${root.path}/compiled';
+        final built = await Process.run(Platform.resolvedExecutable, [
+          'build',
+          'cli',
+          '--target',
+          'bin/universe-mcp.dart',
+          '--output',
+          bundle,
+          '--verbosity=error',
+        ]);
+        expect(built.exitCode, 0, reason: '${built.stderr}');
+        binary = '$bundle/bundle/bin/universe-mcp';
+      }
       final child = await Process.start(
-        '$bundle/bundle/bin/universe-mcp',
-        ['--installation', root.path, '--profile', author.value],
+        binary,
+        [...prefix, '--installation', root.path, '--profile', author.value],
         workingDirectory: root.path,
         environment: {'PATH': ''},
       );
