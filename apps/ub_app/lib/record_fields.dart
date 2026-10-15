@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+import 'record_field_labels.dart';
+
 /// Read-only field layout retains all nested values without a raw JSON editor.
 class ExactFields extends StatelessWidget {
-  const ExactFields({required this.value});
+  const ExactFields({required this.value, this.authoredKeys = false});
   final CanonicalValue value;
+  final bool authoredKeys;
   @override
   Widget build(BuildContext context) => switch (value) {
     CanonicalObject(:final fields) => Column(
@@ -17,19 +20,19 @@ class ExactFields extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(switch (field.key) {
-                  'selector' => 'World name',
-                  'settingType' => 'Setting type',
-                  'labels' => 'Display labels',
-                  'aliases' => 'Other names',
-                  'metadata' => 'Additional details',
-                  'fictionalDeparture' => 'Fictional departure',
-                  'kind' || 'record_kind' => 'Record type',
-                  _ => field.key.replaceAll('_', ' '),
-                }, style: Theme.of(context).textTheme.labelLarge),
+                Text(
+                  exactFieldLabel(field.key, authoredKeys: authoredKeys),
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 12),
-                  child: ExactFields(value: field.value),
+                  child: ExactFields(
+                    value: field.value,
+                    authoredKeys: exactChildKeysAreAuthored(
+                      field.key,
+                      authoredKeys: authoredKeys,
+                    ),
+                  ),
                 ),
               ],
             ),

@@ -113,7 +113,7 @@ jobs:
         working-directory: apps/ub_app
         run: |
           umask 077
-          dart test test/appearance_workflow_test.dart test/connection_test.dart test/local_backup_files_test.dart
+          dart test test/appearance_workflow_test.dart test/connection_test.dart test/local_backup_files_test.dart test/record_field_labels_test.dart
   macos:
     runs-on: macos-15
     steps:
