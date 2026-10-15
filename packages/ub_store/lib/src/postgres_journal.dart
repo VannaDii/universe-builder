@@ -312,6 +312,47 @@ final class PostgresJournal {
     return result;
   }
 
+  /// Snapshot-local immutable reads, retaining input order and repeated IDs.
+  Stream<StoredVersion> loadMany(Iterable<RecordVersionId> versions) async* {
+    final iterator = versions.iterator;
+    while (true) {
+      final batch = <RecordVersionId>[];
+      while (batch.length < 50 && iterator.moveNext()) {
+        batch.add(iterator.current);
+      }
+      if (batch.isEmpty) break;
+      final rows = await _rows(
+        'SELECT id,payload_row,record_id,kind,digest FROM $_schema.record_versions '
+        'WHERE universe_id=\$1 AND id=ANY(\$2::text[])',
+        [universe.value, batch.map((id) => id.value).toList()],
+      );
+      final byId = {for (final row in rows) row['id'] as String: row};
+      final ordered = [
+        for (final id in batch)
+          byId[id.value] ??
+              (throw const FormatException('Missing stored version')),
+      ];
+      final payloads = await _codec.getMany('Payload', [
+        for (final row in ordered) row['payload_row'],
+      ]);
+      for (var n = 0; n < batch.length; n++) {
+        final row = ordered[n];
+        final result = StoredVersion(
+          versionId: batch[n],
+          identity: RecordIdentity(
+            universeId: universe,
+            recordId: RecordId.parse(row['record_id'] as String),
+            recordKind: RecordKind.parse(row['kind'] as String),
+          ),
+          payload: payloads[n],
+          digest: row['digest'] as String,
+        );
+        result.verify();
+        yield result;
+      }
+    }
+  }
+
   Future<Membership> snapshot(
     ContinuityId continuity,
     RevisionId revision,

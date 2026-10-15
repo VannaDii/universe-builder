@@ -73,8 +73,10 @@ final class PostgresValidationWorkflow {
     RevisionId revision,
   ) async {
     final rows = <RecordVersion>[];
-    for (final id in (await _journal.snapshot(continuity, revision)).values) {
-      rows.add(await _version(id));
+    await for (final record in _journal.loadMany(
+      (await _journal.snapshot(continuity, revision)).values,
+    )) {
+      rows.add(RecordVersion.fromWire(record.toCanonical()));
     }
     rows.sort(
       (a, b) => a.identity.recordId.value.compareTo(b.identity.recordId.value),

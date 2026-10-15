@@ -62,13 +62,12 @@ final class PostgresCanonicalIntegrity {
       }
     }
     final images = <String>{};
-    for (final row in await _rows(
-      'SELECT id FROM $_schema.record_versions WHERE universe_id=\$1',
-      [universe.value],
+    await for (final record in _journal.loadMany(
+      (await _rows(
+        'SELECT id FROM $_schema.record_versions WHERE universe_id=\$1',
+        [universe.value],
+      )).map((row) => RecordVersionId.parse(row['id'] as String)),
     )) {
-      final record = await _journal.load(
-        RecordVersionId.parse(row['id'] as String),
-      );
       if (record.identity.recordKind == RecordKind.imageAsset) {
         final asset = ImageAssetRecord.fromWire(record.payload);
         validateImageMetadata(asset);
@@ -160,13 +159,12 @@ final class PostgresCanonicalIntegrity {
       }
     }
 
-    for (final row in await _rows(
-      'SELECT id FROM $_schema.record_versions WHERE universe_id=\$1 ORDER BY id',
-      [universe.value],
+    await for (final record in _journal.loadMany(
+      (await _rows(
+        'SELECT id FROM $_schema.record_versions WHERE universe_id=\$1 ORDER BY id',
+        [universe.value],
+      )).map((row) => RecordVersionId.parse(row['id'] as String)),
     )) {
-      final record = await _journal.load(
-        RecordVersionId.parse(row['id'] as String),
-      );
       final payload = RecordPayload.fromWire(record.payload);
       await content(payload);
       if (payload is WorldRecord) {

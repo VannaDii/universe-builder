@@ -38,11 +38,10 @@ final class PostgresProjectionRecovery {
       throw const FormatException('Projection rebuild budget exceeded');
     }
     final projections = PostgresRecordProjections(_session, universe);
-    for (final row in rows) {
-      await projections.project(
-        next,
-        await _journal.load(RecordVersionId.parse(row[0] as String)),
-      );
+    await for (final record in _journal.loadMany(
+      rows.map((row) => RecordVersionId.parse(row[0] as String)),
+    )) {
+      await projections.project(next, record);
       afterProjection?.call();
     }
     final heads = await _session.execute(

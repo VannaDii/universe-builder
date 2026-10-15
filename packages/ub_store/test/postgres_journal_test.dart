@@ -123,6 +123,47 @@ void main() {
             return revision;
           });
 
+      test('batched versions preserve order and duplicates across chunks after reconnect', () async {
+        final rows = [
+          for (var n = 0; n < 64; n++)
+            StoredVersion.build(
+              RecordVersionId.generate(),
+              RecordIdentity(
+                universeId: universe,
+                recordId: RecordId.generate(),
+                recordKind: RecordKind.entity,
+              ),
+              entity(RecordVersionId.generate()).payload,
+            ),
+        ];
+        await appendAdmitted(
+          input('batch-read', [
+            for (final row in rows)
+              Assignment(recordId: row.identity.recordId, next: row),
+          ]),
+        );
+        await connection.close();
+        connection = await open();
+        await connection.runTx((tx) async {
+          final journal = PostgresJournal(tx, universe);
+          final ids = [
+            for (final row in rows.reversed) row.versionId,
+            rows.first.versionId,
+            rows.last.versionId,
+          ];
+          final batch = await journal.loadMany(ids).toList();
+          final independent = [for (final id in ids) await journal.load(id)];
+          expect(
+            batch.map((v) => v.toCanonical().toText()),
+            independent.map((v) => v.toCanonical().toText()),
+          );
+          await expectLater(
+            journal.loadMany([RecordVersionId.generate()]).toList(),
+            throwsFormatException,
+          );
+          expect(await journal.loadMany([]).toList(), isEmpty);
+        });
+      });
       test('exact bodies, history and active receipts survive reconnect', () async {
         final version = RecordVersionId.generate();
         final request = input('\uFEFFkey\u0000', [

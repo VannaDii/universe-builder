@@ -185,6 +185,7 @@ void main() {
             ),
             settings: const ConnectionSettings(sslMode: SslMode.disable),
           );
+          final reading = Stopwatch()..start();
           await connection.runTx((tx) async {
             final codec = PostgresRelationalCodec(tx, universe);
             for (var i = 0; i < cases.length; i++) {
@@ -201,6 +202,61 @@ void main() {
               );
             }
           });
+          stdout.writeln(
+            'PostgreSQL: read and verify ${cases.length} frozen payloads '
+            '${reading.elapsedMilliseconds} ms',
+          );
+          await connection.close();
+          connection = await Connection.open(
+            Endpoint(
+              host: '127.0.0.1',
+              port: port,
+              database: 'ub_disposable',
+              username: role,
+            ),
+            settings: const ConnectionSettings(sslMode: SslMode.disable),
+          );
+          final batched = Stopwatch()..start();
+          await connection.runTx((tx) async {
+            final codec = PostgresRelationalCodec(tx, universe);
+            for (var offset = 0; offset < pointers.length; offset += 50) {
+              final end = offset + 50 < pointers.length
+                  ? offset + 50
+                  : pointers.length;
+              final values = await codec.getMany(
+                'Payload',
+                pointers.sublist(offset, end),
+              );
+              for (var i = offset; i < end; i++) {
+                final value = values[i - offset];
+                expect(
+                  value.toText(),
+                  (cases[i]['canonical'] as CanonicalString).value,
+                );
+                final kind =
+                    (objectFields(value)['record_kind'] as CanonicalString)
+                        .value;
+                expect(
+                  payloadDigest(kind, value),
+                  (cases[i]['digest'] as CanonicalString).value,
+                );
+              }
+            }
+            final repeated = await codec.getMany('Payload', [
+              pointers.last,
+              pointers.first,
+              pointers.last,
+            ]);
+            expect(repeated.map((v) => v.toText()), [
+              (cases.last['canonical'] as CanonicalString).value,
+              (cases.first['canonical'] as CanonicalString).value,
+              (cases.last['canonical'] as CanonicalString).value,
+            ]);
+          });
+          stdout.writeln(
+            'PostgreSQL: batch read and verify ${cases.length} frozen payloads '
+            'plus repeated roots ${batched.elapsedMilliseconds} ms',
+          );
         },
       );
 
@@ -345,12 +401,59 @@ void main() {
                 codec.get('Value', root),
                 throwsFormatException,
               );
+              await expectLater(
+                codec.getMany('Value', [root]),
+                throwsFormatException,
+              );
               throw StateError('Discard malformed fixture');
             }),
             throwsStateError,
           );
         }
       });
+      test(
+        'batch limits and missing roots preserve subsequent reads',
+        () async {
+          await connection.runTx((tx) async {
+            final codec = PostgresRelationalCodec(tx, universe);
+            expect(await codec.getMany('Value', []), isEmpty);
+            await expectLater(
+              codec.getMany('Value', List.filled(51, 1)),
+              throwsRangeError,
+            );
+            await expectLater(
+              codec.getMany('Value', [-1]),
+              throwsFormatException,
+            );
+            final value = CanonicalValue.parseJson(
+              '{"kind":"text","text":"\\ufeff\\ufeffé\\u0000😀"}',
+            );
+            final root = await codec.put('Value', value);
+            expect(
+              (await codec.getMany('Value', [
+                root,
+                root,
+              ])).map((v) => v.toText()),
+              [value.toText(), value.toText()],
+            );
+          });
+        },
+      );
+      test('broad valid bodies fall back without becoming an admission limit', () async {
+        final value = CanonicalValue.parseJson(
+          '{"kind":"sequence","items":['
+          '${List.filled(6000, '{"kind":"integer","digits":"+0007"}').join(',')}'
+          ']}',
+        );
+        await connection.runTx((tx) async {
+          final codec = PostgresRelationalCodec(tx, universe);
+          final root = await codec.put('Value', value);
+          expect(
+            (await codec.getMany('Value', [root])).single.toText(),
+            value.toText(),
+          );
+        });
+      }, timeout: const Timeout(Duration(minutes: 2)));
     },
     skip: port == null
         ? 'Set UB_TEST_POSTGRES_PORT for the disposable local ub_disposable database.'

@@ -14,9 +14,7 @@ final class PostgresCandidateAdmission {
   final PostgresJournal _journal;
 
   Future<void> validate(Membership membership) async {
-    final records = [
-      for (final version in membership.values) await _journal.load(version),
-    ];
+    final records = await _journal.loadMany(membership.values).toList();
     validateCandidateFoundationRecords(records);
     final pinned = {for (final record in records) record.versionId: record};
     final bindings = <(ContinuityId, RevisionId), bool>{};
