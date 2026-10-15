@@ -1046,6 +1046,8 @@ pub enum BoundaryArea {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Exception {
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub fictional_departure: bool,
     pub rule: RecordRef,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule_version: Option<RecordVersionId>,
@@ -1055,6 +1057,10 @@ pub struct Exception {
     /// The author decision that authorized this exception.
     pub authorizing_decision: RecordRef,
     pub rationale: String,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 // ---------------------------------------------------------------------------

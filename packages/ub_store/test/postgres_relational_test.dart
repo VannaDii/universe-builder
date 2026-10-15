@@ -155,6 +155,14 @@ void main() {
             });
           }
           final event = sourcedEventPayload(universe);
+          for (final marked in [false, true]) {
+            final payload = fictionalDeparturePayload(universe, marked);
+            cases.add({
+              'value': payload,
+              'canonical': CanonicalString(payload.toText()),
+              'digest': CanonicalString(payloadDigest('exception', payload)),
+            });
+          }
           cases.add({
             'value': event,
             'canonical': CanonicalString(event.toText()),

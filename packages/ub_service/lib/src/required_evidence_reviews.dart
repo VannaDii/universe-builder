@@ -203,7 +203,7 @@ protocol.Finding _review(
         'The selected review contains unresolved or opposing interpretation for this required claim.',
       );
     }
-    final covered = _coversRequiredTime(
+    final covered = coversRequiredEvidenceTime(
       validity,
       policy.validity,
       scoped
@@ -294,7 +294,7 @@ bool? _overlapsRequiredTime(
   return required.start < other.end && other.start < required.end;
 }
 
-bool? _coversRequiredTime(
+bool? coversRequiredEvidenceTime(
   Validity claim,
   Validity policy,
   Iterable<TemporalExpression> evidence,

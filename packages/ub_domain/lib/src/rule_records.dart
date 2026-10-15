@@ -469,6 +469,7 @@ final class BoundaryRecord extends RecordPayload {
 
 final class ExceptionRecord extends RecordPayload {
   const ExceptionRecord({
+    this.fictionalDeparture = false,
     required this.rule,
     this.ruleVersion,
     required this.scope,
@@ -481,6 +482,7 @@ final class ExceptionRecord extends RecordPayload {
   final Scope scope;
   final Validity validity;
   final String rationale;
+  final bool fictionalDeparture;
   factory ExceptionRecord.fromWire(CanonicalValue value) {
     final f = _recordFields(value, RecordKind.exception, {
       'rule',
@@ -489,9 +491,13 @@ final class ExceptionRecord extends RecordPayload {
       'validity',
       'authorizingDecision',
       'rationale',
+      'fictionalDeparture',
     });
     final pin = f.optionalString('ruleVersion');
     return ExceptionRecord(
+      fictionalDeparture: f.values.containsKey('fictionalDeparture')
+          ? f.boolean('fictionalDeparture')
+          : false,
       rule: RecordRef.fromCanonical(f.require('rule')),
       ruleVersion: pin == null ? null : RecordVersionId.parse(pin),
       scope: Scope.fromWire(f.require('scope')),
@@ -506,6 +512,8 @@ final class ExceptionRecord extends RecordPayload {
   RecordKind get recordKind => RecordKind.exception;
   @override
   CanonicalObject toWire() => _recordWire(recordKind, [
+    if (fictionalDeparture)
+      const MapEntry('fictionalDeparture', CanonicalBool(true)),
     MapEntry('rule', rule.toCanonical()),
     if (ruleVersion != null)
       MapEntry('ruleVersion', CanonicalString(ruleVersion!.value)),

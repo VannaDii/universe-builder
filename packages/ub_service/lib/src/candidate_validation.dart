@@ -17,12 +17,13 @@ import 'proposal_authorization.dart';
 import 'resource_checks.dart';
 import 'required_evidence_checks.dart';
 import 'required_evidence_reviews.dart';
+import 'fictional_departures.dart';
 import 'rule_checks.dart';
 import 'structural_checks.dart';
 import 'validation_findings.dart';
 
 const candidateEvaluatorVersion =
-    'finite-policy-v18-pinned-evidence-categories';
+    'finite-policy-v19-scoped-fictional-departures';
 
 /// Candidate assessment only. Approval, source staging, snapshot selection and
 /// durable publication remain the responsibility of the author workflow.
@@ -123,6 +124,16 @@ CandidateValidationResult evaluateCandidate({
     frame: frame,
   );
   var admissible = findings.isEmpty;
+  final fictionalExceptions = candidate
+      .where(
+        (r) =>
+            r.payload is ExceptionRecord &&
+            (r.payload as ExceptionRecord).fictionalDeparture,
+      )
+      .toList();
+  final departureIndex = fictionalExceptions.isEmpty
+      ? null
+      : rules.RecordIndex(candidate);
   for (final finding in assessRequiredEvidenceReviews(
     sourceFindings: assessRequiredEvidenceSources(
       records: candidate,
@@ -133,13 +144,22 @@ CandidateValidationResult evaluateCandidate({
     records: candidate,
     review: selectedAssessment,
   )) {
-    if (finding.outcome != protocol.EvidenceOutcome.supported) {
+    final departure = departureIndex == null
+        ? null
+        : fictionalDepartureForClaim(
+            finding,
+            candidate,
+            departureIndex,
+            fictionalExceptions,
+          );
+    if (finding.outcome != protocol.EvidenceOutcome.supported &&
+        departure == null) {
       admissible = false;
     }
     if (finding.coverage != protocol.Coverage.complete) {
       unsupported.add('required_evidence:${finding.ruleId.value}');
     }
-    findings.add(finding);
+    findings.add(withFictionalDeparture(finding, [?departure], departureIndex));
   }
   for (final f in findings) {
     if (f.coverage != protocol.Coverage.complete) {
@@ -196,15 +216,19 @@ CandidateValidationResult evaluateCandidate({
     ],
   ];
   protocol.Finding finding(RecordVersion r, CheckedRule result) =>
-      protocol.Finding(
-        records: [],
-        fingerprint: const FindingFingerprint(''),
-        ruleId: r.identity.recordId,
-        outcome: _outcome(result.evidence.outcome),
-        evidence: result.evidence.allSources,
-        coverage: result.complete
-            ? protocol.Coverage.complete
-            : protocol.Coverage.unsupported,
+      withFictionalDeparture(
+        protocol.Finding(
+          records: [],
+          fingerprint: const FindingFingerprint(''),
+          ruleId: r.identity.recordId,
+          outcome: _outcome(result.evidence.outcome),
+          evidence: result.evidence.allSources,
+          coverage: result.complete
+              ? protocol.Coverage.complete
+              : protocol.Coverage.unsupported,
+        ),
+        result.fictionalDepartures,
+        departureIndex,
       );
   for (final r in candidate) {
     checkCancelled?.call();

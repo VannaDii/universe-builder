@@ -27,6 +27,7 @@ import 'rule_checks_test.dart' as frames;
 import 'source_verification_test.dart' as sources;
 import 'assessment_validation_test.dart' as assessments;
 import 'required_evidence_sources_test.dart' as evidence;
+import 'fictional_departures_test.dart' as departures;
 import 'required_evidence_reviews_test.dart' as reviews;
 import 'required_event_evidence_test.dart' as event_evidence;
 import 'knowledge_checks_test.dart' as knowledge;
@@ -421,9 +422,13 @@ void main() {
         }
       });
       for (final includeEvents in [false, true]) {
-        for (final requiresReview in [false, true]) {
+        for (final (requiresReview, fictional) in [
+          (false, false),
+          (true, false),
+          (true, true),
+        ]) {
           test(
-            'scoped evidence policy validates and publishes through PostgreSQL with review=$requiresReview events=$includeEvents',
+            'scoped evidence policy validates and publishes through PostgreSQL with review=$requiresReview events=$includeEvents fictional=$fictional',
             () async {
               final rows =
                   (includeEvents
@@ -467,6 +472,29 @@ void main() {
                   ),
                 ),
               ]);
+              if (fictional) {
+                rows.addAll([
+                  f.row(
+                    40,
+                    evidence.policy(
+                      predicates: includeEvents ? [] : ['test:answer'],
+                      reviewMethods: [EvidenceReviewMethod.humanReview],
+                    ),
+                  ),
+                  f.row(
+                    41,
+                    IssueDecisionRecord(
+                      fingerprints: [],
+                      mode: IssueDecisionMode.accept,
+                      scope: f.id(40).value,
+                      rationale: 'Explicit scoped fiction',
+                      principal: PrincipalId.parse(
+                        owner.value.replaceFirst('prf_', 'prn_'),
+                      ),
+                    ),
+                  ),
+                ]);
+              }
               await store.transaction(
                 (s) => s.workflows(f.u).compareAppend({}, [
                   MapEntry('source-version:${f.id(12).value}', source.toWire()),
@@ -498,15 +526,25 @@ void main() {
                   universeId: f.u,
                   contextId: writerContext,
                   operations: [
-                    DefineRuleOperation(
-                      clientRef: f.id(40).value,
-                      record: evidence.policy(
-                        predicates: includeEvents ? [] : ['test:answer'],
-                        reviewMethods: requiresReview
-                            ? [EvidenceReviewMethod.humanReview]
-                            : [],
+                    if (fictional)
+                      AddExceptionOperation(
+                        clientRef: f.id(50).value,
+                        record: departures.departure(
+                          policy: 40,
+                          decision: 41,
+                          validity: const UnspecifiedValidity(),
+                        ),
+                      )
+                    else
+                      DefineRuleOperation(
+                        clientRef: f.id(40).value,
+                        record: evidence.policy(
+                          predicates: includeEvents ? [] : ['test:answer'],
+                          reviewMethods: requiresReview
+                              ? [EvidenceReviewMethod.humanReview]
+                              : [],
+                        ),
                       ),
-                    ),
                   ],
                   submission: Submission.submitted,
                   rationale: 'Scoped evidence policy',
@@ -520,7 +558,7 @@ void main() {
                 ),
                 requiresReview,
               );
-              if (requiresReview) {
+              if (requiresReview && !fictional) {
                 CanonicalValue body =
                     (includeEvents
                             ? event_evidence.review(rows, includeEffect: true)
@@ -565,6 +603,15 @@ void main() {
                   isValidationActive: (_) => true,
                 ),
               );
+              if (fictional)
+                expect(
+                  checked.validation.findings.any(
+                    (f) =>
+                        f.outcome == EvidenceOutcome.notEstablished &&
+                        f.message?.startsWith('Fictional departure:') == true,
+                  ),
+                  isTrue,
+                );
               await run(
                 owner,
                 (w) => w.approve(reference(proposal), checked.validation.runId),

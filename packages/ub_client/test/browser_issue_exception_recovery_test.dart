@@ -156,6 +156,7 @@ void main() {
       final context = RecordId.generate(), calendar = CalendarId.generate();
       final scope = scopeFor(context, 'exception');
       final input = UnfinishedExceptionForm(
+        fictionalDeparture: true,
         baseRevision: RevisionId.generate(),
         representedContext: context,
         clientRef: 'exception',
@@ -234,6 +235,7 @@ void main() {
           disabled.toWire().toText(),
         );
         final cleared = input.copyWith(
+          fictionalDeparture: false,
           ruleVersionEnabled: false,
           ruleVersion: '',
           rule: ExpressionReferenceInput(),

@@ -5608,6 +5608,10 @@
         "record_kind": {
           "model": "Payload_v23_record_kind",
           "required": true
+        },
+        "fictionalDeparture": {
+          "model": "Payload_v23_fictionalDeparture",
+          "required": false
         }
       }
     },
@@ -5631,6 +5635,10 @@
       "table": "r_payload_v23_record_kind",
       "kind": "string",
       "const": "exception"
+    },
+    "Payload_v23_fictionalDeparture": {
+      "table": "r_payload_v23_fictional_departure",
+      "kind": "boolean"
     },
     "Payload_v24": {
       "table": "r_payload_v24",
@@ -10340,6 +10348,10 @@
         "rationale": {
           "model": "Exception_rationale",
           "required": true
+        },
+        "fictionalDeparture": {
+          "model": "Exception_fictionalDeparture",
+          "required": false
         }
       }
     },
@@ -10358,6 +10370,10 @@
     "Exception_rationale": {
       "table": "r_exception_rationale",
       "kind": "string"
+    },
+    "Exception_fictionalDeparture": {
+      "table": "r_exception_fictional_departure",
+      "kind": "boolean"
     },
     "DomainOperation_v40_kind": {
       "table": "r_domain_operation_v40_kind",

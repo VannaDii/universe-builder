@@ -39,8 +39,17 @@ An event's optional `basis` names its source; the declared action supplies its
 context and realm. Verified generated effects can use that source, while a
 required effect review must still identify the exact effect claim. Plans and
 reports retain their existing occurrence distinctions. Arbitrary derived
-evidence and world overrides/scoped fictional departures remain unfinished. The Rust engine still rejects
+evidence and world-level policy overrides remain unfinished. The Rust engine still rejects
 all `requiredEvidence` declarations explicitly.
+
+The exception editor offers **Fictional departure** for deliberate fiction in an
+exact rule, context, world and time scope. It retains the existing authorizing
+decision and reviewed publication flow. A valid marked departure can permit
+publication under an evidence policy while the check still reports missing or
+unresolved factual support, identifies the departure, and retains its exact
+dependencies. Other worlds and uncovered scopes remain strict. Unsupported checks
+and `always_block` expressions still block. Ordinary exceptions keep their prior
+behavior; the Rust engine explicitly rejects marked fictional departures.
 
 Changes shows readable policy and affected-fact names alongside each check's
 outcome, coverage and message. Evidence policies also show their scope, optional

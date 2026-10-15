@@ -67,10 +67,17 @@ List<protocol.Finding> assessRequiredEvidenceSources({
     (dependents[b] ??= {}).add(a);
   }
   final affected = <RecordId>{};
+  final exceptionTargets = <RecordId, Set<RecordId>>{};
+  for (final row in [...base, ...records]) {
+    if (row.payload case ExceptionRecord(:final rule)) {
+      (exceptionTargets[row.identity.recordId] ??= {}).add(rule.record);
+    }
+  }
   final pending = changed.toList();
   while (pending.isNotEmpty) {
     final next = pending.removeLast();
     if (!affected.add(next)) continue;
+    pending.addAll(exceptionTargets[next] ?? const <RecordId>{});
     pending.addAll(dependents[next] ?? const <RecordId>{});
   }
   final findings = <protocol.Finding>[];

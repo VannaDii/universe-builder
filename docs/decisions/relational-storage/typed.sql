@@ -3718,6 +3718,8 @@ CREATE TABLE "r_payload_v23" (
   "rationale" TEXT,
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
+  "fictionalDeparture__state" INTEGER NOT NULL CHECK("fictionalDeparture__state" IN (0,2)),
+  "fictionalDeparture" INTEGER,
   CHECK(("rule__state"=2 AND "rule" IS NOT NULL) OR ("rule__state" IN (0,1) AND "rule" IS NULL)),
   CHECK(("ruleVersion__state"=2 AND "ruleVersion" IS NOT NULL) OR ("ruleVersion__state" IN (0,1) AND "ruleVersion" IS NULL)),
   CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
@@ -3725,7 +3727,9 @@ CREATE TABLE "r_payload_v23" (
   CHECK(("authorizingDecision__state"=2 AND "authorizingDecision" IS NOT NULL) OR ("authorizingDecision__state" IN (0,1) AND "authorizingDecision" IS NULL)),
   CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='exception')
+  CHECK("record_kind"='exception'),
+  CHECK(("fictionalDeparture__state"=2 AND "fictionalDeparture" IS NOT NULL) OR ("fictionalDeparture__state" IN (0,1) AND "fictionalDeparture" IS NULL)),
+  CHECK("fictionalDeparture" IN (0,1))
 ) STRICT;
 
 CREATE TABLE "r_payload_v23_rule_version" (
@@ -6941,12 +6945,16 @@ CREATE TABLE "r_exception" (
   "authorizingDecision" INTEGER REFERENCES "r_record_ref"(__row_id),
   "rationale__state" INTEGER NOT NULL CHECK("rationale__state" IN (2)),
   "rationale" TEXT,
+  "fictionalDeparture__state" INTEGER NOT NULL CHECK("fictionalDeparture__state" IN (0,2)),
+  "fictionalDeparture" INTEGER,
   CHECK(("rule__state"=2 AND "rule" IS NOT NULL) OR ("rule__state" IN (0,1) AND "rule" IS NULL)),
   CHECK(("ruleVersion__state"=2 AND "ruleVersion" IS NOT NULL) OR ("ruleVersion__state" IN (0,1) AND "ruleVersion" IS NULL)),
   CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
   CHECK(("authorizingDecision__state"=2 AND "authorizingDecision" IS NOT NULL) OR ("authorizingDecision__state" IN (0,1) AND "authorizingDecision" IS NULL)),
-  CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL))
+  CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL)),
+  CHECK(("fictionalDeparture__state"=2 AND "fictionalDeparture" IS NOT NULL) OR ("fictionalDeparture__state" IN (0,1) AND "fictionalDeparture" IS NULL)),
+  CHECK("fictionalDeparture" IN (0,1))
 ) STRICT;
 
 CREATE TABLE "r_exception_rule_version" (

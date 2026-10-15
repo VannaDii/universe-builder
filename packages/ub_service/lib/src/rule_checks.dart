@@ -7,9 +7,11 @@ final class CheckedRule {
     required this.evidence,
     required this.complete,
     required this.accepted,
+    this.fictionalDepartures = const [],
   });
   final Evidence evidence;
   final bool complete, accepted;
+  final List<RecordVersion> fictionalDepartures;
 }
 
 final _nonWhitespace = RegExp(
@@ -43,6 +45,14 @@ bool validException(ExceptionRecord e, List<RecordVersion> records) {
   RecordRef? cell, realm;
   switch (target.payload) {
     case RuleRecord(
+          :final applicability,
+          validity: final v,
+          :final requiredEvidence,
+        )
+        when e.fictionalDeparture && requiredEvidence != null:
+      scope = applicability;
+      validity = v;
+    case RuleRecord(
       commitPolicy: CommitPolicy.blockUnlessException,
       :final applicability,
       validity: final v,
@@ -50,6 +60,7 @@ bool validException(ExceptionRecord e, List<RecordVersion> records) {
       scope = applicability;
       validity = v;
     case BoundaryRecord(scope: final s, validity: final v):
+      if (e.fictionalDeparture) return false;
       scope = s.applicability;
       validity = v;
       cell = s.context;
@@ -68,7 +79,8 @@ bool validException(ExceptionRecord e, List<RecordVersion> records) {
               true;
   return _subset(e.scope.applicability, scope) &&
       contained &&
-      e.scope.realm == realm &&
+      (target.payload is RuleRecord && e.fictionalDeparture ||
+          e.scope.realm == realm) &&
       (cell == null || cell == e.scope.context) &&
       _nonWhitespace.hasMatch(e.rationale) &&
       records.any((r) {
@@ -89,6 +101,7 @@ bool exceptionAt(
   List<RecordVersion> records,
 ) =>
     e.rule.record == target.identity.recordId &&
+    (target.payload is! RuleRecord || e.scope.realm == null) &&
     e.scope.context == frame.context &&
     validException(e, records) &&
     switch (e.scope.applicability) {
@@ -359,6 +372,7 @@ CheckedRule evaluateCandidateRule({
           )
           .toList();
   var evidence = Evidence.supported([]), complete = true, accepted = true;
+  final usedDepartures = <RecordVersionId, RecordVersion>{};
   for (final frame in frames) {
     for (final world in worlds) {
       final applies = ruleAppliesIndexed(rule, records, subjectIndex, world);
@@ -392,17 +406,22 @@ CheckedRule evaluateCandidateRule({
           rule.commitPolicy == CommitPolicy.blockUnlessException &&
           contexts.every((c) => c != null) &&
           contexts.every(
-            (c) => exceptions.any(
-              (r) =>
-                  r.payload is ExceptionRecord &&
-                  exceptionAt(
-                    r.payload as ExceptionRecord,
-                    record,
-                    _frame(frame, context: c!),
-                    world,
-                    records,
-                  ),
-            ),
+            (c) => exceptions.any((exception) {
+              final e = exception.payload as ExceptionRecord;
+              final matches = exceptionAt(
+                e,
+                record,
+                _frame(frame, context: c!),
+                world,
+                records,
+              );
+              if (matches &&
+                  e.fictionalDeparture &&
+                  r.outcome != EvidenceOutcome.supported) {
+                usedDepartures[exception.recordVersionId] = exception;
+              }
+              return matches;
+            }),
           );
       accepted =
           accepted &&
@@ -414,6 +433,7 @@ CheckedRule evaluateCandidateRule({
   }
   return CheckedRule(
     evidence: evidence,
+    fictionalDepartures: usedDepartures.values.toList(),
     complete: complete,
     accepted: accepted,
   );

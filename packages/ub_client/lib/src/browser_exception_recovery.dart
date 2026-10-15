@@ -50,6 +50,7 @@ extension type _ExceptionRow._(JSObject _) implements JSObject {
     required JSAny rule,
     required bool ruleVersionEnabled,
     required String ruleVersion,
+    bool? fictionalDeparture,
     required JSAny decision,
     required JSAny factualScope,
     required JSAny validity,
@@ -64,6 +65,7 @@ extension type _ExceptionRow._(JSObject _) implements JSObject {
   external JSAny get rule;
   external bool get ruleVersionEnabled;
   external String get ruleVersion;
+  external bool? get fictionalDeparture;
   external JSAny get decision;
   external JSAny get factualScope;
   external JSAny get validity;
@@ -162,6 +164,7 @@ final class BrowserExceptionFormRecoveryStore {
         rule: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.rule)),
         ruleVersionEnabled: row.ruleVersionEnabled,
         ruleVersion: row.ruleVersion,
+        fictionalDeparture: row.fictionalDeparture ?? false,
         decision: ExpressionReferenceInput.fromWire(
           decodeBrowserInput(row.decision),
         ),
@@ -277,6 +280,7 @@ final class BrowserExceptionFormRecoveryStore {
               rule: encodeBrowserInput(form.rule.toWire())!,
               ruleVersionEnabled: form.ruleVersionEnabled,
               ruleVersion: form.ruleVersion,
+              fictionalDeparture: form.fictionalDeparture,
               decision: encodeBrowserInput(form.decision.toWire())!,
               factualScope: encodeBrowserInput(form.scope.toWire())!,
               validity: encodeBrowserInput(form.validity.toWire())!,

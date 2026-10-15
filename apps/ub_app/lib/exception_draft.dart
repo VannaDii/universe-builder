@@ -16,6 +16,7 @@ AddExceptionOperation exceptionOperation(UnfinishedExceptionForm form) =>
     AddExceptionOperation(
       clientRef: form.clientRef,
       record: ExceptionRecord(
+        fictionalDeparture: form.fictionalDeparture,
         rule: _reference(form.rule),
         ruleVersion: form.ruleVersionEnabled
             ? RecordVersionId.parse(form.ruleVersion)
@@ -44,6 +45,7 @@ UnfinishedExceptionForm exceptionFormFromDraft(SavedDraft draft, int index) {
     validity: actionValidityInput(record.validity),
     rationale: record.rationale,
     original: record,
+    fictionalDeparture: record.fictionalDeparture,
     draftVersion: draft.version,
   );
 }

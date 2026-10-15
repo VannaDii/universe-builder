@@ -158,19 +158,27 @@ void main() {
   test('exceptions preserve exact optional rule pins and authorizing decision references', () {
     final pin = RecordVersionId.parse('ver_000000000000000000000001');
     for (final version in [null, pin]) {
-      final exception = ExceptionRecord(
-        rule: ref(2),
-        ruleVersion: version,
-        scope: scope,
-        validity: const UnknownValidity(),
-        authorizingDecision: ref(3),
-        rationale: 'Specific departure',
-      );
-      expect(RecordPayload.fromWire(exception.toWire()), exception);
-      expect(exception.ruleVersion, version);
-      expect(exception.authorizingDecision, ref(3));
-      if (version == null) {
-        expect(exception.toWire().toText(), isNot(contains('"ruleVersion"')));
+      for (final marked in [false, true]) {
+        final exception = ExceptionRecord(
+          fictionalDeparture: marked,
+          rule: ref(2),
+          ruleVersion: version,
+          scope: scope,
+          validity: const UnknownValidity(),
+          authorizingDecision: ref(3),
+          rationale: 'Specific departure',
+        );
+        expect(RecordPayload.fromWire(exception.toWire()), exception);
+        expect(exception.ruleVersion, version);
+        expect(exception.authorizingDecision, ref(3));
+        expect(exception.fictionalDeparture, marked);
+        expect(
+          exception.toWire().toText().contains('fictionalDeparture'),
+          marked,
+        );
+        if (version == null) {
+          expect(exception.toWire().toText(), isNot(contains('"ruleVersion"')));
+        }
       }
     }
   });

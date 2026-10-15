@@ -109,6 +109,9 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
         .collect();
     let mut action_names = BTreeSet::new();
     for record in records {
+        if matches!(&record.payload, Payload::Exception(e) if e.fictional_departure) {
+            return Err(ProtocolError::UnsupportedSemantics { message: "Scoped fictional departures require the Dart engine.".into() }.into());
+        }
         if matches!(&record.payload, Payload::Rule(r) if r.required_evidence.is_some()) {
             return Err(ProtocolError::UnsupportedSemantics { message: "Required Real World evidence admission is not implemented; this policy cannot be published or treated as satisfied.".into() }.into());
         }
@@ -1374,6 +1377,8 @@ mod required_evidence_tests {
             .unwrap()
         };
         structural(&[record(payload.clone())]).unwrap();
+        let marked = json!({"record_kind":"exception","fictionalDeparture":true,"rule":{"record":"rec_000000000000000000000002"},"ruleVersion":"ver_000000000000000000000002","scope":{"context":{"record":"rec_000000000000000000000003"},"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"},"authorizingDecision":{"record":"rec_000000000000000000000004"},"rationale":"Invented for the story"});
+        assert!(matches!(structural(&[record(marked)]).unwrap_err().downcast_ref::<ProtocolError>(), Some(ProtocolError::UnsupportedSemantics { .. })));
         payload["requiredEvidence"] = json!({"sourceCategories":[]});
         let failure = structural(&[record(payload)]).unwrap_err();
         assert!(matches!(

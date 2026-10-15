@@ -13419,6 +13419,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -19730,6 +19733,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -25949,6 +25955,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -36063,6 +36072,9 @@
           "description": "A scoped exception to a rule (spec §9.3, §31.3).",
           "type": "object",
           "properties": {
+            "fictionalDeparture": {
+              "type": "boolean"
+            },
             "rule": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -37419,6 +37431,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -48526,6 +48541,9 @@
           "description": "A scoped exception to a rule (spec §9.3, §31.3).",
           "type": "object",
           "properties": {
+            "fictionalDeparture": {
+              "type": "boolean"
+            },
             "rule": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -49882,6 +49900,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -57766,6 +57787,9 @@
           "description": "A scoped exception to a rule (spec §9.3, §31.3).",
           "type": "object",
           "properties": {
+            "fictionalDeparture": {
+              "type": "boolean"
+            },
             "rule": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -59122,6 +59146,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -67226,6 +67253,9 @@
           "description": "A scoped exception to a rule (spec §9.3, §31.3).",
           "type": "object",
           "properties": {
+            "fictionalDeparture": {
+              "type": "boolean"
+            },
             "rule": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -68582,6 +68612,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -81033,6 +81066,9 @@
           "description": "A scoped exception to a rule (spec §9.3, §31.3).",
           "type": "object",
           "properties": {
+            "fictionalDeparture": {
+              "type": "boolean"
+            },
             "rule": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -82389,6 +82425,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -91285,6 +91324,9 @@
           "description": "A scoped exception to a rule (spec §9.3, §31.3).",
           "type": "object",
           "properties": {
+            "fictionalDeparture": {
+              "type": "boolean"
+            },
             "rule": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -92641,6 +92683,9 @@
               "description": "A scoped exception to a rule (spec §9.3, §31.3).",
               "type": "object",
               "properties": {
+                "fictionalDeparture": {
+                  "type": "boolean"
+                },
                 "rule": {
                   "$ref": "#/$defs/RecordRef"
                 },

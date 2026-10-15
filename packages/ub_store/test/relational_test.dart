@@ -84,6 +84,17 @@ void main() {
     final event = sourcedEventPayload(
       UniverseId.parse('unv_${'1'.padLeft(24, '0')}'),
     );
+    for (final marked in [false, true]) {
+      final payload = fictionalDeparturePayload(
+        UniverseId.parse('unv_${'1'.padLeft(24, '0')}'),
+        marked,
+      );
+      cases.add({
+        'value': payload,
+        'canonical': CanonicalString(payload.toText()),
+        'digest': CanonicalString(payloadDigest('exception', payload)),
+      });
+    }
     cases.add({
       'value': event,
       'canonical': CanonicalString(event.toText()),

@@ -189,7 +189,7 @@ The shared Flutter rule editor now exposes source-category selection and optiona
 accepted review methods for new rules and published revisions, alongside the
 existing scope controls. It retains exact published category versions and saves
 unfinished input through native/browser form recovery. Changes use the existing
-review/publication path. Explicit fictional departures remain pending.
+review/publication path.
 Changes now presents readable policy/claim names from the checked candidate and
 base revision, with requirement scope, accepted review methods and source-category
 selections. Missing display names do not alter the original findings or their
@@ -240,8 +240,31 @@ author approval cannot discharge these duties.
 Policies may cover assertions and occurrences together or select named predicates
 for assertions/effects. Arbitrary derivation chains remain explicitly unsupported.
 The Rust engine still rejects all required-evidence declarations. Delivery still
-requires world-level policy overrides, explicit fictional departures and the
+requires world-level policy overrides and the
 remaining platform workflows specified above.
+
+### 4.7 Explicit scoped fictional departures
+
+The existing Exception record now has optional `fictionalDeparture` (false/omitted
+for ordinary historical exceptions). The author marks a departure in the exception
+editor and selects the exact published rule, authorizing acceptance decision,
+context, worlds and time. It uses the normal Changes and publication workflow.
+
+A marked departure can permit publication under a required-evidence policy only
+where that valid exception covers the affected claim's required scope. It does
+not turn missing sources or interpretation review into factual support. Findings
+retain their original outcome and coverage, identify the fictional departure in
+their message, and include its exact version and author-decision version as
+dependencies. Unsupported checks remain blocking. Ordinary approvals or unmarked
+exceptions do not bypass evidence obligations.
+
+Physical rules with the existing `block_unless_exception` policy keep their
+exception behavior; marked departures are identified while the refuted factual
+outcome remains visible. An `always_block` expression is still enforced. A narrow
+departure cannot relax another world's obligation or an uncovered time/context.
+Changing/removing an exception or its acceptance decision rechecks its dependent
+claims. The Rust engine explicitly rejects marked departures; admission is
+implemented by the shared Dart evaluator in SQLite/PostgreSQL.
 
 ## 5. Target application architecture
 

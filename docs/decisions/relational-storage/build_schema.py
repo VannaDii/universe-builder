@@ -84,6 +84,8 @@ def contracts():
             fields['requiredEvidence'] = nullable(ref('RequiredEvidence'))
         if {'occurrence', 'participants', 'effects', 'expansionVersion'} <= fields.keys():
             fields['basis'] = nullable(ref('EvidenceBasis'))
+        if {'rule', 'ruleVersion', 'authorizingDecision', 'rationale'} <= fields.keys():
+            fields['fictionalDeparture'] = {'type':'boolean'}
         if 'payload_schema_version' in fields:
             fields.pop('payload_schema_version')
             schema['required'] = [k for k in required if k!='payload_schema_version']

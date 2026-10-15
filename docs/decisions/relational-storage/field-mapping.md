@@ -647,11 +647,12 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `RequiredEvidence_reviewMethods` | `r_required_evidence_review_methods` | EvidenceReviewMethod |
 | `EvidenceReviewMethod` | `r_evidence_review_method` (scalar column) | string |
 | `Payload_v22_requiredEvidence_v1` | `r_payload_v22_required_evidence_v1` (scalar column) | null |
-| `Payload_v23` | `r_payload_v23` | rule → RecordRef, ruleVersion → Payload_v23_ruleVersion, scope → Scope, validity → Validity, authorizingDecision → RecordRef, rationale → Payload_v23_rationale, record_kind → Payload_v23_record_kind |
+| `Payload_v23` | `r_payload_v23` | rule → RecordRef, ruleVersion → Payload_v23_ruleVersion, scope → Scope, validity → Validity, authorizingDecision → RecordRef, rationale → Payload_v23_rationale, record_kind → Payload_v23_record_kind, fictionalDeparture → Payload_v23_fictionalDeparture |
 | `Payload_v23_ruleVersion` | `r_payload_v23_rule_version` | RecordVersionId, Payload_v23_ruleVersion_v1 |
 | `Payload_v23_ruleVersion_v1` | `r_payload_v23_rule_version_v1` (scalar column) | null |
 | `Payload_v23_rationale` | `r_payload_v23_rationale` (scalar column) | string |
 | `Payload_v23_record_kind` | `r_payload_v23_record_kind` (scalar column) | string |
+| `Payload_v23_fictionalDeparture` | `r_payload_v23_fictional_departure` (scalar column) | boolean |
 | `Payload_v24` | `r_payload_v24` | occurrence → OccurrenceMode, action → Payload_v24_action, worlds → Payload_v24_worlds, region → Payload_v24_region, time → TemporalExpression, sequence → Payload_v24_sequence, occurrenceId → Payload_v24_occurrenceId, participants → Payload_v24_participants, preconditions → Payload_v24_preconditions, effects → Payload_v24_effects, labels → Payload_v24_labels, expansionVersion → Payload_v24_expansionVersion, record_kind → Payload_v24_record_kind, basis → Payload_v24_basis |
 | `OccurrenceMode` | `r_occurrence_mode` | OccurrenceMode_v0, OccurrenceMode_v1 |
 | `OccurrenceMode_v0` | `r_occurrence_mode_v0` (scalar column) | string |
@@ -1157,10 +1158,11 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v39_kind` | `r_domain_operation_v39_kind` (scalar column) | string |
 | `DomainOperation_v40` | `r_domain_operation_v40` | client_ref → DomainOperation_v40_client_ref, record → Exception, kind → DomainOperation_v40_kind |
 | `DomainOperation_v40_client_ref` | `r_domain_operation_v40_client_ref` (scalar column) | string |
-| `Exception` | `r_exception` | rule → RecordRef, ruleVersion → Exception_ruleVersion, scope → Scope, validity → Validity, authorizingDecision → RecordRef, rationale → Exception_rationale |
+| `Exception` | `r_exception` | rule → RecordRef, ruleVersion → Exception_ruleVersion, scope → Scope, validity → Validity, authorizingDecision → RecordRef, rationale → Exception_rationale, fictionalDeparture → Exception_fictionalDeparture |
 | `Exception_ruleVersion` | `r_exception_rule_version` | RecordVersionId, Exception_ruleVersion_v1 |
 | `Exception_ruleVersion_v1` | `r_exception_rule_version_v1` (scalar column) | null |
 | `Exception_rationale` | `r_exception_rationale` (scalar column) | string |
+| `Exception_fictionalDeparture` | `r_exception_fictional_departure` (scalar column) | boolean |
 | `DomainOperation_v40_kind` | `r_domain_operation_v40_kind` (scalar column) | string |
 | `DomainOperation_v41` | `r_domain_operation_v41` | client_ref → DomainOperation_v41_client_ref, record → Anchor, kind → DomainOperation_v41_kind |
 | `DomainOperation_v41_client_ref` | `r_domain_operation_v41_client_ref` (scalar column) | string |

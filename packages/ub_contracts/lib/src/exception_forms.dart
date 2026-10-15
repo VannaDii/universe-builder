@@ -12,6 +12,7 @@ final class UnfinishedExceptionForm {
     this.rule = const ExpressionReferenceInput(),
     this.ruleVersionEnabled = false,
     this.ruleVersion = '',
+    this.fictionalDeparture = false,
     this.decision = const ExpressionReferenceInput(),
     this.scope = const ScopeInput(),
     this.validity = const TemporalValidityInput(kind: 'unspecified'),
@@ -24,6 +25,7 @@ final class UnfinishedExceptionForm {
   final String clientRef, ruleVersion, rationale;
   final ExpressionReferenceInput rule, decision;
   final bool ruleVersionEnabled;
+  final bool fictionalDeparture;
   final ScopeInput scope;
   final TemporalValidityInput validity;
   final ExceptionRecord? original;
@@ -32,6 +34,7 @@ final class UnfinishedExceptionForm {
     ExpressionReferenceInput? rule,
     bool? ruleVersionEnabled,
     String? ruleVersion,
+    bool? fictionalDeparture,
     ExpressionReferenceInput? decision,
     ScopeInput? scope,
     TemporalValidityInput? validity,
@@ -43,6 +46,7 @@ final class UnfinishedExceptionForm {
     rule: rule ?? this.rule,
     ruleVersionEnabled: ruleVersionEnabled ?? this.ruleVersionEnabled,
     ruleVersion: ruleVersion ?? this.ruleVersion,
+    fictionalDeparture: fictionalDeparture ?? this.fictionalDeparture,
     decision: decision ?? this.decision,
     scope: scope ?? this.scope,
     validity: validity ?? this.validity,
@@ -57,6 +61,8 @@ final class UnfinishedExceptionForm {
     MapEntry('rule', rule.toWire()),
     MapEntry('rule_version_enabled', CanonicalBool(ruleVersionEnabled)),
     MapEntry('rule_version', CanonicalString(ruleVersion)),
+    if (fictionalDeparture)
+      const MapEntry('fictional_departure', CanonicalBool(true)),
     MapEntry('decision', decision.toWire()),
     MapEntry('scope', scope.toWire()),
     MapEntry('validity', validity.toWire()),
@@ -73,6 +79,7 @@ final class UnfinishedExceptionForm {
       'rule',
       'rule_version_enabled',
       'rule_version',
+      'fictional_departure',
       'decision',
       'scope',
       'validity',
@@ -87,6 +94,9 @@ final class UnfinishedExceptionForm {
       rule: ExpressionReferenceInput.fromWire(f.require('rule')),
       ruleVersionEnabled: f.boolean('rule_version_enabled'),
       ruleVersion: f.string('rule_version'),
+      fictionalDeparture: f.values.containsKey('fictional_departure')
+          ? f.boolean('fictional_departure')
+          : false,
       decision: ExpressionReferenceInput.fromWire(f.require('decision')),
       scope: ScopeInput.fromWire(f.require('scope')),
       validity: TemporalValidityInput.fromWire(f.require('validity')),

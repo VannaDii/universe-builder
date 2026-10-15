@@ -13,6 +13,7 @@ void main() {
         RecordRef(universe: universe, record: RecordId.generate());
     for (final pin in [null, RecordVersionId.generate()]) {
       final record = ExceptionRecord(
+        fictionalDeparture: true,
         rule: ref(),
         ruleVersion: pin,
         authorizingDecision: ref(),
@@ -88,6 +89,7 @@ void main() {
       representedContext: RecordId.generate(),
     );
     final form = UnfinishedExceptionForm(
+      fictionalDeparture: true,
       baseRevision: RevisionId.generate(),
       representedContext: scope.representedContext!,
       clientRef: RecordId.generate().value,

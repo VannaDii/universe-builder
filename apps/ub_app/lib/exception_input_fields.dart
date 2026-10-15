@@ -76,6 +76,9 @@ class _ExceptionInputFieldsState extends State<ExceptionInputFields> {
         context: context,
         record: ref.record,
       );
+      if (widget.form.fictionalDeparture && row.payload is! RuleRecord) {
+        throw const FormatException('Choose a rule for a fictional departure.');
+      }
       if (row.payload is! RuleRecord && row.payload is! BoundaryRecord) {
         throw const FormatException('Choose a rule or creative boundary.');
       }
@@ -112,11 +115,22 @@ class _ExceptionInputFieldsState extends State<ExceptionInputFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Fictional departure'),
+          subtitle: const Text(
+            'Declare fiction within this exception’s exact rule, context, worlds and time. Checks retain their factual outcome and identify the departure separately.',
+          ),
+          value: f.fictionalDeparture,
+          onChanged: disabled
+              ? null
+              : (value) => change(f.copyWith(fictionalDeparture: value)),
+        ),
         DraftRecordChoiceField(
           changes: widget.changes,
           draft: widget.draft,
-          kind: null,
-          label: 'Rule or boundary',
+          kind: f.fictionalDeparture ? RecordKind.rule : null,
+          label: f.fictionalDeparture ? 'Rule' : 'Rule or boundary',
           record: f.rule.record,
           universe: f.rule.universe,
           disabled: disabled,

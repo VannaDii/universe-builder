@@ -23,6 +23,7 @@ class ExactFields extends StatelessWidget {
                   'labels' => 'Display labels',
                   'aliases' => 'Other names',
                   'metadata' => 'Additional details',
+                  'fictionalDeparture' => 'Fictional departure',
                   'kind' || 'record_kind' => 'Record type',
                   _ => field.key.replaceAll('_', ' '),
                 }, style: Theme.of(context).textTheme.labelLarge),
