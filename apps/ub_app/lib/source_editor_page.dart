@@ -3,6 +3,7 @@ import 'dart:async';
 import 'guarded_pop_scope.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
@@ -10,6 +11,7 @@ import 'changes_page.dart';
 import 'source_draft.dart';
 import 'source_anchor.dart';
 import 'source_text_view.dart';
+import 'source_text_editing.dart';
 import 'saved_changes.dart';
 
 class SourceEditorPage extends StatefulWidget {
@@ -494,8 +496,14 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                   _text(
                     'text',
                     _anchor ? 'Exact excerpt' : 'Exact source text',
-                    f.text,
-                    (v) => _change(text: v),
+                    kIsWeb ? browserSourceInputText(f.text) : f.text,
+                    (v) {
+                      final original = _form!.text;
+                      final text = kIsWeb
+                          ? retainBrowserSourceText(original, v)
+                          : v;
+                      if (text != original) _change(text: text);
+                    },
                     maxLines: 12,
                   ),
                   _text(
