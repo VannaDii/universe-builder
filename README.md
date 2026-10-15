@@ -1031,8 +1031,16 @@ The service's existing rules decide whether
 approval is admissible. **Approve reviewed changes** retains approval for this
 exact proposal and check run; **Publish approved changes** is a separate action.
 **Check publication** and reopening use existing approvals and operation lookup
-to recover the outcome without retrying publication automatically. An approval
-saved before closing remains ready for **Publish approved changes** after restart,
+to recover the outcome without retrying publication automatically.
+**Operation recovery** in Changes opens
+the known publication, check or proposal operation; an operation reference from
+a connected writer can be entered under **Operation reference**. It reads the
+available result pages with current profile access. **Cancel pending operation**
+uses the existing service cancellation request and retained retry key. Cancellation
+does not withdraw a proposal or reverse a completed publication; a completion that
+wins the race remains completed. **Check operation status** reads the retained
+outcome. Returning to Changes refreshes publication status.
+An approval saved before closing remains ready for **Publish approved changes** after restart,
 even when publication has not started. The confirmed
 receipt names its revision, and **Read published records** opens that exact
 revision with current access. Returning to Overview refreshes the canon summary.

@@ -16,6 +16,8 @@ import 'resource_acceptance.dart';
 import 'issue_decision_editor_page.dart';
 import 'assessment_declaration_view.dart';
 import 'proposal_assessment.dart';
+import 'operation_recovery.dart';
+import 'operation_recovery_page.dart';
 
 MaterialPageRoute<void> changesRoute(SavedChanges changes) {
   final scope = changes.scope;
@@ -323,6 +325,29 @@ class _ChangesPageState extends State<ChangesPage> {
         });
       }
     }
+  }
+
+  Future<void> _operations() async {
+    if (_busy) return;
+    if (_rationaleDirty) await _saveRationale();
+    if (!mounted || _busy || _rationaleDirty) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => OperationRecoveryPage(
+          recovery: OperationRecovery(
+            call: widget.changes.session.call,
+            universe: widget.changes.universe,
+            universeId: widget.changes.scope.universe,
+          ),
+          initialOperation:
+              _receipt?.operationId ??
+              _publication?.status?.operationId ??
+              _validation?.execution?.operationId ??
+              _proposal?.operationId,
+        ),
+      ),
+    );
+    if (mounted && _proposal != null) await _checkPublication();
   }
 
   Future<void> _withdraw() async {
@@ -1720,6 +1745,10 @@ class _ChangesPageState extends State<ChangesPage> {
                     OutlinedButton(
                       onPressed: _busy || _rationaleDirty ? null : _load,
                       child: const Text('Check saved changes'),
+                    ),
+                    TextButton(
+                      onPressed: _busy ? null : _operations,
+                      child: const Text('Operation recovery'),
                     ),
                     if (_draft != null &&
                         _proposal == null &&
