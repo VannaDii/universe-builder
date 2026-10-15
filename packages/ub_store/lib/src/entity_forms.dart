@@ -6,6 +6,10 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
+import 'catalog.dart';
+import 'relational.dart';
+import 'recovery_domain_rows.dart';
+import 'recovery_value_inputs.dart';
 
 const _legacyColumns =
     'instance,profile,universe,continuity,context,generation,base_revision,client_ref,name,classification,world_role,rationale';
@@ -13,45 +17,70 @@ const _v2Columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,name,classification,world_role,rationale,draft_version';
 const _v6Columns = '$_v2Columns,association_edits_present';
 const _v7Columns = '$_v6Columns,name_input';
-const _columns = '$_v7Columns,expected_record_version';
+const _v8Columns = '$_v7Columns,expected_record_version';
+const _keys = 'instance,profile,universe,continuity,context,editor_key';
+const _columns =
+    '$_v6Columns,expected_record_version,name_present,name_language,name_community,name_role,name_validity,name_temporal';
+const _fields =
+    'generation,base_revision,client_ref,name,classification,world_role,rationale,draft_version,association_edits_present,expected_record_version,name_present,name_language,name_community,name_role,name_validity,name_temporal';
+const _associationColumns =
+    '$_keys,ordinal,world,role,original_ordinal,validity_root,temporal_root,qualifiers_present';
+final _domains = RecoveryDomainSchema(['Validity']);
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
-const _schema =
-    '''
+final _schema =
+    """
 CREATE TABLE entity_form (
- instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
- base_revision TEXT NOT NULL, client_ref TEXT NOT NULL, name TEXT NOT NULL,
- classification TEXT NOT NULL, world_role TEXT NOT NULL, rationale TEXT NOT NULL, draft_version TEXT,
- association_edits_present INTEGER NOT NULL DEFAULT 0 CHECK(association_edits_present IN (0,1)),
- name_input TEXT, expected_record_version TEXT,
- PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
+ instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,base_revision TEXT NOT NULL,client_ref TEXT NOT NULL,name TEXT NOT NULL,classification TEXT NOT NULL,world_role TEXT NOT NULL,rationale TEXT NOT NULL,draft_version TEXT,
+ association_edits_present INTEGER NOT NULL CHECK(association_edits_present IN (0,1)),expected_record_version TEXT,name_present INTEGER NOT NULL CHECK(name_present IN (0,1)),name_language TEXT,name_community TEXT,name_role TEXT,name_validity INTEGER REFERENCES "${BodyCatalog.instance.model('Validity').table}"(__row_id),name_temporal INTEGER REFERENCES entity_temporal(id),
+ CHECK(name_present=1 OR (name_language IS NULL AND name_community IS NULL AND name_role IS NULL AND name_validity IS NULL AND name_temporal IS NULL)),PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-CREATE TABLE entity_form_world (
- instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL,
- PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
- FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
-) STRICT;
-$_associationSchema
-PRAGMA user_version=8;
-''';
-
-const _associationSchema = '''
-CREATE TABLE entity_form_association (
- instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
- ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL, role TEXT NOT NULL,
- original_ordinal INTEGER CHECK(original_ordinal>=0), validity TEXT, temporal_input TEXT, qualifier_input TEXT,
- PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
- FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
-) STRICT;
-''';
+CREATE TABLE entity_form_world (instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,ordinal INTEGER NOT NULL CHECK(ordinal>=0),world TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE) STRICT;
+CREATE TABLE entity_form_association (instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,ordinal INTEGER NOT NULL CHECK(ordinal>=0),world TEXT NOT NULL,role TEXT NOT NULL,original_ordinal INTEGER CHECK(original_ordinal>=0),validity_root INTEGER REFERENCES "${BodyCatalog.instance.model('Validity').table}"(__row_id),temporal_root INTEGER REFERENCES entity_temporal(id),qualifiers_present INTEGER NOT NULL CHECK(qualifiers_present IN (0,1)),PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE) STRICT;
+CREATE TABLE entity_form_qualifier (instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,association_ordinal INTEGER NOT NULL,ordinal INTEGER NOT NULL CHECK(ordinal>=0),input_root INTEGER NOT NULL REFERENCES entity_qualifier(id),PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,association_ordinal,ordinal),FOREIGN KEY(instance,profile,universe,continuity,context,editor_key,association_ordinal) REFERENCES entity_form_association(instance,profile,universe,continuity,context,editor_key,ordinal)) STRICT;
+${RecoveryValueInputs.schema('entity')}
+${_domains.statements.join('\n')}
+PRAGMA user_version=9;
+""";
+String _projection(String columns) => columns
+    .split(',')
+    .map(
+      (c) =>
+          {
+            'ordinal',
+            'association_edits_present',
+            'name_present',
+            'name_validity',
+            'name_temporal',
+            'original_ordinal',
+            'validity_root',
+            'temporal_root',
+            'qualifiers_present',
+            'input_root',
+          }.contains(c)
+          ? c
+          : 'CAST($c AS BLOB) AS $c',
+    )
+    .join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
+String _oldRootColumns(int version) => version == 1
+    ? _legacyColumns
+    : version == 2
+    ? _v2Columns
+    : version <= 6
+    ? _v6Columns
+    : version == 7
+    ? _v7Columns
+    : _v8Columns;
+String _oldAssociationColumns(int version) =>
+    '$_keys,ordinal,world,role,original_ordinal${version >= 4 ? ',validity' : ''}${version >= 5 ? ',temporal_input' : ''}${version >= 6 ? ',qualifier_input' : ''}';
 
 /// Device-private incomplete entity input, separate from canon and other editors.
 final class EntityFormRecoveryStore {
   EntityFormRecoveryStore._(this._db);
   final Database _db;
+  late final _inputs = RecoveryValueInputs(_db, 'entity');
 
   static EntityFormRecoveryStore open(String path) {
     Database? db;
@@ -79,56 +108,129 @@ final class EntityFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
+        } else if (version < 9) {
+          if (version >= 3) {
+            db.execute(
+              'ALTER TABLE entity_form_association RENAME TO legacy_entity_form_association',
+            );
+          }
           db.execute(
             'ALTER TABLE entity_form_world RENAME TO legacy_entity_form_world',
           );
           db.execute('ALTER TABLE entity_form RENAME TO legacy_entity_form');
           db.execute(_schema);
-          db.execute(
-            "INSERT INTO entity_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,name,classification,world_role,rationale,NULL,0,NULL,NULL FROM legacy_entity_form",
-          );
-          db.execute(
-            "INSERT INTO entity_form_world SELECT instance,profile,universe,continuity,context,'',ordinal,world FROM legacy_entity_form_world",
-          );
-          db.execute(
-            'DROP TABLE legacy_entity_form_world; DROP TABLE legacy_entity_form',
-          );
-        }
-        if (version == 2) {
-          db.execute(
-            'ALTER TABLE entity_form ADD COLUMN association_edits_present INTEGER NOT NULL DEFAULT 0 CHECK(association_edits_present IN (0,1))',
-          );
-          db.execute(_associationSchema);
-          db.execute('PRAGMA user_version=6');
-        }
-        if (version == 3) {
-          db.execute(
-            'ALTER TABLE entity_form_association ADD COLUMN validity TEXT',
-          );
-          db.execute('PRAGMA user_version=6');
-        }
-        if (version == 3 || version == 4) {
-          db.execute(
-            'ALTER TABLE entity_form_association ADD COLUMN temporal_input TEXT',
-          );
-          db.execute('PRAGMA user_version=6');
-        }
-        if (version >= 3 && version <= 5) {
-          db.execute(
-            'ALTER TABLE entity_form_association ADD COLUMN qualifier_input TEXT',
-          );
-          db.execute('PRAGMA user_version=6');
-        }
-        if (version >= 2 && version <= 6) {
-          db.execute('ALTER TABLE entity_form ADD COLUMN name_input TEXT');
-          db.execute('PRAGMA user_version=7');
-        }
-        if (version >= 2 && version <= 7) {
-          db.execute(
-            'ALTER TABLE entity_form ADD COLUMN expected_record_version TEXT',
-          );
-          db.execute('PRAGMA user_version=8');
+          final store = EntityFormRecoveryStore._(db);
+          for (final r in db.select(
+            'SELECT ${_projection(_oldRootColumns(version))} FROM legacy_entity_form',
+          )) {
+            final key = version == 1 ? '' : _text(r, 'editor_key'),
+                clientRef = _text(r, 'client_ref');
+            final match = RegExp(
+              r'^(name|classification):(rec_[^:]+)(?::edit:([0-9]+))?$',
+            ).firstMatch(key);
+            final published = match != null && clientRef == match.group(2);
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(r, 'instance')),
+              profile: ProfileId.parse(_text(r, 'profile')),
+              universe: UniverseId.parse(_text(r, 'universe')),
+              continuity: ContinuityId.parse(_text(r, 'continuity')),
+              representedContext: RecordId.parse(_text(r, 'context')),
+              entityClientRef: published || key.isEmpty ? null : key,
+              entityNameRecord: published && match.group(1) == 'name'
+                  ? RecordId.parse(match.group(2)!)
+                  : null,
+              entityClassificationRecord:
+                  published && match.group(1) == 'classification'
+                  ? RecordId.parse(match.group(2)!)
+                  : null,
+              entityOperationIndex: published && match.group(3) != null
+                  ? int.parse(match.group(3)!)
+                  : null,
+            );
+            final where = version == 1
+                ? 'instance=? AND profile=? AND universe=? AND continuity=? AND context=?'
+                : _where;
+            final binding = version == 1
+                ? store._binding(scope).sublist(0, 5)
+                : store._binding(scope);
+            final form = UnfinishedEntityForm(
+              baseRevision: RevisionId.parse(_text(r, 'base_revision')),
+              representedContext: scope.representedContext!,
+              clientRef: clientRef,
+              name: _text(r, 'name'),
+              classification: _text(r, 'classification'),
+              worldRole: _text(r, 'world_role'),
+              rationale: _text(r, 'rationale'),
+              draftVersion: version == 1 || r['draft_version'] == null
+                  ? null
+                  : BigInt.parse(_text(r, 'draft_version')),
+              expectedRecordVersion:
+                  version < 8 || r['expected_record_version'] == null
+                  ? null
+                  : RecordVersionId.parse(_text(r, 'expected_record_version')),
+              nameDetails: version < 7 || r['name_input'] == null
+                  ? null
+                  : EntityNameForm.fromWire(
+                      CanonicalValue.parseWireJson(_text(r, 'name_input')),
+                    ),
+              worlds: db
+                  .select(
+                    'SELECT ${_projection('world')} FROM legacy_entity_form_world WHERE $where ORDER BY ordinal',
+                    binding,
+                  )
+                  .map((w) => WorldId.parse(_text(w, 'world'))),
+              associations: version < 3 || r['association_edits_present'] == 0
+                  ? null
+                  : db
+                        .select(
+                          'SELECT ${_projection(_oldAssociationColumns(version))} FROM legacy_entity_form_association WHERE $where ORDER BY ordinal',
+                          binding,
+                        )
+                        .map(
+                          (a) => EntityAssociationForm(
+                            world: _text(a, 'world'),
+                            role: _text(a, 'role'),
+                            originalOrdinal: a['original_ordinal'] as int?,
+                            validity: version < 4 || a['validity'] == null
+                                ? null
+                                : Validity.fromWire(
+                                    CanonicalValue.parseWireJson(
+                                      _text(a, 'validity'),
+                                    ),
+                                  ),
+                            temporalValidity:
+                                version < 5 || a['temporal_input'] == null
+                                ? null
+                                : TemporalValidityInput.fromWire(
+                                    CanonicalValue.parseWireJson(
+                                      _text(a, 'temporal_input'),
+                                    ),
+                                  ),
+                            qualifiers:
+                                version < 6 || a['qualifier_input'] == null
+                                ? null
+                                : (CanonicalValue.parseWireJson(
+                                        _text(a, 'qualifier_input'),
+                                      ) as CanonicalArray).items
+                                      .map(QualifierInput.fromWire)
+                                      .toList(),
+                          ),
+                        ),
+            );
+            store._validate(scope, form);
+            store._write(
+              scope,
+              SavedEntityForm(
+                generation: BigInt.parse(_text(r, 'generation')),
+                form: form,
+              ),
+            );
+          }
+          if (version >= 3) {
+            db.execute('DROP TABLE legacy_entity_form_association');
+          }
+          db.execute('DROP TABLE legacy_entity_form_world');
+          db.execute('DROP TABLE legacy_entity_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -157,47 +259,33 @@ final class EntityFormRecoveryStore {
     if (tables.isEmpty) return 0;
     final version =
         db.select('PRAGMA user_version').single.values.single as int;
-    if (tables.length != ((version >= 3 && version <= 8) ? 3 : 2) ||
-        (version != 1 &&
-            version != 2 &&
-            version != 3 &&
-            version != 4 &&
-            version != 5 &&
-            version != 6 &&
-            version != 7 &&
-            version != 8) ||
-        db
-                .select('PRAGMA table_info(entity_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            (version == 1
-                ? _legacyColumns
-                : version == 2
-                ? _v2Columns
-                : version <= 6
-                ? _v6Columns
-                : version == 7
-                ? _v7Columns
-                : _columns) ||
-        db
-                .select('PRAGMA table_info(entity_form_world)')
-                .map((row) => row['name'])
-                .join(',') !=
+    String columns(String table) =>
+        db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
+    final legacy =
+        version >= 1 &&
+        version <= 8 &&
+        tables.length == (version >= 3 ? 3 : 2) &&
+        columns('entity_form') == _oldRootColumns(version) &&
+        columns('entity_form_world') ==
             (version == 1
                 ? 'instance,profile,universe,continuity,context,ordinal,world'
-                : 'instance,profile,universe,continuity,context,editor_key,ordinal,world') ||
-        ((version >= 3 && version <= 8) &&
-            db
-                    .select('PRAGMA table_info(entity_form_association)')
-                    .map((r) => r['name'])
-                    .join(',') !=
-                (version == 3
-                    ? 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal'
-                    : version == 4
-                    ? 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal,validity'
-                    : version == 5
-                    ? 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal,validity,temporal_input'
-                    : 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal,validity,temporal_input,qualifier_input'))) {
+                : '$_keys,ordinal,world') &&
+        (version < 3 ||
+            columns('entity_form_association') ==
+                _oldAssociationColumns(version));
+    final expected = {
+      'entity_form': _columns,
+      'entity_form_world': '$_keys,ordinal,world',
+      'entity_form_association': _associationColumns,
+      'entity_form_qualifier': '$_keys,association_ordinal,ordinal,input_root',
+      ...RecoveryValueInputs.columns('entity'),
+    };
+    final current =
+        version == 9 &&
+        tables.length == expected.length + _domains.statements.length &&
+        expected.entries.every((e) => columns(e.key) == e.value) &&
+        _domains.matches(db);
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -231,75 +319,205 @@ final class EntityFormRecoveryStore {
     ];
   }
 
+  List<Row> _ordered(
+    String table,
+    String columns,
+    List<String> binding, {
+    int? association,
+  }) {
+    final rows = _db.select(
+      'SELECT ordinal,${_projection(columns)} FROM entity_form_$table WHERE $_where${association == null ? '' : ' AND association_ordinal=?'} ORDER BY ordinal',
+      [...binding, ?association],
+    );
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i]['ordinal'] != i) {
+        throw const FormatException('Incomplete entity input order');
+      }
+    }
+    return rows;
+  }
+
+  Validity? _validity(Row r, String column) => r[column] == null
+      ? null
+      : Validity.fromWire(RelationalCodec(_db).get('Validity', r[column]));
+  TemporalValidityInput? _temporal(Row r, String column) =>
+      r[column] == null ? null : _inputs.readTemporal(r[column] as int, 0);
   SavedEntityForm? _read(EditorFormScope scope) {
-    final binding = _binding(scope);
-    final rows = _db.select('SELECT * FROM entity_form WHERE $_where', binding);
+    final binding = _binding(scope),
+        rows = _db.select(
+          'SELECT ${_projection(_columns)} FROM entity_form WHERE $_where',
+          _binding(scope),
+        );
     if (rows.isEmpty) return null;
-    final row = rows.single;
+    final r = rows.single;
     return SavedEntityForm(
-      generation: BigInt.parse(row['generation'] as String),
+      generation: BigInt.parse(_text(r, 'generation')),
       form: UnfinishedEntityForm(
-        baseRevision: RevisionId.parse(row['base_revision'] as String),
-        representedContext: RecordId.parse(row['context'] as String),
-        clientRef: row['client_ref'] as String,
-        draftVersion: row['draft_version'] == null
+        baseRevision: RevisionId.parse(_text(r, 'base_revision')),
+        representedContext: scope.representedContext!,
+        clientRef: _text(r, 'client_ref'),
+        name: _text(r, 'name'),
+        classification: _text(r, 'classification'),
+        worldRole: _text(r, 'world_role'),
+        rationale: _text(r, 'rationale'),
+        draftVersion: r['draft_version'] == null
             ? null
-            : BigInt.parse(row['draft_version'] as String),
-        expectedRecordVersion: row['expected_record_version'] == null
+            : BigInt.parse(_text(r, 'draft_version')),
+        expectedRecordVersion: r['expected_record_version'] == null
             ? null
-            : RecordVersionId.parse(row['expected_record_version'] as String),
-        nameDetails: row['name_input'] == null
+            : RecordVersionId.parse(_text(r, 'expected_record_version')),
+        nameDetails: r['name_present'] == 0
             ? null
-            : EntityNameForm.fromWire(
-                CanonicalValue.parseWireJson(row['name_input'] as String),
+            : EntityNameForm(
+                language: r['name_language'] == null
+                    ? null
+                    : _text(r, 'name_language'),
+                community: r['name_community'] == null
+                    ? null
+                    : _text(r, 'name_community'),
+                role: r['name_role'] == null ? null : _text(r, 'name_role'),
+                validity: _validity(r, 'name_validity'),
+                temporalValidity: _temporal(r, 'name_temporal'),
               ),
-        name: row['name'] as String,
-        classification: row['classification'] as String,
-        worldRole: row['world_role'] as String,
-        rationale: row['rationale'] as String,
-        associations: row['association_edits_present'] == 0
+        worlds: _ordered(
+          'world',
+          'world',
+          binding,
+        ).map((w) => WorldId.parse(_text(w, 'world'))),
+        associations: r['association_edits_present'] == 0
             ? null
-            : _db
-                  .select(
-                    'SELECT * FROM entity_form_association WHERE $_where ORDER BY ordinal',
-                    binding,
-                  )
-                  .map(
-                    (r) => EntityAssociationForm(
-                      world: r['world'] as String,
-                      role: r['role'] as String,
-                      originalOrdinal: r['original_ordinal'] as int?,
-                      qualifiers: r['qualifier_input'] == null
-                          ? null
-                          : (CanonicalValue.parseWireJson(
-                                  r['qualifier_input'] as String,
-                                ) as CanonicalArray).items
-                                .map(QualifierInput.fromWire)
-                                .toList(),
-                      temporalValidity: r['temporal_input'] == null
-                          ? null
-                          : TemporalValidityInput.fromWire(
-                              CanonicalValue.parseWireJson(
-                                r['temporal_input'] as String,
+            : _ordered(
+                'association',
+                'world,role,original_ordinal,validity_root,temporal_root,qualifiers_present',
+                binding,
+              ).map(
+                (a) => EntityAssociationForm(
+                  world: _text(a, 'world'),
+                  role: _text(a, 'role'),
+                  originalOrdinal: a['original_ordinal'] as int?,
+                  validity: _validity(a, 'validity_root'),
+                  temporalValidity: _temporal(a, 'temporal_root'),
+                  qualifiers: a['qualifiers_present'] == 0
+                      ? null
+                      : _ordered(
+                              'qualifier',
+                              'input_root',
+                              binding,
+                              association: a['ordinal'] as int,
+                            )
+                            .map(
+                              (q) => _inputs.readQualifier(
+                                q['input_root'] as int,
+                                0,
                               ),
-                            ),
-                      validity: r['validity'] == null
-                          ? null
-                          : Validity.fromWire(
-                              CanonicalValue.parseWireJson(
-                                r['validity'] as String,
-                              ),
-                            ),
-                    ),
-                  ),
-        worlds: _db
-            .select(
-              'SELECT world FROM entity_form_world WHERE $_where ORDER BY ordinal',
-              binding,
-            )
-            .map((row) => WorldId.parse(row['world'] as String)),
+                            )
+                            .toList(),
+                ),
+              ),
       ),
     );
+  }
+
+  void _write(EditorFormScope scope, SavedEntityForm saved) {
+    final binding = _binding(scope),
+        f = saved.form,
+        n = f.nameDetails,
+        codec = RelationalCodec(_db);
+    final old = _db.select(
+          'SELECT name_validity,name_temporal FROM entity_form WHERE $_where',
+          binding,
+        ),
+        oldAssociations = _db.select(
+          'SELECT validity_root,temporal_root FROM entity_form_association WHERE $_where',
+          binding,
+        ),
+        oldQualifiers = _db.select(
+          'SELECT input_root FROM entity_form_qualifier WHERE $_where',
+          binding,
+        );
+    final validity = n?.validity == null
+            ? null
+            : codec.put('Validity', n!.validity!.toWire()),
+        temporal = n?.temporalValidity == null
+            ? null
+            : _inputs.writeTemporal(n!.temporalValidity!, 0),
+        columns = _columns.split(',');
+    _db.execute(
+      'INSERT INTO entity_form VALUES(${List.filled(columns.length, '?').join(',')}) ON CONFLICT($_keys) DO UPDATE SET ${_fields.split(',').map((c) => '$c=excluded.$c').join(',')}',
+      [
+        ...binding,
+        saved.generation.toString(),
+        f.baseRevision.value,
+        f.clientRef,
+        f.name,
+        f.classification,
+        f.worldRole,
+        f.rationale,
+        f.draftVersion?.toString(),
+        f.associations == null ? 0 : 1,
+        f.expectedRecordVersion?.value,
+        n == null ? 0 : 1,
+        n?.language,
+        n?.community,
+        n?.role,
+        validity,
+        temporal,
+      ],
+    );
+    for (final table in ['qualifier', 'association', 'world']) {
+      _db.execute('DELETE FROM entity_form_$table WHERE $_where', binding);
+    }
+    for (var i = 0; i < f.worlds.length; i++) {
+      _db.execute('INSERT INTO entity_form_world VALUES(?,?,?,?,?,?,?,?)', [
+        ...binding,
+        i,
+        f.worlds[i].value,
+      ]);
+    }
+    final associations = f.associations ?? <EntityAssociationForm>[];
+    for (var i = 0; i < associations.length; i++) {
+      final a = associations[i],
+          validity = a.validity == null
+              ? null
+              : codec.put('Validity', a.validity!.toWire()),
+          temporal = a.temporalValidity == null
+              ? null
+              : _inputs.writeTemporal(a.temporalValidity!, 0);
+      _db.execute(
+        'INSERT INTO entity_form_association VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [
+          ...binding,
+          i,
+          a.world,
+          a.role,
+          a.originalOrdinal,
+          validity,
+          temporal,
+          a.qualifiers == null ? 0 : 1,
+        ],
+      );
+      final qualifiers = a.qualifiers ?? <QualifierInput>[];
+      for (var j = 0; j < qualifiers.length; j++) {
+        final root = _inputs.writeQualifier(qualifiers[j], 0);
+        _db.execute(
+          'INSERT INTO entity_form_qualifier VALUES(?,?,?,?,?,?,?,?,?)',
+          [...binding, i, j, root],
+        );
+      }
+    }
+    for (final q in oldQualifiers) {
+      _inputs.deleteQualifier(q['input_root'] as int);
+    }
+    for (final a in oldAssociations) {
+      _domains.deleteOwned(_db, 'Validity', a['validity_root']);
+      if (a['temporal_root'] case final int t) _inputs.deleteTemporal(t);
+    }
+    if (old.isNotEmpty) {
+      _domains.deleteOwned(_db, 'Validity', old.single['name_validity']);
+      if (old.single['name_temporal'] case final int t) {
+        _inputs.deleteTemporal(t);
+      }
+    }
   }
 
   SavedEntityForm? load(EditorFormScope scope) {
@@ -314,16 +532,7 @@ final class EntityFormRecoveryStore {
     }
   }
 
-  SavedEntityForm save(
-    EditorFormScope scope,
-    UnfinishedEntityForm form,
-    BigInt expectedGeneration,
-  ) {
-    final binding = _binding(scope);
-    if (expectedGeneration < BigInt.zero ||
-        expectedGeneration >= BigInt.one << 64) {
-      throw const FormatException('Invalid expected editor generation');
-    }
+  void _validate(EditorFormScope scope, UnfinishedEntityForm form) {
     if (scope.representedContext != form.representedContext ||
         (scope.entityClientRef != null &&
             scope.entityClientRef != form.clientRef) ||
@@ -370,6 +579,20 @@ final class EntityFormRecoveryStore {
         throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
       }
     }
+    form.toWire();
+  }
+
+  SavedEntityForm save(
+    EditorFormScope scope,
+    UnfinishedEntityForm form,
+    BigInt expectedGeneration,
+  ) {
+    _binding(scope);
+    if (expectedGeneration < BigInt.zero ||
+        expectedGeneration >= BigInt.one << 64) {
+      throw const FormatException('Invalid expected editor generation');
+    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope);
@@ -391,51 +614,7 @@ final class EntityFormRecoveryStore {
         generation: generation + BigInt.one,
         form: form,
       );
-      _db.execute(
-        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,name=excluded.name,classification=excluded.classification,world_role=excluded.world_role,rationale=excluded.rationale,draft_version=excluded.draft_version,association_edits_present=excluded.association_edits_present,name_input=excluded.name_input,expected_record_version=excluded.expected_record_version',
-        [
-          ...binding,
-          saved.generation.toString(),
-          form.baseRevision.value,
-          form.clientRef,
-          form.name,
-          form.classification,
-          form.worldRole,
-          form.rationale,
-          form.draftVersion?.toString(),
-          form.associations == null ? 0 : 1,
-          form.nameDetails?.toWire().toText(),
-          form.expectedRecordVersion?.value,
-        ],
-      );
-      _db.execute('DELETE FROM entity_form_world WHERE $_where', binding);
-      for (var i = 0; i < form.worlds.length; i++) {
-        _db.execute('INSERT INTO entity_form_world VALUES(?,?,?,?,?,?,?,?)', [
-          ...binding,
-          i,
-          form.worlds[i].value,
-        ]);
-      }
-      _db.execute('DELETE FROM entity_form_association WHERE $_where', binding);
-      final associations = form.associations ?? <EntityAssociationForm>[];
-      for (var i = 0; i < associations.length; i++) {
-        final a = associations[i];
-        _db.execute(
-          'INSERT INTO entity_form_association VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-          [
-            ...binding,
-            i,
-            a.world,
-            a.role,
-            a.originalOrdinal,
-            a.validity?.toWire().toText(),
-            a.temporalValidity?.toWire().toText(),
-            a.qualifiers == null
-                ? null
-                : CanonicalArray(a.qualifiers!.map((q) => q.toWire())).toText(),
-          ],
-        );
-      }
+      _write(scope, saved);
       _db.execute('COMMIT');
       return saved;
     } on EditorRecoveryException {
