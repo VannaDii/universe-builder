@@ -66,6 +66,7 @@ final class LibraryLocation {
     'pack',
     'world',
     'changes',
+    'writing',
   };
   Uri get uri => universe == null
       ? Uri(path: '/${section.name}')

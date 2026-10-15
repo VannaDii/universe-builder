@@ -62,6 +62,8 @@ import 'calendar_editor_page.dart';
 import 'pack_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'changes_page.dart';
+import 'writing_review.dart';
+import 'writing_review_page.dart';
 import 'saved_changes.dart';
 import 'postgres_settings.dart';
 import 'sqlite_settings.dart';
@@ -844,6 +846,20 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         universe: _selected!.id,
         continuity: continuity.id,
         representedContext: _contexts[continuity.id],
+      ),
+    ),
+    'writing' => WritingReviewPage(
+      workflow: WritingWorkflow(
+        SavedChanges(
+          session: _session!,
+          universe: Selector(_selected!.name),
+          scope: EditorFormScope(
+            instance: _library!.instance,
+            profile: _session!.principal,
+            universe: _selected!.id,
+            continuity: continuity.id,
+          ),
+        ),
       ),
     ),
     'changes' => ChangesPage(
@@ -2962,6 +2978,41 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                     }),
                           child: const Text('World draft'),
                         ),
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => Navigator.of(context)
+                                  .push<void>(
+                                    MaterialPageRoute(
+                                      settings: widget.device.supportsBrowser
+                                          ? RouteSettings(
+                                              name: LibraryLocation(
+                                                universe: _selected!.id,
+                                                continuity: continuity.id,
+                                                context:
+                                                    _contexts[continuity.id],
+                                                editor: 'writing',
+                                              ).uri.toString(),
+                                            )
+                                          : null,
+                                      builder: (_) => _linkedEditor(
+                                        LibraryLocation(
+                                          universe: _selected!.id,
+                                          continuity: continuity.id,
+                                          context: _contexts[continuity.id],
+                                          editor: 'writing',
+                                        ),
+                                        continuity,
+                                      ),
+                                    ),
+                                  )
+                                  .then((_) {
+                                    if (mounted && _selected != null) {
+                                      _open(_selected!);
+                                    }
+                                  }),
+                        child: const Text('Writing proposals'),
+                      ),
                       TextButton(
                         onPressed: _busy
                             ? null
