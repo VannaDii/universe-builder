@@ -45,10 +45,11 @@ static gboolean remember_window_state(GtkWidget*, GdkEventWindowState* event,
   return FALSE;
 }
 
-static void save_window_preferences(GtkWidget*, WindowPreferences* preferences) {
+static gboolean save_window_preferences(GtkWidget*, GdkEvent*,
+                                         WindowPreferences* preferences) {
   g_autofree gchar* path = window_preferences_path();
   g_autofree gchar* directory = g_path_get_dirname(path);
-  if (g_mkdir_with_parents(directory, 0700) != 0) return;
+  if (g_mkdir_with_parents(directory, 0700) != 0) return FALSE;
   g_autoptr(GKeyFile) settings = g_key_file_new();
   g_key_file_set_integer(settings, "window", "width", preferences->width);
   g_key_file_set_integer(settings, "window", "height", preferences->height);
@@ -56,6 +57,7 @@ static void save_window_preferences(GtkWidget*, WindowPreferences* preferences) 
   // Window preferences are optional; a read-only configuration directory must
   // never prevent closing the author workspace.
   g_key_file_save_to_file(settings, path, nullptr);
+  return FALSE;
 }
 
 static void restore_window_preferences(GtkWindow* window) {
@@ -95,7 +97,9 @@ static void restore_window_preferences(GtkWindow* window) {
                    preferences);
   g_signal_connect(window, "window-state-event", G_CALLBACK(remember_window_state),
                    preferences);
-  g_signal_connect(window, "destroy", G_CALLBACK(save_window_preferences),
+  // Flutter can quit the application before GTK emits destroy. Save before its
+  // close handler runs, then let Flutter finish the normal close request.
+  g_signal_connect(window, "delete-event", G_CALLBACK(save_window_preferences),
                    preferences);
 }
 
