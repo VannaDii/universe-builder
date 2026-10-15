@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_input_fields.dart';
 
 final class BrowserSecretFormRecovery {
   const BrowserSecretFormRecovery({
@@ -59,7 +60,7 @@ extension type _SecretRow._(JSObject _) implements JSObject {
     String? targetRecord,
     String? targetUniverse,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
     String? draftVersion,
   });
   external String get generation;
@@ -79,6 +80,7 @@ extension type _SecretRow._(JSObject _) implements JSObject {
   external String? get targetRecord;
   external String? get targetUniverse;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external String? get draftVersion;
 }
@@ -95,6 +97,82 @@ extension type _ReferenceRow._(JSObject _) implements JSObject {
   external String get universe;
 }
 
+SavedSecretForm _decodeSecret(
+  _SecretRow row,
+  Iterable<ExpressionReferenceInput> scopeRefs,
+  Iterable<ExpressionReferenceInput> knowerRefs, {
+  bool legacy = false,
+}) {
+  return SavedSecretForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedSecretForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      scope: scopeRefs,
+      fictionalKnowers: knowerRefs,
+      readerDisclosed: row.readerDisclosed,
+      hasConcealment: row.hasConcealment,
+      concealment: row.concealment,
+      validityKind: row.validityKind,
+      calendar: row.calendar,
+      start: row.start,
+      end: row.end,
+      startUnbounded: row.startUnbounded,
+      endUnbounded: row.endUnbounded,
+      rationale: row.rationale,
+      revisionTarget: row.targetRecord == null
+          ? null
+          : ExpressionReferenceInput(
+              record: row.targetRecord!,
+              universe: row.targetUniverse!,
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : SecretRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : SecretRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_SecretRow _encodeSecret(SavedSecretForm saved) {
+  final form = saved.form;
+  return _SecretRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    concealment: form.concealment,
+    validityKind: form.validityKind,
+    calendar: form.calendar,
+    start: form.start,
+    end: form.end,
+    rationale: form.rationale,
+    hasConcealment: form.hasConcealment,
+    startUnbounded: form.startUnbounded,
+    endUnbounded: form.endUnbounded,
+    readerDisclosed: form.readerDisclosed,
+    targetRecord: form.revisionTarget?.record,
+    targetUniverse: form.revisionTarget?.universe,
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    draftVersion: form.draftVersion?.toString(),
+  );
+}
+
 final class BrowserSecretFormRecoveryStore {
   BrowserSecretFormRecoveryStore._(this._db);
   final web.IDBDatabase _db;
@@ -104,7 +182,7 @@ final class BrowserSecretFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserSecretFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -113,10 +191,37 @@ final class BrowserSecretFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeSecret(
+                    _decodeSecret(
+                      cursor.value as _SecretRow,
+                      [],
+                      [],
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -195,43 +300,7 @@ final class BrowserSecretFormRecoveryStore {
           .toList();
     }
 
-    return SavedSecretForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedSecretForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        scope: refs(scopes),
-        fictionalKnowers: refs(knowers),
-        readerDisclosed: row.readerDisclosed,
-        hasConcealment: row.hasConcealment,
-        concealment: row.concealment,
-        validityKind: row.validityKind,
-        calendar: row.calendar,
-        start: row.start,
-        end: row.end,
-        startUnbounded: row.startUnbounded,
-        endUnbounded: row.endUnbounded,
-        rationale: row.rationale,
-        revisionTarget: row.targetRecord == null
-            ? null
-            : ExpressionReferenceInput(
-                record: row.targetRecord!,
-                universe: row.targetUniverse!,
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : SecretRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeSecret(row, refs(scopes), refs(knowers));
   }
 
   Future<SavedSecretForm?> load(EditorFormScope scope) {
@@ -326,30 +395,7 @@ final class BrowserSecretFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _SecretRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              concealment: form.concealment,
-              validityKind: form.validityKind,
-              calendar: form.calendar,
-              start: form.start,
-              end: form.end,
-              rationale: form.rationale,
-              hasConcealment: form.hasConcealment,
-              startUnbounded: form.startUnbounded,
-              endUnbounded: form.endUnbounded,
-              readerDisclosed: form.readerDisclosed,
-              targetRecord: form.revisionTarget?.record,
-              targetUniverse: form.revisionTarget?.universe,
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeSecret(saved!), key.toJS);
           scopeStore.delete(range);
           knowerStore.delete(range);
           for (final (store, refs) in [

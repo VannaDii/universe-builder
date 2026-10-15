@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_input_fields.dart';
 
 final class BrowserAppearanceFormRecovery {
   const BrowserAppearanceFormRecovery({
@@ -62,7 +63,7 @@ extension type _AppearanceRow._(JSObject _) implements JSObject {
     String? targetRecord,
     String? targetUniverse,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
     String? draftVersion,
   });
   external String get generation;
@@ -85,6 +86,7 @@ extension type _AppearanceRow._(JSObject _) implements JSObject {
   external String? get targetRecord;
   external String? get targetUniverse;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external String? get draftVersion;
 }
@@ -137,6 +139,122 @@ extension type _LinkRow._(JSObject _) implements JSObject {
   external String get note;
 }
 
+SavedAppearanceForm _decodeAppearance(
+  _AppearanceRow row,
+  Iterable<_ImageRow> imageRows,
+  Iterable<_LinkRow> linkRows, {
+  bool legacy = false,
+}) {
+  return SavedAppearanceForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedAppearanceForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      targetKind: row.targetKind,
+      target: ExpressionReferenceInput(
+        record: row.targetEntry,
+        universe: row.targetOwner,
+      ),
+      label: row.label,
+      physicalDescription: row.physicalDescription,
+      atmosphere: row.atmosphere,
+      images: imageRows.map(
+        (image) => AppearanceImageInput(
+          asset: ExpressionReferenceInput(
+            record: image.record,
+            universe: image.universe,
+          ),
+          caption: image.caption,
+          purpose: image.purpose,
+          preview: image.preview,
+          stagedOperation: image.stagedRef == null
+              ? null
+              : AddImageAssetOperation(
+                  clientRef: image.stagedRef!,
+                  record: ImageAssetRecord(
+                    contentDigest: image.digest!,
+                    mediaType: image.mediaType!,
+                    byteSize: BigInt.parse(image.byteSize!),
+                    width: image.width!,
+                    height: image.height!,
+                    originalName: image.originalName!,
+                  ),
+                ),
+        ),
+      ),
+      links: linkRows.map(
+        (link) => AppearanceLinkInput(
+          entry: ExpressionReferenceInput(
+            record: link.record,
+            universe: link.universe,
+          ),
+          relationship: link.relationship,
+          note: link.note,
+        ),
+      ),
+      validityKind: row.validityKind,
+      calendar: row.calendar,
+      start: row.start,
+      end: row.end,
+      startUnbounded: row.startUnbounded,
+      endUnbounded: row.endUnbounded,
+      rationale: row.rationale,
+      revisionTarget: row.targetRecord == null
+          ? null
+          : ExpressionReferenceInput(
+              record: row.targetRecord!,
+              universe: row.targetUniverse!,
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : AppearanceRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : AppearanceRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_AppearanceRow _encodeAppearance(SavedAppearanceForm saved) {
+  final form = saved.form;
+  return _AppearanceRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    targetKind: form.targetKind,
+    targetEntry: form.target.record,
+    targetOwner: form.target.universe,
+    label: form.label,
+    physicalDescription: form.physicalDescription,
+    atmosphere: form.atmosphere,
+    validityKind: form.validityKind,
+    calendar: form.calendar,
+    start: form.start,
+    end: form.end,
+    rationale: form.rationale,
+    startUnbounded: form.startUnbounded,
+    endUnbounded: form.endUnbounded,
+    targetRecord: form.revisionTarget?.record,
+    targetUniverse: form.revisionTarget?.universe,
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    draftVersion: form.draftVersion?.toString(),
+  );
+}
+
 final class BrowserAppearanceFormRecoveryStore {
   BrowserAppearanceFormRecoveryStore._(this._db);
   final web.IDBDatabase _db;
@@ -150,7 +268,7 @@ final class BrowserAppearanceFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserAppearanceFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -159,10 +277,37 @@ final class BrowserAppearanceFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeAppearance(
+                    _decodeAppearance(
+                      cursor.value as _AppearanceRow,
+                      [],
+                      [],
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -232,80 +377,7 @@ final class BrowserAppearanceFormRecoveryStore {
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
     final linkRows = (knowers.result as JSArray<_LinkRow>).toDart
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedAppearanceForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedAppearanceForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        targetKind: row.targetKind,
-        target: ExpressionReferenceInput(
-          record: row.targetEntry,
-          universe: row.targetOwner,
-        ),
-        label: row.label,
-        physicalDescription: row.physicalDescription,
-        atmosphere: row.atmosphere,
-        images: imageRows.map(
-          (image) => AppearanceImageInput(
-            asset: ExpressionReferenceInput(
-              record: image.record,
-              universe: image.universe,
-            ),
-            caption: image.caption,
-            purpose: image.purpose,
-            preview: image.preview,
-            stagedOperation: image.stagedRef == null
-                ? null
-                : AddImageAssetOperation(
-                    clientRef: image.stagedRef!,
-                    record: ImageAssetRecord(
-                      contentDigest: image.digest!,
-                      mediaType: image.mediaType!,
-                      byteSize: BigInt.parse(image.byteSize!),
-                      width: image.width!,
-                      height: image.height!,
-                      originalName: image.originalName!,
-                    ),
-                  ),
-          ),
-        ),
-        links: linkRows.map(
-          (link) => AppearanceLinkInput(
-            entry: ExpressionReferenceInput(
-              record: link.record,
-              universe: link.universe,
-            ),
-            relationship: link.relationship,
-            note: link.note,
-          ),
-        ),
-        validityKind: row.validityKind,
-        calendar: row.calendar,
-        start: row.start,
-        end: row.end,
-        startUnbounded: row.startUnbounded,
-        endUnbounded: row.endUnbounded,
-        rationale: row.rationale,
-        revisionTarget: row.targetRecord == null
-            ? null
-            : ExpressionReferenceInput(
-                record: row.targetRecord!,
-                universe: row.targetUniverse!,
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : AppearanceRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeAppearance(row, imageRows, linkRows);
   }
 
   Future<SavedAppearanceForm?> load(EditorFormScope scope) {
@@ -400,33 +472,7 @@ final class BrowserAppearanceFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _AppearanceRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              targetKind: form.targetKind,
-              targetEntry: form.target.record,
-              targetOwner: form.target.universe,
-              label: form.label,
-              physicalDescription: form.physicalDescription,
-              atmosphere: form.atmosphere,
-              validityKind: form.validityKind,
-              calendar: form.calendar,
-              start: form.start,
-              end: form.end,
-              rationale: form.rationale,
-              startUnbounded: form.startUnbounded,
-              endUnbounded: form.endUnbounded,
-              targetRecord: form.revisionTarget?.record,
-              targetUniverse: form.revisionTarget?.universe,
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeAppearance(saved!), key.toJS);
           scopeStore.delete(range);
           knowerStore.delete(range);
           for (var i = 0; i < form.images.length; i++) {
