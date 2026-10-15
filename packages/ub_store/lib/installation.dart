@@ -2,7 +2,12 @@
 library;
 
 export 'src/installation_store.dart';
-export 'src/ownership.dart' show OwnedFileLock, privateDirectory, protectedFile;
+export 'src/ownership.dart'
+    show
+        OwnedFileLock,
+        privateDirectory,
+        privateTemporaryDirectory,
+        protectedFile;
 export 'src/installation_conversion.dart'
     show
         convertInstallation,

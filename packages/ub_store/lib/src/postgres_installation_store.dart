@@ -499,7 +499,8 @@ final class PostgresInstallationSession {
     required String destination,
   }) async {
     await authority.requireAuthor(actor);
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-conversion-',
     );
     try {
@@ -524,7 +525,8 @@ final class PostgresInstallationSession {
   }) => rollbackOnFailure(() async {
     await authority.requireAuthor(actor);
     selectorKey(name);
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-restore-',
     );
     try {

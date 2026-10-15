@@ -33,7 +33,8 @@ extension PostgresInstallationImports on PostgresInstallationSession {
   }) => rollbackOnFailure(() async {
     await authority.requireAuthor(actor);
     selectorKey(name);
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-import-',
     );
     try {
@@ -213,7 +214,8 @@ extension PostgresInstallationImports on PostgresInstallationSession {
         message: 'import identity or name is reserved',
       );
     }
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-import-',
     );
     try {

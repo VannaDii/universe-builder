@@ -32,7 +32,7 @@ CanonicalObject convertPackageWithHook(
   Directory? temporary;
   OwnedSqliteDatabase? target;
   try {
-    temporary = Directory(parent).createTempSync('.operator-conversion-');
+    temporary = privateTemporaryDirectory(parent, '.operator-conversion-');
     privateDirectory(temporary.path);
     final path = '${temporary.path}/package.sqlite';
     target = OwnedSqliteDatabase.create(path);

@@ -86,7 +86,8 @@ extension PostgresInstallationMoves on PostgresInstallationSession {
     )).isNotEmpty) {
       return;
     }
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-move-',
     );
     try {
@@ -160,7 +161,8 @@ extension PostgresInstallationMoves on PostgresInstallationSession {
       throw const InstallationException(InstallationFailure.unavailable);
     }
     final digest = rows.single.single as String;
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-move-copy-',
     );
     try {

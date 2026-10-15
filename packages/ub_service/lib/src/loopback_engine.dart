@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart'
-    show privateDirectory, protectedFile;
+    show privateDirectory, privateTemporaryDirectory, protectedFile;
 import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
 import 'package:ub_store/ub_store.dart' show maxImageBytes;
 
@@ -332,7 +332,8 @@ final class LoopbackEngineServer {
           response.statusCode = HttpStatus.requestEntityTooLarge;
           return;
         }
-        final directory = Directory.systemTemp.createTempSync(
+        final directory = privateTemporaryDirectory(
+          Directory.systemTemp.path,
           image
               ? 'universe-builder-browser-image-'
               : 'universe-builder-browser-import-',
@@ -613,7 +614,8 @@ final class LoopbackEngineServer {
           {'universe'},
         );
         final selector = Selector.fromWire(fields.require('universe'));
-        final directory = Directory.systemTemp.createTempSync(
+        final directory = privateTemporaryDirectory(
+          Directory.systemTemp.path,
           'universe-builder-browser-download-',
         );
         var retained = false;

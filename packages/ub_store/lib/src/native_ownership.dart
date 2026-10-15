@@ -2,6 +2,12 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Char>)>(
+  symbol: 'ub_private_temp_dir',
+  assetId: _asset,
+)
+external int nativePrivateTempDirectory(Pointer<Char> path);
+
 @Native<Int32 Function(Pointer<Int32>, Pointer<Int32>, Pointer<Int32>)>(
   symbol: 'ub_peer_options',
   assetId: _asset,

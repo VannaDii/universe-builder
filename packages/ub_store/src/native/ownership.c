@@ -27,6 +27,7 @@ UB_EXPORT int32_t ub_publish_socket(const char *source, const char *destination)
 }
 /* Windows ACL and handle ownership are a separate platform port. Fail closed. */
 UB_EXPORT int32_t ub_private_dir(const char *path) { (void)path; return 50; }
+UB_EXPORT int32_t ub_private_temp_dir(char *path) { (void)path; return 50; }
 UB_EXPORT int32_t ub_sync_directory(const char *path) { (void)path; return 50; }
 UB_EXPORT int32_t ub_protected_file(const char *path, int32_t create) {
   (void)path; (void)create; return 50;
@@ -296,6 +297,11 @@ UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destinat
 
 UB_EXPORT int32_t ub_publish_conversion_directory(const char *source, const char *destination, const char *directory) {
   return publish_conversion(source, destination, directory, 1);
+}
+
+/* mkdtemp creates 0700 atomically, independently of a permissive process umask. */
+UB_EXPORT int32_t ub_private_temp_dir(char *path) {
+  return mkdtemp(path) ? 0 : errno;
 }
 
 UB_EXPORT int32_t ub_private_dir(const char *path) {

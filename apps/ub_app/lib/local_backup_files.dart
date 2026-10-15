@@ -24,7 +24,7 @@ final class LocalBackupFiles {
   downloadArchive;
   Directory _directory() {
     final parent = privateDirectory('$root/client-files');
-    final directory = Directory(parent).createTempSync('backup-');
+    final directory = privateTemporaryDirectory(parent, 'backup-');
     privateDirectory(directory.path);
     return directory;
   }

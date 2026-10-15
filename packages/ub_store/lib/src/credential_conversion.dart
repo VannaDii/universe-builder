@@ -60,7 +60,7 @@ CanonicalObject convertCredential(String source, String destination) {
       );
     }
     final parent = privateDirectory(File(destination).absolute.parent.path);
-    temporary = Directory(parent).createTempSync('.credential-conversion-');
+    temporary = privateTemporaryDirectory(parent, '.credential-conversion-');
     privateDirectory(temporary.path);
     ProfileCredentialStore.write(
       root: temporary.path,

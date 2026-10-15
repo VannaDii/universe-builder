@@ -25,7 +25,8 @@ final class FixtureDevice {
       );
     }
     final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
-    final root = (temporaryDirectory ?? Directory.systemTemp).createTempSync(
+    final root = privateTemporaryDirectory(
+      (temporaryDirectory ?? Directory.systemTemp).path,
       'f',
     );
     privateDirectory(root.path);

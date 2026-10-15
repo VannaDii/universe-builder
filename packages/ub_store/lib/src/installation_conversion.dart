@@ -140,7 +140,7 @@ CanonicalObject convertInstallationWithHook(
         'Pending purge or legacy preview requires operator recovery',
       );
     }
-    temporary = Directory(parent).createTempSync('.installation-conversion-');
+    temporary = privateTemporaryDirectory(parent, '.installation-conversion-');
     privateDirectory(temporary.path);
     final root = privateDirectory('${temporary.path}/target');
     privateDirectory('$root/profiles');

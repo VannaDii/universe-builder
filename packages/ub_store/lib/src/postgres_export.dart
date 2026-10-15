@@ -80,7 +80,10 @@ final class PostgresLogicalExport {
     }
     await PostgresCanonicalIntegrity(_session, universe).verifyComplete();
     final target = File(destination).absolute;
-    final temporary = target.parent.createTempSync('.postgres-export-');
+    final temporary = privateTemporaryDirectory(
+      target.parent.path,
+      '.postgres-export-',
+    );
     OwnedSqliteDatabase? snapshot;
     try {
       privateDirectory(temporary.path);

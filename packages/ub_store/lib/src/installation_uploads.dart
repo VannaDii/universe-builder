@@ -43,7 +43,8 @@ extension InstallationUploads on SqliteInstallationStore {
       }
       return preview;
     }
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-upload-review-',
     );
     try {
@@ -128,7 +129,8 @@ extension InstallationUploads on SqliteInstallationStore {
     ]);
     if (exists.isNotEmpty) {
       final retained = _upload(actor, request.uploadId);
-      if (retained.digest != request.digest || retained.bytes != request.bytes) {
+      if (retained.digest != request.digest ||
+          retained.bytes != request.bytes) {
         throw const FormatException('Upload is bound to another archive');
       }
     } else {

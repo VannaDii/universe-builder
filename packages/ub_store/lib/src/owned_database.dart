@@ -63,7 +63,7 @@ final class OwnedSqliteDatabase {
       throw const FormatException('Restore package exceeds 8 GiB limit');
     }
     final parent = privateDirectory(scratch);
-    final temporary = Directory(parent).createTempSync('.restore-');
+    final temporary = privateTemporaryDirectory(parent, '.restore-');
     OwnedSqliteDatabase? package;
     try {
       privateDirectory(temporary.path);
@@ -183,7 +183,10 @@ final class OwnedSqliteDatabase {
       throw StateError('Backup requires no active transaction');
     }
     final target = File(destination).absolute;
-    final temporary = target.parent.createTempSync('.universe-backup-');
+    final temporary = privateTemporaryDirectory(
+      target.parent.path,
+      '.universe-backup-',
+    );
     try {
       privateDirectory(temporary.path);
       final copyPath = '${temporary.path}/package.sqlite';
@@ -303,7 +306,10 @@ final class OwnedSqliteDatabase {
     List<RecordId> requested = const [],
   }) {
     final target = File(destination).absolute;
-    final temporary = target.parent.createTempSync('.relational-export-');
+    final temporary = privateTemporaryDirectory(
+      target.parent.path,
+      '.relational-export-',
+    );
     try {
       privateDirectory(temporary.path);
       final snapshotPath = '${temporary.path}/snapshot.sqlite';
@@ -412,7 +418,7 @@ final class OwnedSqliteDatabase {
       throw const FormatException('Logical archive exceeds 8 GiB');
     }
     final parent = privateDirectory(scratch);
-    final temporary = Directory(parent).createTempSync('.logical-archive-');
+    final temporary = privateTemporaryDirectory(parent, '.logical-archive-');
     OwnedSqliteDatabase? package;
     try {
       privateDirectory(temporary.path);
@@ -673,7 +679,7 @@ final class VerifiedLogicalArchive {
       );
     }
     final parent = privateDirectory(scratch);
-    final temporary = Directory(parent).createTempSync('.logical-import-');
+    final temporary = privateTemporaryDirectory(parent, '.logical-import-');
     OwnedSqliteDatabase? output;
     try {
       privateDirectory(temporary.path);
@@ -724,7 +730,7 @@ final class VerifiedLogicalArchive {
     }
     final source = UniverseId.parse(fields.string('universe'));
     final parent = privateDirectory(scratch);
-    final temporary = Directory(parent).createTempSync('.logical-import-');
+    final temporary = privateTemporaryDirectory(parent, '.logical-import-');
     OwnedSqliteDatabase? target;
     try {
       privateDirectory(temporary.path);

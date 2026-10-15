@@ -36,7 +36,7 @@ final class FixtureEngineServer {
     }
     // Dart unlinks its bind pathname on close. Publish a second pathname so
     // automatic cleanup cannot remove a caller's replacement at the endpoint.
-    final staging = parent.createTempSync('.fx-');
+    final staging = privateTemporaryDirectory(parent.path, '.fx-');
     privateDirectory(staging.path);
     ServerSocket listener;
     try {

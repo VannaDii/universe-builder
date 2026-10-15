@@ -214,7 +214,8 @@ final class NativePostgresRuntime {
           principal,
           (s) => s.authority.requireAuthor(principal.id),
         );
-        final temporary = Directory.systemTemp.createTempSync(
+        final temporary = privateTemporaryDirectory(
+          Directory.systemTemp.path,
           'universe-builder-move-service-',
         );
         try {

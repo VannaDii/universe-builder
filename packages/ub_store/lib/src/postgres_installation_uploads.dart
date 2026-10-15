@@ -28,7 +28,8 @@ extension PostgresInstallationUploads on PostgresInstallationSession {
       }
       return preview;
     }
-    final temporary = Directory.systemTemp.createTempSync(
+    final temporary = privateTemporaryDirectory(
+      Directory.systemTemp.path,
       'universe-builder-upload-review-',
     );
     try {
@@ -120,7 +121,8 @@ extension PostgresInstallationUploads on PostgresInstallationSession {
     );
     if (exists.isNotEmpty) {
       final retained = await _upload(actor, request.uploadId);
-      if (retained.digest != request.digest || retained.bytes != request.bytes) {
+      if (retained.digest != request.digest ||
+          retained.bytes != request.bytes) {
         throw const FormatException('Upload is bound to another archive');
       }
     } else {

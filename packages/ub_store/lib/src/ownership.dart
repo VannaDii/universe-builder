@@ -27,6 +27,24 @@ void _checkError(int error, String operation, String path) {
   }
 }
 
+/// Create a fresh 0700 directory atomically, independent of the process umask.
+Directory privateTemporaryDirectory(String parent, String prefix) {
+  if (prefix.isEmpty || prefix.contains('/') || prefix.contains('\\')) {
+    throw const FormatException('Expected a temporary-directory name prefix');
+  }
+  final path = '${Directory(parent).absolute.path}/${prefix}XXXXXX';
+  _pathCheck(path);
+  return using((arena) {
+    final buffer = path.toNativeUtf8(allocator: arena);
+    _checkError(
+      nativePrivateTempDirectory(buffer.cast()),
+      'Private temporary directory creation failed',
+      path,
+    );
+    return Directory(buffer.toDartString());
+  });
+}
+
 /// Never repairs the permissions of an existing directory implicitly.
 String privateDirectory(String path) {
   _pathCheck(path);

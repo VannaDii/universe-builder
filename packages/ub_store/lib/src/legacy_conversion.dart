@@ -64,8 +64,10 @@ CanonicalObject convertLegacy(
     final universe = UniverseId.parse(universes.single['id'] as String);
     final name = universes.single['name'] as String;
     selectorKey(name);
-    temporary = Directory(privateDirectory(scratch))
-        .createTempSync('.legacy-conversion-');
+    temporary = privateTemporaryDirectory(
+      privateDirectory(scratch),
+      '.legacy-conversion-',
+    );
     privateDirectory(temporary.path);
     output = OwnedSqliteDatabase.create('${temporary.path}/package.sqlite');
     final db = output.database;
