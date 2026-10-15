@@ -61,7 +61,7 @@ extension type _UnitRow._(JSObject _) implements JSObject {
     String? draftVersion,
     JSAny? revisionTarget,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -81,6 +81,7 @@ extension type _UnitRow._(JSObject _) implements JSObject {
   external String? get draftVersion;
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
 }
 
@@ -94,6 +95,89 @@ extension type _LabelRow._(JSObject _) implements JSObject {
   external int get ordinal;
   external String get language;
   external String get text;
+}
+
+SavedUnitForm _decodeUnit(
+  _UnitRow row,
+  Iterable<_LabelRow> labelRows, {
+  bool legacy = false,
+}) {
+  return SavedUnitForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedUnitForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      namespace: row.namespace,
+      key: row.key,
+      dimension: row.dimension,
+      symbol: row.symbol,
+      hasBase: row.hasBase,
+      base: row.base,
+      hasScale: row.hasScale,
+      scale: QualifierInput.fromWire(decodeBrowserInput(row.scale)),
+      validityChoice: row.validityChoice,
+      temporalValidity: row.temporal == null
+          ? null
+          : TemporalValidityInput.fromWire(decodeBrowserInput(row.temporal!)),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : UnitRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : UnitRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      labels: labelRows.map(
+        (label) =>
+            PropertyLabelInput(language: label.language, text: label.text),
+      ),
+    ),
+  );
+}
+
+_UnitRow _encodeUnit(SavedUnitForm saved) {
+  final form = saved.form;
+  return _UnitRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    dimension: form.dimension,
+    symbol: form.symbol,
+    hasBase: form.hasBase,
+    base: form.base,
+    hasScale: form.hasScale,
+    scale: encodeBrowserInput(form.scale.toWire())!,
+    validityChoice: form.validityChoice,
+    temporal: form.temporalValidity == null
+        ? null
+        : encodeBrowserInput(form.temporalValidity!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+  );
 }
 
 /// Named fields and ordered child rows, never a serialized UI-state blob.
@@ -110,7 +194,7 @@ final class BrowserUnitFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserUnitFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -119,10 +203,32 @@ final class BrowserUnitFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeUnit(
+                    _decodeUnit(cursor.value as _UnitRow, [], legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -186,45 +292,7 @@ final class BrowserUnitFormRecoveryStore {
     final row = main.result as _UnitRow;
     final labelRows = (labels.result as JSArray<_LabelRow>).toDart
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedUnitForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedUnitForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        namespace: row.namespace,
-        key: row.key,
-        dimension: row.dimension,
-        symbol: row.symbol,
-        hasBase: row.hasBase,
-        base: row.base,
-        hasScale: row.hasScale,
-        scale: QualifierInput.fromWire(decodeBrowserInput(row.scale)),
-        validityChoice: row.validityChoice,
-        temporalValidity: row.temporal == null
-            ? null
-            : TemporalValidityInput.fromWire(decodeBrowserInput(row.temporal!)),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : UnitRecord.fromWire(CanonicalValue.parseWireJson(row.original!)),
-        labels: labelRows.map(
-          (label) =>
-              PropertyLabelInput(language: label.language, text: label.text),
-        ),
-      ),
-    );
+    return _decodeUnit(row, labelRows);
   }
 
   Future<SavedUnitForm?> load(EditorFormScope scope) {
@@ -315,34 +383,7 @@ final class BrowserUnitFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _UnitRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              namespace: form.namespace,
-              key: form.key,
-              dimension: form.dimension,
-              symbol: form.symbol,
-              hasBase: form.hasBase,
-              base: form.base,
-              hasScale: form.hasScale,
-              scale: encodeBrowserInput(form.scale.toWire())!,
-              validityChoice: form.validityChoice,
-              temporal: form.temporalValidity == null
-                  ? null
-                  : encodeBrowserInput(form.temporalValidity!.toWire()),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeUnit(saved!), key.toJS);
           labelStore.delete(range);
           for (var i = 0; i < form.labels.length; i++) {
             final label = form.labels[i];

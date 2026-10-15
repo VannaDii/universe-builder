@@ -55,7 +55,7 @@ extension type _CalendarRow._(JSObject _) implements JSObject {
     String? draftVersion,
     JSAny? revisionTarget,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -69,6 +69,7 @@ extension type _CalendarRow._(JSObject _) implements JSObject {
   external String? get draftVersion;
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
 }
 
@@ -112,6 +113,86 @@ extension type _LabelRow._(JSObject _) implements JSObject {
   external String get text;
 }
 
+SavedCalendarForm _decodeCalendar(
+  _CalendarRow row,
+  Iterable<_UnitRow> unitRows,
+  Iterable<_LabelRow> labelRows,
+  Iterable<_ConversionRow> conversionRows, {
+  bool legacy = false,
+}) {
+  return SavedCalendarForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedCalendarForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      namespace: row.namespace,
+      key: row.key,
+      hasEpoch: row.hasEpoch,
+      epoch: row.epoch,
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : CalendarRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : CalendarRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      units: unitRows.map(
+        (unit) => CalendarUnitInput(name: unit.name, structure: unit.structure),
+      ),
+      conversions: conversionRows.map(
+        (conversion) => CalendarConversionInput(
+          target: conversion.target,
+          hasExpression: conversion.hasExpression,
+          expression: conversion.expression,
+          valid: conversion.valid,
+        ),
+      ),
+      labels: labelRows.map(
+        (label) =>
+            PropertyLabelInput(language: label.language, text: label.text),
+      ),
+    ),
+  );
+}
+
+_CalendarRow _encodeCalendar(SavedCalendarForm saved) {
+  final form = saved.form;
+  return _CalendarRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    hasEpoch: form.hasEpoch,
+    epoch: form.epoch,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+  );
+}
+
 /// Named fields and ordered child rows, never a serialized UI-state blob.
 /// IndexedDB transactions compare generations and commit all children together.
 /// Browser storage is origin-private and may be cleared by the user/browser;
@@ -131,7 +212,7 @@ final class BrowserCalendarFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserCalendarFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -140,10 +221,38 @@ final class BrowserCalendarFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeCalendar(
+                    _decodeCalendar(
+                      cursor.value as _CalendarRow,
+                      [],
+                      [],
+                      [],
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -217,51 +326,7 @@ final class BrowserCalendarFormRecoveryStore {
     final conversionRows =
         (conversions.result as JSArray<_ConversionRow>).toDart
           ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedCalendarForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedCalendarForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        namespace: row.namespace,
-        key: row.key,
-        hasEpoch: row.hasEpoch,
-        epoch: row.epoch,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : CalendarRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        units: unitRows.map(
-          (unit) =>
-              CalendarUnitInput(name: unit.name, structure: unit.structure),
-        ),
-        conversions: conversionRows.map(
-          (conversion) => CalendarConversionInput(
-            target: conversion.target,
-            hasExpression: conversion.hasExpression,
-            expression: conversion.expression,
-            valid: conversion.valid,
-          ),
-        ),
-        labels: labelRows.map(
-          (label) =>
-              PropertyLabelInput(language: label.language, text: label.text),
-        ),
-      ),
-    );
+    return _decodeCalendar(row, unitRows, labelRows, conversionRows);
   }
 
   Future<SavedCalendarForm?> load(EditorFormScope scope) {
@@ -359,26 +424,7 @@ final class BrowserCalendarFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _CalendarRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              namespace: form.namespace,
-              key: form.key,
-              hasEpoch: form.hasEpoch,
-              epoch: form.epoch,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeCalendar(saved!), key.toJS);
           aliasStore.delete(range);
           labelStore.delete(range);
           conversionStore.delete(range);

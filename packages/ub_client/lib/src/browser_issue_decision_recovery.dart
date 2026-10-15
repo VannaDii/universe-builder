@@ -53,7 +53,7 @@ extension type _IssueDecisionRow._(JSObject _) implements JSObject {
     required String decisionScope,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -65,7 +65,64 @@ extension type _IssueDecisionRow._(JSObject _) implements JSObject {
   external String get decisionScope;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedIssueDecisionForm _decodeIssueDecision(
+  _IssueDecisionRow row, {
+  bool legacy = false,
+}) {
+  return SavedIssueDecisionForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedIssueDecisionForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      principal: PrincipalId.parse(row.principal),
+      mode: row.mode,
+      fingerprints: (decodeBrowserInput(row.fingerprints) as CanonicalArray)
+          .items
+          .map(wireString),
+      scope: row.decisionScope,
+      original: legacy
+          ? (row.original == null
+                ? null
+                : IssueDecisionRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : IssueDecisionRecord.fromWire(
+              decodeBrowserInput(row.originalFields!),
+            ),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_IssueDecisionRow _encodeIssueDecision(SavedIssueDecisionForm saved) {
+  final form = saved.form;
+  return _IssueDecisionRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    principal: form.principal.value,
+    mode: form.mode,
+    fingerprints: encodeBrowserInput(
+      CanonicalArray(form.fingerprints.map(CanonicalString.new)),
+    )!,
+    decisionScope: form.scope,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain unfinished issue decision input.
@@ -82,7 +139,7 @@ final class BrowserIssueDecisionFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserIssueDecisionFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -91,10 +148,33 @@ final class BrowserIssueDecisionFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeIssueDecision(
+                    _decodeIssueDecision(
+                      cursor.value as _IssueDecisionRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -149,29 +229,7 @@ final class BrowserIssueDecisionFormRecoveryStore {
   SavedIssueDecisionForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _IssueDecisionRow;
-    return SavedIssueDecisionForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedIssueDecisionForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        principal: PrincipalId.parse(row.principal),
-        mode: row.mode,
-        fingerprints: (decodeBrowserInput(row.fingerprints) as CanonicalArray)
-            .items
-            .map(wireString),
-        scope: row.decisionScope,
-        original: row.original == null
-            ? null
-            : IssueDecisionRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeIssueDecision(row);
   }
 
   Future<SavedIssueDecisionForm?> load(EditorFormScope scope) {
@@ -262,24 +320,7 @@ final class BrowserIssueDecisionFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _IssueDecisionRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              principal: form.principal.value,
-              mode: form.mode,
-              fingerprints: encodeBrowserInput(
-                CanonicalArray(form.fingerprints.map(CanonicalString.new)),
-              )!,
-              decisionScope: form.scope,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeIssueDecision(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
