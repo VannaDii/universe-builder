@@ -257,6 +257,40 @@ void main() {
             'PostgreSQL: batch read and verify ${cases.length} frozen payloads '
             'plus repeated roots ${batched.elapsedMilliseconds} ms',
           );
+          final writing = Stopwatch()..start();
+          final written = await connection.runTx((tx) async {
+            final codec = PostgresRelationalCodec(tx, universe);
+            final result = <Object?>[];
+            for (var offset = 0; offset < cases.length; offset += 50) {
+              final end = (offset + 50).clamp(0, cases.length);
+              result.addAll(await codec.putMany('Payload', [
+                for (final item in cases.getRange(offset, end)) item['value']!,
+              ]));
+            }
+            return result;
+          });
+          stdout.writeln(
+            'PostgreSQL: batch write ${cases.length} frozen payloads '
+            '${writing.elapsedMilliseconds} ms',
+          );
+          expect(written.toSet().intersection(pointers.toSet()), isEmpty);
+          await connection.close();
+          connection = await Connection.open(
+            Endpoint(
+              host: '127.0.0.1', port: port,
+              database: 'ub_disposable', username: role,
+            ),
+            settings: const ConnectionSettings(sslMode: SslMode.disable),
+          );
+          await connection.runTx((tx) async {
+            final codec = PostgresRelationalCodec(tx, universe);
+            for (var i = 0; i < written.length; i++) {
+              final value = await codec.get('Payload', written[i]);
+              expect(value.toText(), (cases[i]['canonical'] as CanonicalString).value);
+              final kind = (objectFields(value)['record_kind'] as CanonicalString).value;
+              expect(payloadDigest(kind, value), (cases[i]['digest'] as CanonicalString).value);
+            }
+          });
         },
       );
 
@@ -447,13 +481,35 @@ void main() {
         );
         await connection.runTx((tx) async {
           final codec = PostgresRelationalCodec(tx, universe);
-          final root = await codec.put('Value', value);
+          final root = (await codec.putMany('Value', [value])).single;
+          expect((await codec.get('Value', root)).toText(), value.toText());
           expect(
             (await codec.getMany('Value', [root])).single.toText(),
             value.toText(),
           );
         });
       }, timeout: const Timeout(Duration(minutes: 2)));
+      test('batch writes reject invalid input before writing and roll back interruption', () async {
+        final value = CanonicalValue.parseJson('{"kind":"text","text":"記憶\\u0000😀"}');
+        Future<int> count() async =>
+            (await connection.execute('SELECT count(*) FROM $schema.r_value')).single.single as int;
+        final before = await count();
+        await connection.runTx((tx) async {
+          final codec = PostgresRelationalCodec(tx, universe);
+          expect(await codec.putMany('Value', []), isEmpty);
+          await expectLater(codec.putMany('Value', List.filled(51, value)), throwsRangeError);
+          await expectLater(codec.putMany('Value', [value, const CanonicalBool(true)]), throwsFormatException);
+        });
+        expect(await count(), before);
+        await expectLater(connection.runTx((tx) async {
+          final codec = PostgresRelationalCodec(tx, universe);
+          final pointers = await codec.putMany('Value', [value, value]);
+          expect(pointers.toSet(), hasLength(2));
+          expect((await codec.get('Value', pointers.first)).toText(), value.toText());
+          throw StateError('Interrupted batch');
+        }), throwsStateError);
+        expect(await count(), before);
+      });
     },
     skip: port == null
         ? 'Set UB_TEST_POSTGRES_PORT for the disposable local ub_disposable database.'

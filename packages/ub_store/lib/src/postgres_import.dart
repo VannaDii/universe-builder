@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:postgres/postgres.dart';
 import 'package:ub_domain/ub_domain.dart';
 
@@ -8,6 +10,7 @@ import 'postgres_relational.dart';
 import 'postgres_values.dart';
 import 'postgres_workflow_storage.dart';
 import 'relational.dart' show quoteIdentifier;
+import 'revision_input.dart' show StoredVersion;
 import 'workflow_storage.dart';
 
 /// Translate a trusted, staged SQLite package into a fresh normative namespace.
@@ -30,6 +33,29 @@ final class PostgresLogicalImport {
       }
     }
 
+    Future<void> insertRows(
+      String table,
+      List<String> names,
+      List<List<Object?>> rows,
+    ) async {
+      if (rows.isEmpty) return;
+      final parameters = <Object?>[];
+      final tuples = <String>[];
+      for (final row in rows) {
+        tuples.add(
+          '(${row.map((value) {
+            parameters.add(value);
+            return '\$${parameters.length}';
+          }).join(',')})',
+        );
+      }
+      await _session.execute(
+        'INSERT INTO $schema.${quoteIdentifier(table)} '
+        '(${names.map(quoteIdentifier).join(',')}) VALUES ${tuples.join(',')}',
+        parameters: parameters,
+      );
+    }
+
     Future<void> copyTable(String table) async {
       // Column names and types come from the freshly provisioned trusted schema.
       final columns = await _session.execute(
@@ -45,22 +71,44 @@ final class PostgresLogicalImport {
         'SELECT $selected FROM ${quoteIdentifier(table)}',
       );
       try {
+        final batch = <List<Object?>>[];
+        var bytes = 0;
+        final limit = (60000 ~/ names.length).clamp(1, 64);
+        Future<void> flush() async {
+          await insertRows(table, names, batch);
+          batch.clear();
+          bytes = 0;
+        }
+
         final cursor = statement.selectCursor();
         while (cursor.moveNext()) {
           final row = cursor.current;
           budget();
-          await _session.execute(
-            'INSERT INTO $schema.${quoteIdentifier(table)} ($selected) VALUES '
-            '(${List.generate(names.length, (i) => '\$${i + 1}').join(',')})',
-            parameters: [
-              for (var i = 0; i < names.length; i++)
-                if (row[names[i]] is String && columns[i][1] == 'bytea')
-                  postgresAuthoredText(row[names[i]] as String)
-                else
-                  row[names[i]],
-            ],
+          final values = <Object?>[
+            for (var i = 0; i < names.length; i++)
+              if (row[names[i]] is String && columns[i][1] == 'bytea')
+                postgresAuthoredText(row[names[i]] as String)
+              else
+                row[names[i]],
+          ];
+          final rowBytes = values.fold<int>(
+            0,
+            (sum, v) =>
+                sum +
+                switch (v) {
+                  Uint8List() => v.length,
+                  String() => v.length * 3,
+                  _ => 8,
+                },
           );
+          if (batch.isNotEmpty && bytes + rowBytes > 4 * 1024 * 1024) {
+            await flush();
+          }
+          batch.add(values);
+          bytes += rowBytes;
+          if (batch.length == limit) await flush();
         }
+        await flush();
       } finally {
         statement.close();
       }
@@ -72,6 +120,30 @@ final class PostgresLogicalImport {
     final codec = PostgresRelationalCodec(_session, universe);
     final versions = db.prepare('SELECT id FROM record_versions');
     try {
+      final batch = <StoredVersion>[];
+      Future<void> flush() async {
+        if (batch.isEmpty) return;
+        final payloads = await codec.putMany('Payload', [
+          for (final record in batch) record.payload,
+        ]);
+        await insertRows(
+          'record_versions',
+          ['universe_id', 'id', 'record_id', 'kind', 'payload_row', 'digest'],
+          [
+            for (var i = 0; i < batch.length; i++)
+              [
+                universe.value,
+                batch[i].versionId.value,
+                batch[i].identity.recordId.value,
+                batch[i].identity.recordKind.wireName,
+                payloads[i],
+                batch[i].digest,
+              ],
+          ],
+        );
+        batch.clear();
+      }
+
       Iterable<RecordVersionId> ids() sync* {
         final cursor = versions.selectCursor();
         while (cursor.moveNext()) {
@@ -84,19 +156,10 @@ final class PostgresLogicalImport {
         if (record.toCanonical().toBytes().length > 1048576) {
           throw const FormatException('Archive record too large');
         }
-        final payload = await codec.put('Payload', record.payload);
-        await _session.execute(
-          'INSERT INTO $schema.record_versions VALUES(\$1,\$2,\$3,\$4,\$5,\$6)',
-          parameters: [
-            universe.value,
-            record.versionId.value,
-            record.identity.recordId.value,
-            record.identity.recordKind.wireName,
-            payload,
-            record.digest,
-          ],
-        );
+        batch.add(record);
+        if (batch.length == 50) await flush();
       }
+      await flush();
     } finally {
       versions.close();
     }

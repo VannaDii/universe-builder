@@ -12,6 +12,20 @@ typedef _ReadBatch = ({
   Map<(String, int), List<Map<String, dynamic>>> items,
 });
 
+final class _PendingWrite {
+  _PendingWrite(this.model, this.columns, this.values, this.items, this.depth);
+  final BodyModel model;
+  final List<String> columns;
+  final List<Object?> values;
+  final List<MapEntry<Object, Object?>> items;
+  final int depth;
+  int? id;
+}
+
+final class _WriteBatchFull implements Exception {
+  const _WriteBatchFull();
+}
+
 /// Internal typed codec, usable only within a driver's owned transaction.
 /// Row pointers remain storage details and never participate in domain digests.
 final class PostgresRelationalCodec {
@@ -29,16 +43,184 @@ final class PostgresRelationalCodec {
     return _write(name, value);
   }
 
+  /// Stage bounded groups of typed bodies, allocating new PostgreSQL-owned
+  /// pointers. Children precede parents, so ordinary immediate FKs stay enabled.
+  /// A broad valid body falls back to the original writer without a new limit.
+  Future<List<Object?>> putMany(
+    String name,
+    List<CanonicalValue> values,
+  ) async {
+    if (values.length > 50) {
+      throw RangeError('Body write batch exceeds 50 roots');
+    }
+    for (final value in values) {
+      if (!_catalog.fits(name, value)) {
+        throw FormatException('Value does not match $name contract');
+      }
+    }
+    final pending = <_PendingWrite>[];
+    var work = 0, bytes = 0;
+    Object? scalar(CanonicalValue value) {
+      final result = _scalar(value);
+      if (result is Uint8List) bytes += result.length;
+      if (result is String) bytes += result.length;
+      if (bytes > 16 * 1024 * 1024) throw const _WriteBatchFull();
+      return result;
+    }
+
+    Object? stage(String name, CanonicalValue value) {
+      if (++work > 10000) throw const _WriteBatchFull();
+      final model = _catalog.model(name);
+      if (model.scalar) return scalar(value);
+      final columns = <String>[], cells = <Object?>[];
+      final items = <MapEntry<Object, Object?>>[];
+      if (model.kind == 'object' || model.kind == 'tuple') {
+        final fields = value is CanonicalObject
+            ? objectFields(value)
+            : <String, CanonicalValue>{};
+        for (final entry in model.fields.entries) {
+          final child = value is CanonicalArray
+              ? value.items[int.parse(entry.key)]
+              : fields[entry.key];
+          final state = child == null
+              ? 0
+              : child is CanonicalNull
+              ? 1
+              : 2;
+          columns.addAll(['${entry.key}__state', entry.key]);
+          cells.addAll([
+            state,
+            state == 2 ? stage(entry.value.model, child!) : null,
+          ]);
+        }
+      } else if (model.kind == 'union') {
+        final branch = model.variants.indexWhere(
+          (v) => _catalog.fits(v, value),
+        );
+        if (branch < 0) throw const FormatException('No matching branch');
+        columns.addAll([
+          'variant',
+          for (var i = 0; i < model.variants.length; i++) 'v$i',
+        ]);
+        cells.addAll([
+          branch,
+          for (var i = 0; i < model.variants.length; i++)
+            i == branch ? stage(model.variants[i], value) : null,
+        ]);
+      } else if (model.kind == 'array') {
+        final array = value as CanonicalArray;
+        for (var i = 0; i < array.items.length; i++) {
+          items.add(MapEntry(i, stage(model.item!, array.items[i])));
+        }
+      } else if (model.kind == 'map') {
+        for (final entry in (value as CanonicalObject).fields) {
+          final key = scalar(CanonicalString(entry.key)) as Uint8List;
+          items.add(MapEntry(key, stage(model.item!, entry.value)));
+        }
+      }
+      var depth = 0;
+      for (final cell in [...cells, ...items.map((e) => e.value)]) {
+        if (cell is _PendingWrite && cell.depth >= depth) {
+          depth = cell.depth + 1;
+        }
+      }
+      final row = _PendingWrite(model, columns, cells, items, depth);
+      pending.add(row);
+      return row;
+    }
+
+    late List<Object?> roots;
+    try {
+      roots = [for (final value in values) stage(name, value)];
+    } on _WriteBatchFull {
+      return [for (final value in values) await put(name, value)];
+    }
+    final byTable = <String, List<_PendingWrite>>{};
+    final byDepth = <(int, String), List<_PendingWrite>>{};
+    for (final row in pending) {
+      (byTable[row.model.table] ??= []).add(row);
+      (byDepth[(row.depth, row.model.table)] ??= []).add(row);
+    }
+    // Reserve identities through the owning table's own sequence. These are
+    // fresh storage pointers, never copied from the imported package.
+    for (final entry in byTable.entries) {
+      final ids = await _session.execute(
+        "SELECT nextval(pg_get_serial_sequence(\$1::text,'__row_id')::regclass) "
+        'FROM generate_series(1,\$2::integer)',
+        parameters: [_table(entry.key), entry.value.length],
+      );
+      for (var i = 0; i < entry.value.length; i++) {
+        entry.value[i].id = ids[i].single as int;
+      }
+    }
+    Object? resolve(Object? cell) => cell is _PendingWrite ? cell.id! : cell;
+    final groups = byDepth.entries.toList()
+      ..sort((a, b) => a.key.$1.compareTo(b.key.$1));
+    for (final group in groups) {
+      final rows = group.value;
+      await _insertValues(
+        group.key.$2,
+        ['__row_id', ...rows.first.columns],
+        [
+          for (final row in rows) [row.id!, ...row.values.map(resolve)],
+        ],
+        overrideIdentity: true,
+      );
+      final items = <List<Object?>>[
+        for (final row in rows)
+          for (final item in row.items)
+            [row.id!, item.key, resolve(item.value)],
+      ];
+      if (items.isNotEmpty) {
+        await _insertValues('${group.key.$2}_items', [
+          'owner',
+          rows.first.model.kind == 'array' ? 'ordinal' : 'name',
+          'item',
+        ], items);
+      }
+    }
+    return roots.map(resolve).toList();
+  }
+
+  Future<void> _insertValues(
+    String table,
+    List<String> columns,
+    List<List<Object?>> rows, {
+    bool overrideIdentity = false,
+  }) async {
+    final limit = (60000 ~/ columns.length).clamp(1, 64);
+    for (var offset = 0; offset < rows.length; offset += limit) {
+      final end = (offset + limit).clamp(0, rows.length);
+      final parameters = <Object?>[];
+      final tuples = <String>[];
+      for (final row in rows.getRange(offset, end)) {
+        tuples.add(
+          '(${row.map((value) {
+            parameters.add(value);
+            return '\$${parameters.length}';
+          }).join(',')})',
+        );
+      }
+      await _session.execute(
+        'INSERT INTO ${_table(table)} (${columns.map(postgresIdentifier).join(',')}) '
+        '${overrideIdentity ? 'OVERRIDING SYSTEM VALUE ' : ''}VALUES ${tuples.join(',')}',
+        parameters: parameters,
+      );
+    }
+  }
+
+  Object? _scalar(CanonicalValue value) => switch (value) {
+    CanonicalNull() => null,
+    CanonicalBool(:final value) => value,
+    CanonicalString(:final value) => postgresAuthoredText(value),
+    CanonicalNumber(:final digits) => digits,
+    _ => throw const FormatException('Invalid scalar'),
+  };
+
   Future<Object?> _write(String name, CanonicalValue value) async {
     final model = _catalog.model(name);
     if (model.scalar) {
-      return switch (value) {
-        CanonicalNull() => null,
-        CanonicalBool(:final value) => value,
-        CanonicalString(:final value) => postgresAuthoredText(value),
-        CanonicalNumber(:final digits) => digits,
-        _ => throw const FormatException('Invalid scalar'),
-      };
+      return _scalar(value);
     }
     final columns = <String>[], values = <Object?>[];
     if (model.kind == 'object' || model.kind == 'tuple') {
