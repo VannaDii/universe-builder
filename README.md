@@ -1028,6 +1028,13 @@ saved before closing remains ready for **Publish approved changes** after restar
 even when publication has not started. The confirmed
 receipt names its revision, and **Read published records** opens that exact
 revision with current access. Returning to Overview refreshes the canon summary.
+**Withdraw this proposal** retains its operations and immutable history while
+preventing further publication from that proposal. It does not undo an earlier
+publication. Reopening or **Check saved changes** recovers a completed withdrawal
+through its original operation key, including after a lost response. A withdrawn
+proposal has no approval or publication controls. **Continue editing separately**
+keeps its saved operations editable; a later submission needs its own checks and
+approval.
 Unsubmitted operations can be removed with **Remove from draft**. Draft changes
 for a new world can also be edited through **Edit world fields**. Name, English
 label and setting type save explicitly with **Save world changes**, preserving

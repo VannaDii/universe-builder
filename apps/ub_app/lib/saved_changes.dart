@@ -185,6 +185,76 @@ final class SavedChanges {
   String publicationKey(Proposal proposal, ValidationRunId run) =>
       'flutter-publish-${proposal.digest}-${run.value}';
 
+  String withdrawalKey(Proposal proposal) =>
+      'flutter-withdraw-${proposal.digest}';
+
+  /// Read an earlier withdrawal outcome without issuing another state change.
+  Future<Proposal?> withdrawal(Proposal proposal) async {
+    OperationStatusV3 status;
+    try {
+      status = Envelope<OperationStatusV3>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: GetOperationKeyRequest(
+              universe: universe,
+              universeId: scope.universe,
+              operationKind: OperationKind.propose,
+              idempotencyKey: withdrawalKey(proposal),
+            ),
+          ),
+        ),
+        OperationStatusV3.fromWire,
+      ).result;
+    } on NotFoundOrNotAccessibleError {
+      return null;
+    }
+    if (status.proposal == null) {
+      throw const FormatException(
+        'Withdrawal has not finished. Check saved changes again before continuing.',
+      );
+    }
+    return this.proposal(reference(status.proposal!));
+  }
+
+  Future<Proposal> withdraw(Proposal proposal) async {
+    if (proposal.withdrawn) return proposal;
+    final recovered = await withdrawal(proposal);
+    if (recovered != null) return recovered;
+    final frame = proposal.baseFrame;
+    final opened = Envelope<OpenedContext>.fromWire(
+      await session.call(
+        ToolEngineRequest(
+          request: OpenContextRequest(
+            universe: universe,
+            universeId: scope.universe,
+            continuityId: frame.continuity,
+            revision: ExactRevisionSelector(revisionId: frame.revision),
+            representedContext: ContextIdSelector(frame.context.record),
+            temporalQuery: frame.time,
+            temporalSystems: [],
+            perspective: frame.perspective,
+          ),
+        ),
+      ),
+      OpenedContext.fromWire,
+    ).result;
+    final withdrawn = Envelope<Proposal>.fromWire(
+      await session.call(
+        ToolEngineRequest(
+          request: WithdrawProposalRequest(
+            universe: universe,
+            universeId: scope.universe,
+            contextId: opened.contextId,
+            proposalReference: reference(proposal),
+            idempotencyKey: withdrawalKey(proposal),
+          ),
+        ),
+      ),
+      Proposal.fromWire,
+    ).result;
+    return this.proposal(reference(withdrawn));
+  }
+
   Future<CommitReceipt> publish(Proposal proposal, ValidationRunId run) async =>
       Envelope<CommitReceipt>.fromWire(
         await session.call(
@@ -643,7 +713,8 @@ final class SavedChanges {
 
   Future<Proposal?> recover(SavedDraft draft) async {
     if (draft.content.proposal case final reference?) {
-      return proposal(reference);
+      final current = await proposal(reference);
+      return await withdrawal(current) ?? current;
     }
     OperationStatusV3 status;
     try {
@@ -669,13 +740,14 @@ final class SavedChanges {
       );
     }
     final recovered = status.proposal!;
-    return proposal(
+    final current = await proposal(
       ProposalRef(
         proposalId: recovered.proposalId,
         version: recovered.version,
         digest: recovered.digest,
       ),
     );
+    return await withdrawal(current) ?? current;
   }
 
   Future<Map<RecordId, RecordVersion>> before(Proposal proposal) async {

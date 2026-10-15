@@ -214,7 +214,7 @@ class _ChangesPageState extends State<ChangesPage> {
 
   Future<void> _validate() async {
     final proposal = _proposal;
-    if (proposal == null || _busy) return;
+    if (proposal == null || proposal.withdrawn || _busy) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -283,7 +283,7 @@ class _ChangesPageState extends State<ChangesPage> {
 
   Future<void> _approve() async {
     final proposal = _proposal, report = _validation;
-    if (proposal == null || report is! EvaluatedValidation || _busy) return;
+    if (proposal == null || proposal.withdrawn || report is! EvaluatedValidation || _busy) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -323,10 +323,36 @@ class _ChangesPageState extends State<ChangesPage> {
     }
   }
 
+  Future<void> _withdraw() async {
+    final proposal = _proposal;
+    if (proposal == null || proposal.withdrawn || _busy || _receipt != null) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _validation = null;
+      _approved = false;
+      _publication = null;
+    });
+    try {
+      final withdrawn = await widget.changes.withdraw(proposal);
+      if (mounted) setState(() => _proposal = withdrawn);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = 'Could not confirm withdrawal. Check saved changes to recover its outcome before continuing.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _publish() async {
     final proposal = _proposal;
     final run = _approved ? _validation?.execution?.runId : _publication?.run;
-    if (proposal == null || run == null || _busy) return;
+    if (proposal == null || proposal.withdrawn || run == null || _busy) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -549,6 +575,8 @@ class _ChangesPageState extends State<ChangesPage> {
                       ? 'Published changes'
                       : _proposal == null
                       ? 'Saved changes'
+                      : _proposal!.withdrawn
+                      ? 'Withdrawn proposal'
                       : 'Submitted proposal',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -558,6 +586,8 @@ class _ChangesPageState extends State<ChangesPage> {
                 ),
                 if (_error != null)
                   Semantics(liveRegion: true, child: Text(_error!)),
+                if (_proposal?.withdrawn == true)
+                  const Text('This proposal is withdrawn and cannot publish new canon. Its changes and history are retained. Earlier publications remain intact. Use Continue editing separately to keep working on the saved operations.'),
                 if (_receipt != null)
                   Card(
                     child: Padding(
@@ -1644,7 +1674,11 @@ class _ChangesPageState extends State<ChangesPage> {
                         onPressed: _busy ? null : _readPublished,
                         child: const Text('Read published records'),
                       ),
-                    if (_proposal != null && _receipt == null) ...[
+                    if (_proposal != null && !_proposal!.withdrawn && _receipt == null) ...[
+                      OutlinedButton(
+                        onPressed: _busy ? null : _withdraw,
+                        child: const Text('Withdraw this proposal'),
+                      ),
                       OutlinedButton(
                         onPressed: _busy ? null : _validate,
                         child: const Text('Run checks'),
