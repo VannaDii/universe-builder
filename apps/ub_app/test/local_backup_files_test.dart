@@ -28,13 +28,17 @@ void main() {
       servers.add(
         await LocalSqliteEngineServer.start(root, compatibilitySocket: false),
       );
-      final session = await DeviceConnection([
-        '--installation',
-        root,
-        '--profile',
-        profile.value,
-        '--engine=/nonexistent',
-      ]).connect();
+      final session = await DeviceConnection(
+        [
+          '--installation',
+          root,
+          '--profile',
+          profile.value,
+          '--engine=/nonexistent',
+        ],
+        saveBackupFile: (_) async => null,
+        openBackupFile: (_) async => false,
+      ).connect();
       sessions.add(session);
       return session;
     }
@@ -97,6 +101,11 @@ void main() {
         selected, choices,
       ) as CanonicalObject).fields);
       expect(wireString(preview['preview_id']!), choices.operation.value);
+      final reviewed = choices.copyWith(
+        phase: PackageImportPhase.review,
+        review: CanonicalObject(preview.entries),
+      );
+      await target.savePackageImport!(reviewed, BigInt.zero);
       await selected.release!();
       expect(File(selected.source as String).existsSync(), isFalse);
       // Mobile app updates can move the entire private installation container.
@@ -105,6 +114,10 @@ void main() {
       Directory(targetRoot).renameSync('${temporary.path}/moved-target');
       targetRoot = '${temporary.path}/moved-target';
       target = await instance('moved-target');
+      expect(
+        (await target.loadPackageImport!())!.form.toWire().toText(),
+        reviewed.toWire().toText(),
+      );
       expect((preview['includes_workflow'] as CanonicalBool).value, isTrue);
       final admitted = Map.fromEntries((await target.call(
         AcceptImportEngineRequest(
@@ -113,6 +126,15 @@ void main() {
         ),
       ) as CanonicalObject).fields);
       expect((admitted['imported'] as CanonicalBool).value, isTrue);
+      final completed = reviewed.copyWith(
+        phase: PackageImportPhase.admitted,
+        receipt: CanonicalObject(admitted.entries),
+      );
+      await target.savePackageImport!(completed, BigInt.one);
+      expect(
+        (await target.loadPackageImport!())!.form.toWire().toText(),
+        completed.toWire().toText(),
+      );
       expect(wireString(admitted['universe_id']!), isNot(universe.id.value));
       final maintenance = await maintainStorage(
         source,
