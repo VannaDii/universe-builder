@@ -10,8 +10,8 @@ jobs:
           git clone --depth 1 --branch "$(cat .flutter-version)" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
       - run: flutter pub get --enforce-lockfile
-      - name: Install Linux credential bridge and disposable keyring fixture
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsecret-1-dev pkg-config dbus gnome-keyring
+      - name: Install Linux desktop dependencies and disposable keyring fixture
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsecret-1-dev libgtk-3-dev cmake ninja-build pkg-config dbus gnome-keyring
       - run: dart run tool/build_schema.dart
       - run: dart run tool/embed_schema.dart
       - run: git diff --exit-code -- packages/ub_store/lib/src/schema.g.dart packages/ub_store/lib/src/credential_schema.g.dart packages/ub_store/lib/src/installation_schema.g.dart
@@ -74,6 +74,23 @@ jobs:
         run: |
           docker build --file packaging/Dockerfile.headless --tag universe-builder-mcp-headless:ci target/headless/linux
           docker run --rm --name universe-builder-mcp-container-ci universe-builder-mcp-headless:ci --help
+      - name: Build Linux desktop and bundled web
+        run: dart run apps/ub_cli/tool/package_linux.dart --output target/linux-desktop/package
+      - name: Check Linux menu entries
+        working-directory: apps/ub_cli
+        run: |
+          umask 077
+          dart test test/linux_desktop_launcher_test.dart test/desktop_launcher_test.dart
+      - name: Check desktop-layout helper startup
+        working-directory: packages/ub_client
+        run: |
+          umask 077
+          dart test test/engine_startup_test.dart --name 'compiled concurrent clients'
+      - name: Check Linux app file and authoring flows
+        working-directory: apps/ub_app
+        run: |
+          umask 077
+          dart test test/appearance_workflow_test.dart test/connection_test.dart test/local_backup_files_test.dart
   macos:
     runs-on: macos-15
     steps:

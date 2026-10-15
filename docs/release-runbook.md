@@ -93,6 +93,39 @@ establish that the host has no developer tools installed. They do not open the
 desktop. Rust fixture packaging and its remaining Python checks are legacy
 migration tooling, not the version-tag distribution route.
 
+## Linux desktop package
+
+Use the pinned Flutter/Dart toolchain on Linux with Clang, CMake, Ninja,
+pkg-config, GTK 3 and libsecret development packages. Run
+`dart run apps/ub_cli/tool/package_linux.dart --output NEW_DIRECTORY` from the
+workspace. The destination must not exist. This builds release desktop/web
+clients and their native CLI/MCP/engine helpers for the current arm64 or x64
+host. Runtime systems need compatible glibc, GTK 3 and libsecret libraries;
+this is not a static binary or a cross-distribution compatibility claim.
+
+Move the complete package to its intended location before creating a shortcut.
+Run `bin/multiverse-mcp ux` there. The desktop uses XDG application-data storage
+for its default local installation. Native GTK file choosers supply the existing
+source/image and backup/import workflows; copies are asynchronous, bounded to
+8 GiB and refuse an existing destination. Picker cancellation does not admit or
+publish anything.
+
+`bin/multiverse-mcp shortcut --launcher /absolute/package/bin/multiverse-mcp`
+creates `universe-builder.desktop` in the XDG applications directory. Supply
+`--destination DIRECTORY` for another location or pair `--installation PATH
+--profile ID` to remember a connection. The entry contains literal arguments
+and the approved bundled icon. It does not overwrite an existing entry or
+initialize an installation. Use a stable absolute launcher path for upgrades;
+if the package moves, remove and explicitly recreate its menu entry. To
+uninstall, remove the entry and package while retaining installation data and
+backups. Desktop environments may require their own trust confirmation for an
+entry copied to the desktop instead of the applications directory.
+
+The `desktop/`, `bin/` and `lib/` directories form one package. Stop its app and
+engines before whole-directory replacement. Do not copy an individual executable
+without its libraries or mix helpers from different builds. Signing/distribution
+publication and native graphical qualification remain separate work.
+
 ## Headless container
 
 On the intended Linux architecture, assemble the headless package with the pinned

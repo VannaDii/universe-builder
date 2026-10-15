@@ -228,6 +228,12 @@ final class LocalEngineClient {
           Platform.isMacOS &&
           sealedBundle &&
           File(executable).uri.pathSegments.last == 'Universe Builder';
+      if (Platform.isLinux &&
+          File(executable).uri.pathSegments.last == 'universe_builder') {
+        final packaged =
+            '${File(executable).parent.parent.path}/bin/universe-engine';
+        if (File(packaged).existsSync()) return packaged;
+      }
       return '${File(executable).parent.path}/universe-engine${sandboxChild ? '-sandbox' : ''}';
     } on Object {
       throw const LocalEngineException(LocalEngineFailure.helperUnavailable);

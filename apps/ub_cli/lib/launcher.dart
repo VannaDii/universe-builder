@@ -10,7 +10,7 @@ const _usage =
     'serve forwards to the installed universe-mcp; admin forwards to universe.\n'
     'ux [--installation <path> --profile <id> | --fixture] opens the desktop.\n'
     'shortcut [--destination <directory>] [--launcher <absolute path>] '
-    '[--installation <path> --profile <id>] creates a Finder app on macOS.';
+    '[--installation <path> --profile <id>] creates a Finder app on macOS or a menu entry on Linux.';
 
 /// Installed public entry point. Arguments are passed as literal process
 /// arguments, never through a shell or PATH lookup. The shared resolver verifies
@@ -59,7 +59,7 @@ Future<int> runLauncher(
     }
     if (arguments.first == 'shortcut') {
       output(
-        'Created ${await createFinderShortcut(engine: engine, options: desktop!)}',
+        'Created ${await (Platform.isLinux ? createLinuxShortcut : createFinderShortcut)(engine: engine, options: desktop!)}',
       );
       return 0;
     }

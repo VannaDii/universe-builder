@@ -75,6 +75,12 @@ final class DesktopOptions {
       bundle = bundle.parent;
     }
   }
+  if (Platform.isLinux) {
+    final packaged = '${directory.parent.path}/desktop/universe_builder';
+    if (File(packaged).existsSync()) {
+      return (executable: packaged, arguments: arguments);
+    }
+  }
   return (
     executable:
         '${directory.path}/universe_builder${Platform.isWindows ? '.exe' : ''}',
@@ -83,6 +89,79 @@ final class DesktopOptions {
 }
 
 String _shellWord(String text) => "'${text.replaceAll("'", "'\\''")}'";
+
+String _desktopWord(String text) {
+  if (text.contains('\n') || text.contains('\r') || text.contains('\u0000')) {
+    throw const FormatException('Desktop entries require single-line paths');
+  }
+  return '"${text.replaceAll(r'\', r'\\\\').replaceAll('"', r'\\"').replaceAll(r'$', r'\\$').replaceAll('`', r'\\`').replaceAll('%', '%%')}"';
+}
+
+Future<String> createLinuxShortcut({
+  required String engine,
+  required DesktopOptions options,
+}) async {
+  if (!Platform.isLinux) {
+    throw const FormatException('Linux shortcut requires Linux');
+  }
+  final home = Platform.environment['HOME'];
+  final data = Platform.environment['XDG_DATA_HOME'];
+  final destination =
+      options.destination ??
+      (data?.startsWith('/') == true
+          ? '$data/applications'
+          : home == null
+          ? throw const FormatException('Home unavailable')
+          : '$home/.local/share/applications');
+  final invoked = File(Platform.executable);
+  final launcher =
+      options.launcher ??
+      (invoked.isAbsolute ? invoked.path : Platform.resolvedExecutable);
+  if (!File(launcher).isAbsolute ||
+      !File(launcher).existsSync() ||
+      launcher.contains('=')) {
+    throw const FormatException(
+      'Existing absolute launcher without = required',
+    );
+  }
+  final icon = File(
+    '${File(engine).parent.parent.path}/desktop/data/icons/universe-builder.png',
+  );
+  if (FileSystemEntity.typeSync(icon.path, followLinks: false) !=
+      FileSystemEntityType.file) {
+    throw const FormatException('Approved bundled icon unavailable');
+  }
+  // GIO checks the program path before expanding literal %% escapes. Keep the
+  // program fixed; env executes the exact absolute launcher as an argument.
+  final command = [
+    '/usr/bin/env',
+    launcher,
+    'ux',
+    ...options.arguments,
+  ].map(_desktopWord).join(' ');
+  if (icon.path.contains('\n') || icon.path.contains('\r')) {
+    throw const FormatException('Invalid icon path');
+  }
+  final content =
+      '[Desktop Entry]\nType=Application\nName=Universe Builder\n'
+      'Exec=$command\nIcon=${icon.path.replaceAll(r'\', r'\\')}\n'
+      'Terminal=false\nCategories=Office;\nStartupWMClass=com.example.universe_builder\n';
+  final parent = Directory(destination).absolute;
+  await parent.create(recursive: true);
+  final file = File('${parent.path}/universe-builder.desktop');
+  await file.create(exclusive: true);
+  try {
+    await file.writeAsString(content, flush: true);
+    final mode = await Process.run('/bin/chmod', ['755', file.path]);
+    if (mode.exitCode != 0) {
+      throw const FileSystemException('Shortcut permissions unavailable');
+    }
+    return file.path;
+  } on Object {
+    await file.delete();
+    rethrow;
+  }
+}
 
 /// A Finder shortcut contains only a literal invocation and the approved icon.
 /// Exclusive mkdir refuses an existing app or link; only our new app is cleaned

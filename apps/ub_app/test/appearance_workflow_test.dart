@@ -30,6 +30,8 @@ void main() {
     );
     final source = File('${root.path}/Portrait é.png')
       ..writeAsBytesSync(original);
+    const sourceText = '\uFEFFResearch é😀\r\nRetained account.\r\n';
+    final textFile = File('${root.path}/Research é.md')..writeAsStringSync(sourceText);
     String? selectedPath;
     final server = await LocalSqliteEngineServer.start(
       root.path,
@@ -43,8 +45,10 @@ void main() {
         '--profile',
         profile.value,
         '--engine=/nonexistent/universe-engine',
-      ], pickImagePath: () async => selectedPath);
+      ], pickImagePath: () async => selectedPath, pickSourcePath: () async => textFile.path);
       session = await device.connect();
+      expect((await session.pickSourceText!())!.text, sourceText);
+      expect(textFile.existsSync(), isTrue);
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(

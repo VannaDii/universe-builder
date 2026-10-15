@@ -6,6 +6,7 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+#include "native_files.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -53,6 +54,14 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+  g_autofree gchar* executable = g_file_read_link("/proc/self/exe", nullptr);
+  if (executable) {
+    g_autofree gchar* directory = g_path_get_dirname(executable);
+    g_autofree gchar* icon = g_build_filename(directory, "data", "icons", "universe-builder.png", nullptr);
+    if (g_file_test(icon, G_FILE_TEST_IS_REGULAR)) {
+      gtk_window_set_icon_from_file(window, icon, nullptr);
+    }
+  }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
@@ -74,6 +83,7 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  register_file_channels(view, window);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

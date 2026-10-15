@@ -191,7 +191,14 @@ Future<void> main(List<String> args) async {
       0,
       reason: 'Client fixture compilation failed',
     );
-    final clientBinary = '${root.path}/client-build/bundle/bin/start_fixture';
+    var clientBinary = '${root.path}/client-build/bundle/bin/start_fixture';
+    if (Platform.isLinux) {
+      final desktop = Directory('${root.path}/client-build/bundle/desktop')
+        ..createSync();
+      final moved = File(clientBinary)
+          .renameSync('${desktop.path}/universe_builder');
+      clientBinary = moved.path;
+    }
     final installedHelper =
         File(
           '${root.path}/client-build/bundle/bin/universe-engine',

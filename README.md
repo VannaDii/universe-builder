@@ -118,11 +118,25 @@ Secret Service session, select the backend through `UB_USE_POSTGRES` and
 `UB_POSTGRES_ENDPOINT`. Encrypted saved settings use libsecret and an existing
 unlocked default collection in the user's session; no keyring is created or
 unlocked by the app.
-Windows packaging and Linux desktop delivery remain pending.
+Windows packaging remains pending.
 The [headless container procedure](docs/release-runbook.md#headless-container)
 packages these Linux binaries with a pinned runtime base, unprivileged service
 user and explicit persistent volume. Initialization and schema conversion stay
 explicit; the image does not include installation data or database credentials.
+Linux desktop assembly is available with
+`dart run apps/ub_cli/tool/package_linux.dart --output target/linux-desktop/local`.
+It builds the Flutter desktop and web clients, bundles native helpers in `bin/`,
+and retains the complete Flutter bundle in `desktop/`. Keep the whole directory
+together. Launch `bin/multiverse-mcp ux`; add a menu entry with
+`bin/multiverse-mcp shortcut --launcher /absolute/package/bin/multiverse-mcp`.
+The default menu location follows XDG data directories; `--destination` selects
+another folder. Existing entries are never overwritten. The window and menu
+entry use the approved UB logo. GTK native choosers support source text, images
+and backup/archive files, with asynchronous file copying and no destination
+overwrite. Linux builds additionally require CMake, Ninja and GTK 3 development
+headers (`cmake ninja-build libgtk-3-dev` on Debian/Ubuntu); desktop runtime hosts
+need GTK 3 and a working graphical session. Native window, picker and
+accessibility interaction remains unqualified.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only

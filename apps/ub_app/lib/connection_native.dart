@@ -462,7 +462,7 @@ final class DeviceConnection {
     }
 
     final files =
-        (Platform.isMacOS || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
+        (Platform.isMacOS || Platform.isLinux || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
         ? LocalBackupFiles(
             root: root!,
             call: (request) => sequenced(() => client.call(request)),
@@ -510,7 +510,7 @@ final class DeviceConnection {
       cancelArchiveUpload: hostedChoice == null ? null : client.close,
       pickSourceText:
           client.welcome.author &&
-              (Platform.isMacOS || _embeddedLocal) &&
+              (Platform.isMacOS || Platform.isLinux || _embeddedLocal) &&
               pickSourcePath != null
           ? () async {
               final source = await pickSourcePath!();
@@ -552,7 +552,7 @@ final class DeviceConnection {
       restoreBackupFile: hostedChoice == null ? files?.restore : null,
       pickImage:
           client.welcome.author &&
-              (Platform.isMacOS || _embeddedLocal) &&
+              (Platform.isMacOS || Platform.isLinux || _embeddedLocal) &&
               pickImagePath != null
           ? (universe) async {
               final source = await pickImagePath!();
