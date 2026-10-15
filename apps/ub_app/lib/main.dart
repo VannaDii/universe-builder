@@ -1,4 +1,5 @@
 import 'app_theme.dart';
+import 'getting_started_guide.dart';
 import 'fixture_page.dart';
 import 'fixture_connection_stub.dart'
     if (dart.library.io) 'fixture_connection_native.dart';
@@ -1224,6 +1225,35 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     }
   }
 
+  Future<void> _openStarterEditor(
+    BuildContext context,
+    ContinuitySummary continuity,
+    String editor,
+  ) async {
+    if (_busy ||
+        _session == null ||
+        _selected == null ||
+        !_contexts.containsKey(continuity.id) ||
+        (!_session!.author && editor != 'records')) {
+      return;
+    }
+    final location = LibraryLocation(
+      universe: _selected!.id,
+      continuity: continuity.id,
+      context: _contexts[continuity.id],
+      editor: editor,
+    );
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        settings: widget.device.supportsBrowser
+            ? RouteSettings(name: location.uri.toString())
+            : null,
+        builder: (_) => _linkedEditor(location, continuity),
+      ),
+    );
+    if (mounted && _selected != null) await _open(_selected!);
+  }
+
   Future<void> _newUniverse(BuildContext context) async {
     final session = _session!;
     final result = await Navigator.of(context).push<CreationResult>(
@@ -1553,8 +1583,13 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           ),
         const SizedBox(height: 24),
       ],
-      if (_library!.universes.isEmpty)
-        const Text('No universes are available to this profile.'),
+      if (_library!.universes.isEmpty) ...[
+        Text(_session!.author
+            ? 'Create your first universe to keep a campaign, novel or life story consistent. Give it a name and choose its starting calendar; you can add people, places and sources as you work.'
+            : 'No universes are available to this profile. Ask the approval owner to grant access to the universe you need.'),
+        const SizedBox(height: 12),
+        const Text('A fictional universe follows your authored canon. Real World uses scoped source requirements for factual claims, including attributed personal recollections where permitted.'),
+      ],
       for (final universe in _library!.universes)
         ListTile(
           title: Text(universe.name),
@@ -1634,6 +1669,13 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                         : (id) {
                             if (id != null) _chooseContext(continuity, id);
                           },
+                  ),
+                if (_contexts.containsKey(continuity.id))
+                  GettingStartedGuide(
+                    key: ValueKey('start:${continuity.id.value}:${_contexts[continuity.id]?.value}'),
+                    author: _session!.author,
+                    enabled: !_busy,
+                    onOpen: (editor) => _openStarterEditor(context, continuity, editor),
                   ),
                 if (_contexts.containsKey(continuity.id))
                   TextButton(
@@ -3224,6 +3266,8 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     padding: const EdgeInsets.all(32),
     children: const [
       Text('Help', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600)),
+      SizedBox(height: 24),
+      GettingStartedGuide(author: true),
       SizedBox(height: 24),
       Text(
         'Universe Builder keeps attributed facts and continuity. Changes to canon require an exact review, approval and separate publication.',

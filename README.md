@@ -615,6 +615,14 @@ limited scopes require 1–100 selections. An expiry can be chosen using a local
 date/time picker or entered as exact Unix seconds. Credentials are never shown.
 Grant changes take effect through the existing service authority checks.
 Unsubmitted grant fields stay on the current screen and are discarded on exit.
+
+**Getting started** in each continuity offers optional campaign, novel and life-story
+guidance and opens the existing scoped editors. It explains linked-record
+prerequisites, unfinished work, separate review/approval/publication, and scoped
+Real World source requirements. Selecting a writing project changes guidance
+only. The guide is also available in Help; empty libraries explain creation and
+access rather than leaving the first step implicit.
+
 **Backup and storage** connects to the existing complete backup and maintenance
 operations. On macOS, native save/open dialogs copy files through the app's
 user-selected sandbox access; the service reads and writes private staging paths.
