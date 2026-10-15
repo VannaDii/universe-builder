@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_chronology_fields.dart';
 
 final class BrowserStoryTimeFormRecovery {
   const BrowserStoryTimeFormRecovery({
@@ -48,7 +49,7 @@ extension type _StoryTimeRow._(JSObject _) implements JSObject {
     required String targetRecord,
     required String targetUniverse,
     required String expectedRecordVersion,
-    required String original,
+    required BrowserChronologyFields originalFields,
     required String value,
     required String mode,
     required String reason,
@@ -61,6 +62,7 @@ extension type _StoryTimeRow._(JSObject _) implements JSObject {
   external String get targetRecord;
   external String get targetUniverse;
   external String get expectedRecordVersion;
+  external BrowserChronologyFields get originalFields;
   external String get original;
   external String get value;
   external String get mode;
@@ -68,6 +70,48 @@ extension type _StoryTimeRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
 }
+
+_StoryTimeRow _encodeStoryTime(SavedStoryTimeForm saved) {
+  final form = saved.form;
+  return _StoryTimeRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    targetRecord: form.target.record,
+    targetUniverse: form.target.universe,
+    expectedRecordVersion: form.expectedRecordVersion.value,
+    originalFields: encodeBrowserChronology(form.original),
+    value: form.value,
+    mode: form.mode,
+    reason: form.reason,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
+}
+
+SavedStoryTimeForm _decodeStoryTime(_StoryTimeRow row, {bool legacy = false}) =>
+    SavedStoryTimeForm(
+      generation: BigInt.parse(row.generation),
+      form: UnfinishedStoryTimeForm(
+        baseRevision: RevisionId.parse(row.baseRevision),
+        representedContext: RecordId.parse(row.representedContext),
+        target: ExpressionReferenceInput(
+          record: row.targetRecord,
+          universe: row.targetUniverse,
+        ),
+        expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
+        original: legacy
+            ? Chronology.fromWire(CanonicalValue.parseWireJson(row.original))
+            : decodeBrowserChronology(row.originalFields),
+        value: row.value,
+        mode: row.mode,
+        reason: row.reason,
+        rationale: row.rationale,
+        draftVersion: row.draftVersion == null
+            ? null
+            : BigInt.parse(row.draftVersion!),
+      ),
+    );
 
 final class BrowserStoryTimeFormRecoveryStore {
   BrowserStoryTimeFormRecoveryStore._(this._db);
@@ -78,7 +122,7 @@ final class BrowserStoryTimeFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserStoryTimeFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -87,10 +131,33 @@ final class BrowserStoryTimeFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeStoryTime(
+                    _decodeStoryTime(
+                      cursor.value as _StoryTimeRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -144,29 +211,7 @@ final class BrowserStoryTimeFormRecoveryStore {
 
   SavedStoryTimeForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
-    final row = main.result as _StoryTimeRow;
-    return SavedStoryTimeForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedStoryTimeForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        target: ExpressionReferenceInput(
-          record: row.targetRecord,
-          universe: row.targetUniverse,
-        ),
-        expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
-        original: Chronology.fromWire(
-          CanonicalValue.parseWireJson(row.original),
-        ),
-        value: row.value,
-        mode: row.mode,
-        reason: row.reason,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeStoryTime(main.result as _StoryTimeRow);
   }
 
   Future<SavedStoryTimeForm?> load(EditorFormScope scope) {
@@ -254,23 +299,7 @@ final class BrowserStoryTimeFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _StoryTimeRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              targetRecord: form.target.record,
-              targetUniverse: form.target.universe,
-              expectedRecordVersion: form.expectedRecordVersion.value,
-              original: form.original.toWire().toText(),
-              value: form.value,
-              mode: form.mode,
-              reason: form.reason,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeStoryTime(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error

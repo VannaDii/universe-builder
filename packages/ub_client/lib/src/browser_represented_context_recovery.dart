@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_chronology_fields.dart';
 import 'browser_input_fields.dart';
 
 final class BrowserRepresentedContextFormRecovery {
@@ -57,7 +58,7 @@ extension type _ContextRow._(JSObject _) implements JSObject {
     required JSAny labels,
     required String rationale,
     String? draftVersion,
-    String? original,
+    _OriginalContextFields? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -73,7 +74,123 @@ extension type _ContextRow._(JSObject _) implements JSObject {
   external JSAny get labels;
   external String get rationale;
   external String? get draftVersion;
+  external _OriginalContextFields? get originalFields;
   external String? get original;
+}
+
+@JS()
+extension type _OriginalContextFields._(JSObject _) implements JSObject {
+  external factory _OriginalContextFields({
+    required String universe,
+    required JSAny kind,
+    JSAny? parent,
+    BrowserChronologyFields? chronology,
+    required JSAny labels,
+  });
+  external String get universe;
+  external JSAny get kind;
+  external JSAny? get parent;
+  external BrowserChronologyFields? get chronology;
+  external JSAny get labels;
+}
+
+_OriginalContextFields? _encodeOriginal(RepresentedContextRecord? value) =>
+    value == null
+    ? null
+    : _OriginalContextFields(
+        universe: value.universe.value,
+        kind: encodeBrowserInput(value.kind.toWire())!,
+        parent: value.parent == null
+            ? null
+            : encodeBrowserInput(value.parent!.toCanonical()),
+        chronology: value.chronology == null
+            ? null
+            : encodeBrowserChronology(value.chronology!),
+        labels: encodeBrowserInput(
+          CanonicalObject(
+            value.labels.entries.map(
+              (e) => MapEntry(e.key, CanonicalString(e.value)),
+            ),
+          ),
+        )!,
+      );
+RepresentedContextRecord? _decodeOriginal(_OriginalContextFields? value) =>
+    value == null
+    ? null
+    : RepresentedContextRecord(
+        universe: UniverseId.parse(value.universe),
+        kind: RepresentedContextKind.fromWire(decodeBrowserInput(value.kind)),
+        parent: value.parent == null
+            ? null
+            : RecordRef.fromCanonical(decodeBrowserInput(value.parent!)),
+        chronology: value.chronology == null
+            ? null
+            : decodeBrowserChronology(value.chronology!),
+        labels: Map.fromEntries(
+          (decodeBrowserInput(value.labels) as CanonicalObject).fields.map(
+            (e) => MapEntry(e.key, (e.value as CanonicalString).value),
+          ),
+        ),
+      );
+
+SavedRepresentedContextForm _decodeContext(
+  _ContextRow row, {
+  bool legacy = false,
+}) {
+  return SavedRepresentedContextForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedRepresentedContextForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      universe: UniverseId.parse(row.universe),
+      clientRef: row.clientRef,
+      kind: row.kind,
+      authoredLabel: row.authoredLabel,
+      reference: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.reference),
+      ),
+      parentEnabled: row.parentEnabled,
+      parent: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.parent)),
+      chronology: ChronologyInput.fromWire(decodeBrowserInput(row.chronology)),
+      labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
+        PropertyLabelInput.fromWire,
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : RepresentedContextRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : _decodeOriginal(row.originalFields),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_ContextRow _encodeContext(SavedRepresentedContextForm saved) {
+  final form = saved.form;
+  return _ContextRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    universe: form.universe.value,
+    clientRef: form.clientRef,
+    kind: form.kind,
+    authoredLabel: form.authoredLabel,
+    reference: encodeBrowserInput(form.reference.toWire())!,
+    parentEnabled: form.parentEnabled,
+    parent: encodeBrowserInput(form.parent.toWire())!,
+    chronology: encodeBrowserInput(form.chronology.toWire())!,
+    labels: encodeBrowserInput(
+      CanonicalArray(form.labels.map((label) => label.toWire())),
+    )!,
+    originalFields: _encodeOriginal(form.original),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain represented-context kinds, parents, labels and authored chronology.
@@ -90,7 +207,7 @@ final class BrowserRepresentedContextFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserRepresentedContextFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -99,10 +216,30 @@ final class BrowserRepresentedContextFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeContext(
+                    _decodeContext(cursor.value as _ContextRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -157,39 +294,7 @@ final class BrowserRepresentedContextFormRecoveryStore {
   SavedRepresentedContextForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _ContextRow;
-    return SavedRepresentedContextForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedRepresentedContextForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        universe: UniverseId.parse(row.universe),
-        clientRef: row.clientRef,
-        kind: row.kind,
-        authoredLabel: row.authoredLabel,
-        reference: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.reference),
-        ),
-        parentEnabled: row.parentEnabled,
-        parent: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.parent),
-        ),
-        chronology: ChronologyInput.fromWire(
-          decodeBrowserInput(row.chronology),
-        ),
-        labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
-          PropertyLabelInput.fromWire,
-        ),
-        original: row.original == null
-            ? null
-            : RepresentedContextRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeContext(row);
   }
 
   Future<SavedRepresentedContextForm?> load(EditorFormScope scope) {
@@ -281,28 +386,7 @@ final class BrowserRepresentedContextFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _ContextRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              universe: form.universe.value,
-              clientRef: form.clientRef,
-              kind: form.kind,
-              authoredLabel: form.authoredLabel,
-              reference: encodeBrowserInput(form.reference.toWire())!,
-              parentEnabled: form.parentEnabled,
-              parent: encodeBrowserInput(form.parent.toWire())!,
-              chronology: encodeBrowserInput(form.chronology.toWire())!,
-              labels: encodeBrowserInput(
-                CanonicalArray(form.labels.map((label) => label.toWire())),
-              )!,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeContext(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
