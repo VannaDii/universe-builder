@@ -55,7 +55,7 @@ extension type _CommitmentRow._(JSObject _) implements JSObject {
     required String status,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -69,7 +69,73 @@ extension type _CommitmentRow._(JSObject _) implements JSObject {
   external String get status;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedCommitmentForm _decodeCommitment(
+  _CommitmentRow row, {
+  bool legacy = false,
+}) {
+  return SavedCommitmentForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedCommitmentForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      parties: (decodeBrowserInput(row.parties) as CanonicalArray).items.map(
+        CommitmentPartyInput.fromWire,
+      ),
+      obligated: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.obligated),
+      ),
+      conditions: (decodeBrowserInput(row.conditions) as CanonicalArray).items
+          .map(ExpressionInput.fromWire),
+      deadlineEnabled: row.deadlineEnabled,
+      deadline: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.deadline),
+      ),
+      status: row.status,
+      original: legacy
+          ? (row.original == null
+                ? null
+                : CommitmentRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : CommitmentRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_CommitmentRow _encodeCommitment(SavedCommitmentForm saved) {
+  final form = saved.form;
+  return _CommitmentRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    parties: encodeBrowserInput(
+      CanonicalArray(form.parties.map((v) => v.toWire())),
+    )!,
+    obligated: encodeBrowserInput(form.obligated.toWire())!,
+    conditions: encodeBrowserInput(
+      CanonicalArray(form.conditions.map((v) => v.toWire())),
+    )!,
+    deadlineEnabled: form.deadlineEnabled,
+    deadline: encodeBrowserInput(form.deadline.toWire())!,
+    status: form.status,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain unfinished commitment input and ordered expressions.
@@ -86,7 +152,7 @@ final class BrowserCommitmentFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserCommitmentFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -95,10 +161,33 @@ final class BrowserCommitmentFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeCommitment(
+                    _decodeCommitment(
+                      cursor.value as _CommitmentRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -153,36 +242,7 @@ final class BrowserCommitmentFormRecoveryStore {
   SavedCommitmentForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _CommitmentRow;
-    return SavedCommitmentForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedCommitmentForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        parties: (decodeBrowserInput(row.parties) as CanonicalArray).items.map(
-          CommitmentPartyInput.fromWire,
-        ),
-        obligated: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.obligated),
-        ),
-        conditions: (decodeBrowserInput(row.conditions) as CanonicalArray).items
-            .map(ExpressionInput.fromWire),
-        deadlineEnabled: row.deadlineEnabled,
-        deadline: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.deadline),
-        ),
-        status: row.status,
-        original: row.original == null
-            ? null
-            : CommitmentRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeCommitment(row);
   }
 
   Future<SavedCommitmentForm?> load(EditorFormScope scope) {
@@ -271,28 +331,7 @@ final class BrowserCommitmentFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _CommitmentRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              parties: encodeBrowserInput(
-                CanonicalArray(form.parties.map((v) => v.toWire())),
-              )!,
-              obligated: encodeBrowserInput(form.obligated.toWire())!,
-              conditions: encodeBrowserInput(
-                CanonicalArray(form.conditions.map((v) => v.toWire())),
-              )!,
-              deadlineEnabled: form.deadlineEnabled,
-              deadline: encodeBrowserInput(form.deadline.toWire())!,
-              status: form.status,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeCommitment(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error

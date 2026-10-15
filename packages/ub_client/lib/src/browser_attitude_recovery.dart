@@ -57,7 +57,7 @@ extension type _AttitudeRow._(JSObject _) implements JSObject {
     required JSAny acquisition,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
     JSAny? correctionTarget,
     String? expectedRecordVersion,
   });
@@ -75,9 +75,85 @@ extension type _AttitudeRow._(JSObject _) implements JSObject {
   external JSAny get acquisition;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external JSAny? get correctionTarget;
   external String? get expectedRecordVersion;
+}
+
+SavedAttitudeForm _decodeAttitude(_AttitudeRow row, {bool legacy = false}) {
+  return SavedAttitudeForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedAttitudeForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      holder: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.holder)),
+      proposition: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.proposition),
+      ),
+      attitude: row.attitude,
+      certaintyEnabled: row.certaintyEnabled,
+      certainty: row.certainty,
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      basis: EvidenceBasisInput.fromWire(decodeBrowserInput(row.basis)),
+      acquisition: KnowledgeAcquisitionInput.fromWire(
+        decodeBrowserInput(row.acquisition),
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : EpistemicAttitudeRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : EpistemicAttitudeRecord.fromWire(
+              decodeBrowserInput(row.originalFields!),
+            ),
+      correctionTarget: row.correctionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.correctionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_AttitudeRow _encodeAttitude(SavedAttitudeForm saved) {
+  final form = saved.form;
+  return _AttitudeRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    holder: encodeBrowserInput(form.holder.toWire())!,
+    proposition: encodeBrowserInput(form.proposition.toWire())!,
+    attitude: form.attitude,
+    certaintyEnabled: form.certaintyEnabled,
+    certainty: form.certainty,
+    validity: encodeBrowserInput(form.validity.toWire())!,
+    basis: encodeBrowserInput(form.basis.toWire())!,
+    acquisition: encodeBrowserInput(form.acquisition.toWire())!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    correctionTarget: form.correctionTarget == null
+        ? null
+        : encodeBrowserInput(form.correctionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain attitude, certainty, evidence and authored acquisition input.
@@ -94,7 +170,7 @@ final class BrowserAttitudeFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserAttitudeFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -103,10 +179,30 @@ final class BrowserAttitudeFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeAttitude(
+                    _decodeAttitude(cursor.value as _AttitudeRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -161,47 +257,7 @@ final class BrowserAttitudeFormRecoveryStore {
   SavedAttitudeForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _AttitudeRow;
-    return SavedAttitudeForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedAttitudeForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        holder: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.holder),
-        ),
-        proposition: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.proposition),
-        ),
-        attitude: row.attitude,
-        certaintyEnabled: row.certaintyEnabled,
-        certainty: row.certainty,
-        validity: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.validity),
-        ),
-        basis: EvidenceBasisInput.fromWire(decodeBrowserInput(row.basis)),
-        acquisition: KnowledgeAcquisitionInput.fromWire(
-          decodeBrowserInput(row.acquisition),
-        ),
-        original: row.original == null
-            ? null
-            : EpistemicAttitudeRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        correctionTarget: row.correctionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.correctionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeAttitude(row);
   }
 
   Future<SavedAttitudeForm?> load(EditorFormScope scope) {
@@ -290,30 +346,7 @@ final class BrowserAttitudeFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _AttitudeRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              holder: encodeBrowserInput(form.holder.toWire())!,
-              proposition: encodeBrowserInput(form.proposition.toWire())!,
-              attitude: form.attitude,
-              certaintyEnabled: form.certaintyEnabled,
-              certainty: form.certainty,
-              validity: encodeBrowserInput(form.validity.toWire())!,
-              basis: encodeBrowserInput(form.basis.toWire())!,
-              acquisition: encodeBrowserInput(form.acquisition.toWire())!,
-              original: form.original?.toWire().toText(),
-              correctionTarget: form.correctionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.correctionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeAttitude(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
