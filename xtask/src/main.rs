@@ -1,7 +1,6 @@
-//! Reproducible validation and fixture packaging; explicit native/host gates.
+//! Transitional Rust checks; public schemas and application packaging are Dart-owned.
 use anyhow::{Context, Result};
 use std::{
-    fs,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -27,102 +26,6 @@ fn schemas(check: bool) -> Result<()> {
     run("dart", &args)
 }
 
-fn package(release: bool) -> Result<()> {
-    anyhow::ensure!(cfg!(target_os = "macos"), "native package requires macOS");
-    let status = Command::new("cargo")
-        .env("MACOSX_DEPLOYMENT_TARGET", "15.0")
-        .args([
-            "build",
-            "--release",
-            "--locked",
-            "-p",
-            "universe-builder-desktop",
-            "-p",
-            "universe-engine",
-            "-p",
-            "universe-mcp",
-            "-p",
-            "universe-cli",
-        ])
-        .status()?;
-    anyhow::ensure!(status.success(), "release build failed: {status}");
-    let app = root().join(if release {
-        "target/distribution/Multiverse MCP.app"
-    } else {
-        "target/fixture/Universe Builder Fixture.app"
-    });
-    if app.exists() {
-        fs::remove_dir_all(&app)?;
-    }
-    let bin = app.join("Contents/MacOS");
-    fs::create_dir_all(&bin)?;
-    let resources = app.join("Contents/Resources");
-    fs::create_dir_all(&resources)?;
-    fs::copy(
-        root().join("assets/branding/universe-builder.icns"),
-        resources.join("universe-builder.icns"),
-    )?;
-    for name in [
-        "universe-builder",
-        "universe-engine",
-        "universe-mcp",
-        "universe",
-        "multiverse-mcp",
-    ] {
-        fs::copy(root().join("target/release").join(name), bin.join(name))?;
-    }
-    fs::write(
-        app.join("Contents/Info.plist"),
-        format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>universe-builder</string><key>CFBundleIdentifier</key><string>local.multiverse-mcp{suffix}</string><key>CFBundleName</key><string>{name}</string><key>CFBundleIconFile</key><string>universe-builder.icns</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>{version}</string><key>CFBundleVersion</key><string>{version}</string><key>LSMinimumSystemVersion</key><string>15.0</string><key>NSHighResolutionCapable</key><true/></dict></plist>"#,
-            suffix = if release { "" } else { ".fixture" },
-            name = if release {
-                "Multiverse MCP"
-            } else {
-                "Universe Builder Fixture"
-            },
-            version = env!("CARGO_PKG_VERSION")
-        ),
-    )?;
-    for name in [
-        "universe-engine",
-        "universe-mcp",
-        "universe",
-        "multiverse-mcp",
-    ] {
-        run(
-            "/usr/bin/codesign",
-            &["--force", "--sign", "-", bin.join(name).to_str().unwrap()],
-        )?;
-    }
-    run(
-        &std::env::var("UNIVERSE_PYTHON").unwrap_or_else(|_| "python3".into()),
-        &[
-            "scripts/release_manifest.py",
-            "--bundle",
-            app.to_str().unwrap(),
-            "--channel",
-            if release {
-                "preview"
-            } else {
-                "local-development"
-            },
-        ],
-    )?;
-    run(
-        "/usr/bin/codesign",
-        &["--force", "--sign", "-", app.to_str().unwrap()],
-    )?;
-    run(
-        "/usr/bin/codesign",
-        &["--verify", "--deep", "--strict", app.to_str().unwrap()],
-    )?;
-    println!(
-        "Development/preview package; ad-hoc signature, not notarized: {}",
-        app.display()
-    );
-    Ok(())
-}
 fn main() -> Result<()> {
     std::env::set_current_dir(root())?;
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -197,8 +100,9 @@ fn main() -> Result<()> {
                 &["scripts/test_action_consequence_contracts.py"],
             )
         }
-        Some("package-fixture") => package(false),
-        Some("package-release") => package(true),
+        Some("package-fixture") | Some("package-release") => anyhow::bail!(
+            "Rust application packaging is retired. Use `dart run apps/ub_cli/tool/package_macos.dart` (add `--mode release` for an optimized bundle). For the disposable workspace, launch its `multiverse-mcp ux --fixture`."
+        ),
         Some("mcp-config") => {
             let binary = args
                 .get(1)
@@ -217,7 +121,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         None | Some("help") => {
-            println!("xtask: check | schemas | check-schemas | validate-contracts | mcp-smoke | installation-smoke | package-fixture | package-release | mcp-config ABSOLUTE_BINARY ABSOLUTE_SOCKET\nNative UI, VoiceOver, and LM Studio gates require recorded host runs; they are not implied by check.");
+            println!("xtask: check | schemas | check-schemas | validate-contracts | mcp-smoke | installation-smoke | mcp-config ABSOLUTE_BINARY ABSOLUTE_SOCKET\nApplication packaging: dart run apps/ub_cli/tool/package_macos.dart [--mode debug|release]\nNative UI, accessibility and external model host checks are separate from these automated checks.");
             Ok(())
         }
         Some(other) => anyhow::bail!("unknown command: {other}"),

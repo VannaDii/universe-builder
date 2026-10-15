@@ -2768,16 +2768,29 @@ cargo run --locked -p xtask -- mcp-smoke
 cargo run --locked -p xtask -- installation-smoke
 ```
 
-After an intentional DTO change, run `cargo run --locked -p xtask -- schemas`, review the generated contract diff, then run both validation commands. Application arguments are generated from Rust; prose examples in the original specification are not executable API definitions.
+These Rust checks remain transitional compatibility checks. Public tool and
+assessment schemas are owned by `contracts/source/` and bundled with
+`dart run tool/build_contracts.dart`; the generated Dart MCP metadata comes from
+`dart run tool/embed_mcp.dart`. After an intentional contract change, review the
+generated diff and run the affected Dart and contract checks. The original
+specification's prose examples are not executable API definitions.
 
 ## Native fixture
 
 ```sh
-cargo run --locked -p xtask -- package-fixture
-open 'target/fixture/Universe Builder Fixture.app' --args --fixture
+dart run apps/ub_cli/tool/package_macos.dart
+'apps/ub_app/build/macos/Build/Products/Debug/Universe Builder.app/Contents/MacOS/multiverse-mcp' ux --fixture
 ```
 
-The app bundles its engine, MCP helper, and administration CLI and embeds its CSS. It needs no development server, shell PATH, or network for fixture operations. The package is locally ad-hoc signed; it is **not notarized or a distribution release**. Open a universe, inspect records, enter an entity label, review, and save a noncanonical proposal. The engine exits when its parent app closes. Fixture data is discarded on exit.
+The Flutter app bundles its Dart engine, MCP helper and administration CLI. It
+needs no development server, shell PATH or network for fixture operations. The
+package is locally ad-hoc signed; it is **not notarized or a distribution
+release**. Open a universe, inspect records, enter an entity label, review, and
+save a noncanonical proposal. The engine exits when its parent app closes.
+Fixture data is discarded on exit. The former Rust `xtask package-fixture` and
+`package-release` routes are retired and return the replacement command without
+building or replacing a bundle. Existing legacy bundles are left in place; use
+the Flutter bundle path above for current development.
 
 ## Standalone MCP fixture
 
