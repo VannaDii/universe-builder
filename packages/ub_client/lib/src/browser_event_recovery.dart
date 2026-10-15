@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
 import 'browser_input_fields.dart';
+import 'browser_consequence_fields.dart';
 
 final class BrowserEventFormRecovery {
   const BrowserEventFormRecovery({
@@ -65,7 +66,7 @@ extension type _EventRow._(JSObject _) implements JSObject {
     String? expectedRecordVersion,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -89,7 +90,102 @@ extension type _EventRow._(JSObject _) implements JSObject {
   external String? get expectedRecordVersion;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedEventForm _decodeEvent(_EventRow row, {bool legacy = false}) {
+  return SavedEventForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedEventForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      label: row.label,
+      occurrence: row.occurrence,
+      description: row.description,
+      actionRecord: row.actionRecord,
+      actionUniverse: row.actionUniverse,
+      time: TemporalValidityInput.fromWire(decodeBrowserInput(row.time)),
+      participants: (decodeBrowserInput(row.participants) as CanonicalArray)
+          .items
+          .map(EventParticipantInput.fromWire),
+      effects: row.effects?.toDart.map((r) => _readEffect(r, legacy: legacy)),
+      preconditions: row.preconditions == null
+          ? null
+          : (decodeBrowserInput(row.preconditions!) as CanonicalArray).items
+                .map(ExpressionInput.fromWire),
+      worlds: (decodeBrowserInput(row.worlds) as CanonicalArray).items.map(
+        wireString,
+      ),
+      regionRecord: row.regionRecord,
+      regionUniverse: row.regionUniverse,
+      sequence: row.sequence,
+      occurrenceId: row.occurrenceId,
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : RecordPayload.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ) as EventRecord)
+          : row.originalFields == null
+          ? null
+          : decodeBrowserEvent(row.originalFields!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_EventRow _encodeEvent(SavedEventForm saved) {
+  final form = saved.form;
+  return _EventRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    label: form.label,
+    occurrence: form.occurrence,
+    description: form.description,
+    actionRecord: form.actionRecord,
+    actionUniverse: form.actionUniverse,
+    time: encodeBrowserInput(form.time.toWire())!,
+    participants: encodeBrowserInput(
+      CanonicalArray(form.participants.map((v) => v.toWire())),
+    )!,
+    effects: form.effects?.map(_writeEffect).toList().toJS,
+    preconditions: form.preconditions == null
+        ? null
+        : encodeBrowserInput(
+            CanonicalArray(form.preconditions!.map((v) => v.toWire())),
+          ),
+    worlds: encodeBrowserInput(
+      CanonicalArray(form.worlds.map(CanonicalString.new)),
+    )!,
+    regionRecord: form.regionRecord,
+    regionUniverse: form.regionUniverse,
+    sequence: form.sequence,
+    occurrenceId: form.occurrenceId,
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserEvent(form.original!),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain unfinished event input and ordered declarations.
@@ -106,7 +202,7 @@ final class BrowserEventFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserEventFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -115,10 +211,30 @@ final class BrowserEventFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeEvent(
+                    _decodeEvent(cursor.value as _EventRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -173,52 +289,7 @@ final class BrowserEventFormRecoveryStore {
   SavedEventForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _EventRow;
-    return SavedEventForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedEventForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        label: row.label,
-        occurrence: row.occurrence,
-        description: row.description,
-        actionRecord: row.actionRecord,
-        actionUniverse: row.actionUniverse,
-        time: TemporalValidityInput.fromWire(decodeBrowserInput(row.time)),
-        participants: (decodeBrowserInput(row.participants) as CanonicalArray)
-            .items
-            .map(EventParticipantInput.fromWire),
-        effects: row.effects?.toDart.map(_readEffect),
-        preconditions: row.preconditions == null
-            ? null
-            : (decodeBrowserInput(row.preconditions!) as CanonicalArray).items
-                  .map(ExpressionInput.fromWire),
-        worlds: (decodeBrowserInput(row.worlds) as CanonicalArray).items.map(
-          wireString,
-        ),
-        regionRecord: row.regionRecord,
-        regionUniverse: row.regionUniverse,
-        sequence: row.sequence,
-        occurrenceId: row.occurrenceId,
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : RecordPayload.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ) as EventRecord,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeEvent(row);
   }
 
   Future<SavedEventForm?> load(EditorFormScope scope) {
@@ -307,46 +378,7 @@ final class BrowserEventFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _EventRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              label: form.label,
-              occurrence: form.occurrence,
-              description: form.description,
-              actionRecord: form.actionRecord,
-              actionUniverse: form.actionUniverse,
-              time: encodeBrowserInput(form.time.toWire())!,
-              participants: encodeBrowserInput(
-                CanonicalArray(form.participants.map((v) => v.toWire())),
-              )!,
-              effects: form.effects?.map(_writeEffect).toList().toJS,
-              preconditions: form.preconditions == null
-                  ? null
-                  : encodeBrowserInput(
-                      CanonicalArray(
-                        form.preconditions!.map((v) => v.toWire()),
-                      ),
-                    ),
-              worlds: encodeBrowserInput(
-                CanonicalArray(form.worlds.map(CanonicalString.new)),
-              )!,
-              regionRecord: form.regionRecord,
-              regionUniverse: form.regionUniverse,
-              sequence: form.sequence,
-              occurrenceId: form.occurrenceId,
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeEvent(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
@@ -383,7 +415,7 @@ extension type _EffectRow._(JSObject _) implements JSObject {
     required String order,
     required JSAny factualScope,
     required JSAny validity,
-    String? original,
+    JSAny? originalFields,
   });
   external String get slot;
   external String get propositionRecord;
@@ -392,6 +424,7 @@ extension type _EffectRow._(JSObject _) implements JSObject {
   external String get order;
   external JSAny get factualScope;
   external JSAny get validity;
+  external JSAny? get originalFields;
   external String? get original;
 }
 
@@ -403,17 +436,28 @@ _EffectRow _writeEffect(EventEffectInput input) => _EffectRow(
   order: input.order,
   factualScope: encodeBrowserInput(input.scope.toWire())!,
   validity: encodeBrowserInput(input.validity.toWire())!,
-  original: input.original?.toWire().toText(),
-);
-EventEffectInput _readEffect(_EffectRow row) => EventEffectInput(
-  slot: row.slot,
-  propositionRecord: row.propositionRecord,
-  propositionUniverse: row.propositionUniverse,
-  polarity: row.polarity,
-  order: row.order,
-  scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-  validity: TemporalValidityInput.fromWire(decodeBrowserInput(row.validity)),
-  original: row.original == null
+  originalFields: input.original == null
       ? null
-      : EntityEffect.fromWire(CanonicalValue.parseWireJson(row.original!)),
+      : encodeBrowserEntityEffect(input.original!),
 );
+EventEffectInput _readEffect(_EffectRow row, {bool legacy = false}) =>
+    EventEffectInput(
+      slot: row.slot,
+      propositionRecord: row.propositionRecord,
+      propositionUniverse: row.propositionUniverse,
+      polarity: row.polarity,
+      order: row.order,
+      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : EntityEffect.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : decodeBrowserEntityEffect(row.originalFields!),
+    );

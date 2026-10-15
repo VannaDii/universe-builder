@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
 import 'browser_input_fields.dart';
+import 'browser_consequence_fields.dart';
 
 final class BrowserActionFormRecovery {
   const BrowserActionFormRecovery({
@@ -58,7 +59,7 @@ extension type _ActionRow._(JSObject _) implements JSObject {
     String? expectedRecordVersion,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -75,7 +76,83 @@ extension type _ActionRow._(JSObject _) implements JSObject {
   external String? get expectedRecordVersion;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedActionForm _decodeAction(_ActionRow row, {bool legacy = false}) {
+  return SavedActionForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedActionForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      namespace: row.namespace,
+      key: row.key,
+      labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
+        PropertyLabelInput.fromWire,
+      ),
+      requirements: (decodeBrowserInput(row.requirements) as CanonicalArray)
+          .items
+          .map(ActionRequirementInput.fromWire),
+      slots: row.slots?.toDart.map((r) => _readSlot(r, legacy: legacy)),
+      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : ActionDefinitionRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : decodeBrowserAction(row.originalFields!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_ActionRow _encodeAction(SavedActionForm saved) {
+  final form = saved.form;
+  return _ActionRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    labels: encodeBrowserInput(
+      CanonicalArray(form.labels.map((v) => v.toWire())),
+    )!,
+    requirements: encodeBrowserInput(
+      CanonicalArray(form.requirements.map((v) => v.toWire())),
+    )!,
+    slots: form.slots?.map(_writeSlot).toList().toJS,
+    factualScope: encodeBrowserInput(form.scope.toWire())!,
+    validity: encodeBrowserInput(form.validity.toWire())!,
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserAction(form.original!),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain unfinished action input and ordered declarations.
@@ -92,7 +169,7 @@ final class BrowserActionFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserActionFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -101,10 +178,30 @@ final class BrowserActionFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeAction(
+                    _decodeAction(cursor.value as _ActionRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -159,44 +256,7 @@ final class BrowserActionFormRecoveryStore {
   SavedActionForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _ActionRow;
-    return SavedActionForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedActionForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        namespace: row.namespace,
-        key: row.key,
-        labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
-          PropertyLabelInput.fromWire,
-        ),
-        requirements: (decodeBrowserInput(row.requirements) as CanonicalArray)
-            .items
-            .map(ActionRequirementInput.fromWire),
-        slots: row.slots?.toDart.map(_readSlot),
-        scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-        validity: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.validity),
-        ),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : ActionDefinitionRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeAction(row);
   }
 
   Future<SavedActionForm?> load(EditorFormScope scope) {
@@ -285,33 +345,7 @@ final class BrowserActionFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _ActionRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              namespace: form.namespace,
-              key: form.key,
-              labels: encodeBrowserInput(
-                CanonicalArray(form.labels.map((v) => v.toWire())),
-              )!,
-              requirements: encodeBrowserInput(
-                CanonicalArray(form.requirements.map((v) => v.toWire())),
-              )!,
-              slots: form.slots?.map(_writeSlot).toList().toJS,
-              factualScope: encodeBrowserInput(form.scope.toWire())!,
-              validity: encodeBrowserInput(form.validity.toWire())!,
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeAction(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
@@ -337,8 +371,7 @@ final class BrowserActionFormRecoveryStore {
   void close() => _db.close();
 }
 
-// The retained domain slot includes numeric order/validity. Keep it canonical
-// separately from named, unfinished fields rather than passing it through JS numbers.
+// Retained slots keep their exact numeric order as named decimal text.
 @JS()
 extension type _SlotRow._(JSObject _) implements JSObject {
   external factory _SlotRow({
@@ -346,12 +379,13 @@ extension type _SlotRow._(JSObject _) implements JSObject {
     required JSAny target,
     required JSAny condition,
     required JSAny value,
-    String? original,
+    JSAny? originalFields,
   });
   external JSAny get fields;
   external JSAny get target;
   external JSAny get condition;
   external JSAny get value;
+  external JSAny? get originalFields;
   external String? get original;
 }
 
@@ -366,9 +400,14 @@ _SlotRow _writeSlot(ActionSlotInput input) => _SlotRow(
   target: encodeBrowserInput(input.target.toWire())!,
   condition: encodeBrowserInput(input.condition.toWire())!,
   value: encodeBrowserInput(input.value.toWire())!,
-  original: input.original?.toWire().toText(),
+  originalFields: input.original == null
+      ? null
+      : encodeBrowserEffectSlot(input.original!),
 );
-ActionSlotInput _readSlot(_SlotRow row) => ActionSlotInput(
+ActionSlotInput _readSlot(
+  _SlotRow row, {
+  bool legacy = false,
+}) => ActionSlotInput(
   fields: {
     for (final e in (decodeBrowserInput(row.fields) as CanonicalObject).fields)
       e.key: wireString(e.value),
@@ -376,7 +415,11 @@ ActionSlotInput _readSlot(_SlotRow row) => ActionSlotInput(
   target: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.target)),
   condition: ActionRequirementInput.fromWire(decodeBrowserInput(row.condition)),
   value: QualifierInput.fromWire(decodeBrowserInput(row.value)),
-  original: row.original == null
+  original: legacy
+      ? (row.original == null
+            ? null
+            : EffectSlot.fromWire(CanonicalValue.parseWireJson(row.original!)))
+      : row.originalFields == null
       ? null
-      : EffectSlot.fromWire(CanonicalValue.parseWireJson(row.original!)),
+      : decodeBrowserEffectSlot(row.originalFields!),
 );
