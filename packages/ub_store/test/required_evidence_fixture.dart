@@ -26,3 +26,17 @@ CanonicalObject requiredEvidencePayload(
   executable: true,
   validity: const UnspecifiedValidity(),
 ).toWire();
+
+CanonicalObject sourcedEventPayload(UniverseId universe) => EventRecord(
+  occurrence: const SimpleOccurrence(OccurrenceKind.occurred),
+  time: ExactTime(CalendarId.parse('cal_${'1'.padLeft(24, '0')}'), '12'),
+  participants: [],
+  labels: {},
+  basis: SourceAnchorBasis(
+    RecordRef(
+      universe: universe,
+      record: RecordId.parse('rec_${'6'.padLeft(24, '0')}'),
+    ),
+    false,
+  ),
+).toWire();

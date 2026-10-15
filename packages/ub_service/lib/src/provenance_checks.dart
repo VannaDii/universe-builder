@@ -10,6 +10,7 @@ void validateProvenanceLinks(
     AssertionRecord(:final basis) ||
     EpistemicAttitudeRecord(:final basis) ||
     ObservationRecord(:final basis) => basis,
+    EventRecord(:final basis) => basis,
     _ => null,
   };
   final citation = switch (basis) {

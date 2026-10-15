@@ -334,11 +334,6 @@ void validateStructuralCandidate(List<RecordVersion> records) {
           );
         }
       case RuleRecord rule:
-        if (rule.requiredEvidence != null && rule.targetPredicates.isEmpty) {
-          throw const UnsupportedSemanticsError(
-            message: 'Evidence admission covering every claim kind is not implemented; this policy cannot yet be published or treated as satisfied.',
-          );
-        }
         if (rule.requiredEvidence case final required?) {
           if (required.sourceCategories.isEmpty) {
             throw _invalid(

@@ -449,6 +449,7 @@ compileConnectedWriting({
             preconditions: record.preconditions,
             effects: effects.map((e) => e.$3),
             labels: record.labels,
+            basis: record.basis,
           ),
         ),
       );

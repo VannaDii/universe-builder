@@ -1213,6 +1213,9 @@ pub struct Event {
     /// effects (spec §27.5).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expansion_version: Option<String>,
+    /// Optional factual provenance; historical event bytes remain unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub basis: Option<EvidenceBasis>,
 }
 
 impl Eq for Event {}

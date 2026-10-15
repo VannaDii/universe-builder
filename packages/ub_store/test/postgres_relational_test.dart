@@ -96,7 +96,7 @@ void main() {
               'SELECT count(*) FROM pg_tables WHERE schemaname=\$1',
               parameters: [schema.substring(1, schema.length - 1)],
             )).single.single,
-            901,
+            903,
           );
           final interrupted = UniverseId.generate();
           final namespace = postgresUniverseSchema(interrupted);
@@ -154,6 +154,12 @@ void main() {
               'digest': CanonicalString(payloadDigest('rule', payload)),
             });
           }
+          final event = sourcedEventPayload(universe);
+          cases.add({
+            'value': event,
+            'canonical': CanonicalString(event.toText()),
+            'digest': CanonicalString(payloadDigest('event', event)),
+          });
           final pointers = await connection.runTx((tx) async {
             final codec = PostgresRelationalCodec(tx, universe);
             return [

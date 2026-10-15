@@ -86,39 +86,60 @@ List<protocol.Finding> assessRequiredEvidenceSources({
       }
     }
     for (final row in records) {
-      final assertion = row.payload;
-      if (assertion is! AssertionRecord ||
+      final payload = row.payload;
+      if (payload is! AssertionRecord && payload is! EventRecord ||
           !affected.contains(row.identity.recordId) &&
               !affected.contains(policy.identity.recordId)) {
         continue;
       }
-      final proposition = index.get(assertion.proposition.record)?.payload;
-      if (proposition is! PropositionRecord) {
-        continue; // Structural check owns this.
+      final scope = requiredEvidenceScope(payload, index);
+      final applicability =
+          scope?.applicability ??
+          (payload is EventRecord
+              ? (payload.worlds.isEmpty
+                    ? const UniverseApplicability()
+                    : WorldsApplicability(payload.worlds))
+              : const UnspecifiedApplicability());
+      final validity = payload is AssertionRecord
+          ? payload.validity
+          : InstantValidity((payload as EventRecord).time);
+      final basis = requiredEvidenceBasis(payload, index);
+      final List<RecordId> subjects;
+      String? predicateKey;
+      var occurrenceUnresolved = false;
+      if (payload is AssertionRecord) {
+        final proposition = index.get(payload.proposition.record)?.payload;
+        if (proposition is! PropositionRecord) continue;
+        subjects = [proposition.subject.record];
+        final predicate = index.get(proposition.predicate.record)?.payload;
+        predicateKey = switch (predicate) {
+          PropertyRecord(:final namespace, :final key) ||
+          RelationRecord(:final namespace, :final key) => '$namespace:$key',
+          _ => null,
+        };
+      } else {
+        final event = payload as EventRecord;
+        if (rule.targetPredicates.isNotEmpty) continue;
+        if (event.occurrence case SimpleOccurrence(:final kind)) {
+          if (kind != OccurrenceKind.occurred) continue;
+        } else {
+          occurrenceUnresolved = true;
+        }
+        subjects = event.participants.map((p) => p.record.record).toList();
       }
-      final context = index.get(assertion.scope.context.record)?.payload;
-      if (context is! RepresentedContextRecord ||
+      final context = scope == null
+          ? null
+          : index.get(scope.context.record)?.payload;
+      if (context is RepresentedContextRecord &&
           context.kind is! ObjectiveContext) {
         continue;
       }
-      final predicate = index.get(proposition.predicate.record)?.payload;
-      final predicateKey = switch (predicate) {
-        PropertyRecord(:final namespace, :final key) ||
-        RelationRecord(:final namespace, :final key) => '$namespace:$key',
-        _ => null,
-      };
       if (rule.targetPredicates.isNotEmpty &&
           !rule.targetPredicates.contains(predicateKey)) {
         continue;
       }
-      final worldMatch = _overlaps(
-        rule.applicability,
-        assertion.scope.applicability,
-      );
-      final worlds = switch ((
-        rule.applicability,
-        assertion.scope.applicability,
-      )) {
+      final worldMatch = _overlaps(rule.applicability, applicability);
+      final worlds = switch ((rule.applicability, applicability)) {
         (
           WorldsApplicability(worldIds: final left),
           WorldsApplicability(worldIds: final right),
@@ -134,14 +155,18 @@ List<protocol.Finding> assessRequiredEvidenceSources({
               .toList(),
         _ => null,
       };
-      final typeMatch = index.matches(
-        proposition.subject.record,
-        rule.subjectTypes,
-        worlds,
-      );
+      final matches = subjects
+          .map((subject) => index.matches(subject, rule.subjectTypes, worlds))
+          .toList();
+      final bool? typeMatch =
+          rule.subjectTypes.isEmpty || matches.contains(true)
+          ? true
+          : subjects.isEmpty || matches.contains(null)
+          ? null
+          : false;
       final timeMatch = rule.validity is UnspecifiedValidity
           ? true
-          : rules.temporalOverlaps(rule.validity, assertion.validity);
+          : rules.temporalOverlaps(rule.validity, validity);
       if (worldMatch == false || typeMatch == false || timeMatch == false) {
         continue;
       }
@@ -153,17 +178,33 @@ List<protocol.Finding> assessRequiredEvidenceSources({
         policy.recordVersionId,
         row.recordVersionId,
         ...categories.map((c) => c.recordVersionId),
+        if (payload is AssertionRecord &&
+            payload.establishedBy != null &&
+            index.get(payload.establishedBy!.event.record) != null)
+          index.get(payload.establishedBy!.event.record)!.recordVersionId,
+        if (payload is EventRecord &&
+            payload.action != null &&
+            index.get(payload.action!.record) != null)
+          index.get(payload.action!.record)!.recordVersionId,
       ];
-      if (worldMatch == null || typeMatch == null || timeMatch == null) {
+      if (worldMatch == null ||
+          typeMatch == null ||
+          timeMatch == null ||
+          scope == null ||
+          context is! RepresentedContextRecord ||
+          occurrenceUnresolved) {
         coverage = protocol.Coverage.unsupported;
-        message = 'Resolve this claim’s world, subject classification or time before applying its evidence policy.';
+        message = payload is EventRecord
+            ? 'Resolve this event’s declared action, context, world, subject scope, occurrence or time before applying its evidence policy.'
+            : 'Resolve this claim’s world, subject classification or time before applying its evidence policy.';
       } else if (!categoriesResolved) {
         message = 'Select nonempty qualifying source categories at their exact current published versions.';
-      } else if (assertion.precision == Precision.unresolved ||
-          assertion.precision == Precision.oneOf ||
-          assertion.alternatives.isNotEmpty) {
+      } else if (payload is AssertionRecord &&
+          (payload.precision == Precision.unresolved ||
+              payload.precision == Precision.oneOf ||
+              payload.alternatives.isNotEmpty)) {
         message = 'This required fact still has unresolved alternatives; a qualifying source does not resolve them by itself.';
-      } else if (assertion.basis case SourceAnchorBasis(:final anchor)) {
+      } else if (basis case SourceAnchorBasis(:final anchor)) {
         final anchorRow = index.get(anchor.record);
         final payload = anchorRow?.payload;
         if (payload is AnchorRecord &&
@@ -188,8 +229,7 @@ List<protocol.Finding> assessRequiredEvidenceSources({
             ]);
           }
         }
-      } else if (assertion.basis is DerivationBasis ||
-          assertion.basis is EventEffectBasis) {
+      } else if (basis is DerivationBasis || basis is EventEffectBasis) {
         coverage = protocol.Coverage.unsupported;
         message = 'Derived and event-effect source admission requires its evidence evaluator.';
       }
@@ -257,3 +297,33 @@ bool? _overlaps(Applicability a, Applicability b) => switch ((a, b)) {
   (_, WorldsApplicability(:final worldIds)) => worldIds.isNotEmpty,
   _ => true,
 };
+
+/// Event context/realm come from its existing declared action, never the UI focus.
+Scope? requiredEvidenceScope(RecordPayload payload, rules.RecordIndex index) {
+  if (payload is AssertionRecord) return payload.scope;
+  if (payload is! EventRecord) return null;
+  final reference = payload.action;
+  if (reference == null) return null;
+  final action = index.get(reference.record)?.payload;
+  if (action is! ActionDefinitionRecord) return null;
+  return Scope(
+    context: action.scope.context,
+    realm: action.scope.realm,
+    applicability: payload.worlds.isEmpty
+        ? const UniverseApplicability()
+        : WorldsApplicability(payload.worlds),
+  );
+}
+
+/// The caller must first verify generated effects against expandEvents.
+EvidenceBasis? requiredEvidenceBasis(
+  RecordPayload payload,
+  rules.RecordIndex index,
+) {
+  if (payload is EventRecord) return payload.basis;
+  if (payload is! AssertionRecord) return null;
+  final established = payload.establishedBy;
+  if (established == null) return payload.basis;
+  final event = index.get(established.event.record)?.payload;
+  return event is EventRecord ? event.basis : null;
+}

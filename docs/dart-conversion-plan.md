@@ -191,19 +191,33 @@ approval cannot by itself discharge a required evidence or interpretation duty.
 Category/policy changes require new reviewed versions and fresh dependent checks.
 No historical payload receives a default policy or a retroactive pass.
 
-The Dart service now applies this contract to objective assertions under
-predicate-scoped policies, through synchronous validation, queued evaluation and
+Events use an optional `basis` with the existing EvidenceBasis type. Absence is
+preserved in historical bytes. A required event source must be a qualifying
+SourceAnchorBasis; an author decision alone does not satisfy the obligation.
+The declared action supplies represented context and realm, while the event
+supplies worlds, time and participants. A historical event without a declared
+action has unresolved scope for this check. Only occurred events assert an
+occurrence; plans, reports and hypotheticals keep their existing distinctions.
+Policies without target predicates cover these occurrences as well as assertions.
+Predicate-scoped policies cover matching effect assertions. Generated effects
+may use their verified `establishedBy` event to obtain the source, but required
+interpretation review must bind the exact effect claim, not merely its event.
+Occurrence review uses the existing ActionSemanticMapping with exact action,
+participants and effect proposition versions and an exact candidate event link.
+
+The Dart service now applies this contract to objective assertions, occurred
+events and their verified effects, through synchronous validation, queued evaluation and
 publication rechecks in SQLite and PostgreSQL. Source/category revisions and
 opposing assertions reopen affected dependencies. Selected interpretation review
 must match the exact claim and passage and cover the required worlds and time;
 unrelated unresolved material does not block it. An ordinary rule expression or
 author approval cannot discharge these duties.
 
-Broad policies covering every claim kind remain explicitly unsupported, as do
-event/derived evidence paths. The Rust engine still rejects all required-evidence
-declarations. Delivery still requires the broader admission paths, creation
-choices, review findings and platform UX specified above, including event/effect
-claims and explicit fictional departures.
+Policies may cover assertions and occurrences together or select named predicates
+for assertions/effects. Arbitrary derivation chains remain explicitly unsupported.
+The Rust engine still rejects all required-evidence declarations. Delivery still
+requires the remaining admission paths, creation choices, review findings and
+platform UX specified above, including explicit fictional departures.
 
 ## 5. Target application architecture
 

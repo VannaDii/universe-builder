@@ -13548,6 +13548,17 @@
                     "null"
                   ]
                 },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "record_kind": {
                   "type": "string",
                   "const": "event"
@@ -19848,6 +19859,17 @@
                     "null"
                   ]
                 },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "record_kind": {
                   "type": "string",
                   "const": "event"
@@ -26054,6 +26076,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {
@@ -33715,6 +33748,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "description": "Optional factual provenance; historical event bytes remain unchanged.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EvidenceBasis"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -37502,6 +37546,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {
@@ -46156,6 +46211,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "description": "Optional factual provenance; historical event bytes remain unchanged.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EvidenceBasis"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -49943,6 +50009,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {
@@ -55374,6 +55451,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "description": "Optional factual provenance; historical event bytes remain unchanged.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EvidenceBasis"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -59161,6 +59249,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {
@@ -64812,6 +64911,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "description": "Optional factual provenance; historical event bytes remain unchanged.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EvidenceBasis"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -68599,6 +68709,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {
@@ -78597,6 +78718,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "description": "Optional factual provenance; historical event bytes remain unchanged.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EvidenceBasis"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -82384,6 +82516,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {
@@ -88827,6 +88970,17 @@
                 "string",
                 "null"
               ]
+            },
+            "basis": {
+              "description": "Optional factual provenance; historical event bytes remain unchanged.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EvidenceBasis"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false,
@@ -92614,6 +92768,17 @@
                   "type": [
                     "string",
                     "null"
+                  ]
+                },
+                "basis": {
+                  "description": "Optional factual provenance; historical event bytes remain unchanged.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EvidenceBasis"
+                    },
+                    {
+                      "type": "null"
+                    }
                   ]
                 },
                 "record_kind": {

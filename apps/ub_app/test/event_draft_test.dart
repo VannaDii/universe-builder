@@ -27,6 +27,10 @@ void main() {
       sequence: 'Sequence 記憶 😀',
       occurrenceId: 'authored-occurrence',
       expansionVersion: 'original expansion',
+      basis: SourceAnchorBasis(
+        RecordRef(record: RecordId.generate(), universe: universe),
+        false,
+      ),
       time: ApproximateTime(
         CalendarId.generate(),
         '9007199254740993',

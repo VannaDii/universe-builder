@@ -119,6 +119,7 @@ final class EventRecord extends RecordPayload {
     Iterable<EntityEffect> effects = const [],
     required Map<String, String> labels,
     this.expansionVersion,
+    this.basis,
   }) : worlds = List.unmodifiable(worlds),
        participants = List.unmodifiable(participants),
        preconditions = List.unmodifiable(preconditions),
@@ -133,6 +134,7 @@ final class EventRecord extends RecordPayload {
   final List<Expr> preconditions;
   final List<EntityEffect> effects;
   final Map<String, String> labels;
+  final EvidenceBasis? basis;
   factory EventRecord.fromWire(CanonicalValue value) {
     final f = _recordFields(value, RecordKind.event, {
       'occurrence',
@@ -147,6 +149,7 @@ final class EventRecord extends RecordPayload {
       'effects',
       'labels',
       'expansionVersion',
+      'basis',
     });
     return EventRecord(
       occurrence: OccurrenceMode.fromWire(f.require('occurrence')),
@@ -161,6 +164,7 @@ final class EventRecord extends RecordPayload {
       effects: _array(f, 'effects').map(EntityEffect.fromWire),
       labels: _strings(f, 'labels'),
       expansionVersion: f.optionalString('expansionVersion'),
+      basis: _optionalObject(f, 'basis', EvidenceBasis.fromWire),
     );
   }
   @override
@@ -187,6 +191,7 @@ final class EventRecord extends RecordPayload {
     MapEntry('labels', _stringMap(labels)),
     if (expansionVersion != null)
       MapEntry('expansionVersion', CanonicalString(expansionVersion!)),
+    if (basis != null) MapEntry('basis', basis!.toWire()),
   ]);
 }
 

@@ -992,6 +992,7 @@ impl Workflow<'_> {
                     effects: vec![],
                     labels: BTreeMap::new(),
                     expansion_version: None,
+                    basis: None,
                 };
                 let action = (*action).clone();
                 for requirement in &event.requires_knowledge {

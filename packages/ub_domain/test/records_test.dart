@@ -7,6 +7,33 @@ void main() {
     universe: universe,
     record: RecordId.parse('rec_${n.toString().padLeft(24, '0')}'),
   );
+  test(
+    'optional event evidence preserves historical bodies and exact anchors',
+    () {
+      final event = EventRecord(
+        occurrence: const SimpleOccurrence(OccurrenceKind.occurred),
+        time: ExactTime(CalendarId.parse('cal_${'1'.padLeft(24, '0')}'), '12'),
+        participants: [],
+        labels: {},
+      );
+      expect(event.toWire().toText(), isNot(contains('"basis"')));
+      final absent = event.toWire();
+      final explicitNull = CanonicalObject([
+        ...absent.fields,
+        const MapEntry('basis', CanonicalNull()),
+      ]);
+      expect(EventRecord.fromWire(explicitNull).digest, event.digest);
+      final sourced = EventRecord.fromWire(
+        CanonicalObject([
+          ...absent.fields,
+          MapEntry('basis', SourceAnchorBasis(ref(6), false).toWire()),
+        ]),
+      );
+      expect(sourced.basis, SourceAnchorBasis(ref(6), false));
+      expect(sourced.digest, isNot(event.digest));
+      expect(RecordPayload.fromWire(sourced.toWire()), sourced);
+    },
+  );
   final proposition = PropositionRecord(
     predicate: ref(1),
     subject: ref(2),

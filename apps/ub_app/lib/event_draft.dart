@@ -86,6 +86,7 @@ RecordEventOperation eventOperation(UnfinishedEventForm form) {
           form.preconditions?.map(buildExpression) ?? old?.preconditions ?? [],
       effects: form.effects?.map(buildEventEffect) ?? old?.effects ?? [],
       expansionVersion: old?.expansionVersion,
+      basis: old?.basis,
     ),
   );
 }

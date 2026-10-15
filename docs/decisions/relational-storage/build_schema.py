@@ -82,6 +82,8 @@ def contracts():
             schema['required'] = required + ['attributeMode']
         if {'commitPolicy', 'targetPredicates', 'expression', 'applicability'} <= fields.keys():
             fields['requiredEvidence'] = nullable(ref('RequiredEvidence'))
+        if {'occurrence', 'participants', 'effects', 'expansionVersion'} <= fields.keys():
+            fields['basis'] = nullable(ref('EvidenceBasis'))
         if 'payload_schema_version' in fields:
             fields.pop('payload_schema_version')
             schema['required'] = [k for k in required if k!='payload_schema_version']

@@ -3768,6 +3768,8 @@ CREATE TABLE "r_payload_v24" (
   "expansionVersion" INTEGER REFERENCES "r_payload_v24_expansion_version"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
+  "basis__state" INTEGER NOT NULL CHECK("basis__state" IN (0,1,2)),
+  "basis" INTEGER REFERENCES "r_payload_v24_basis"(__row_id),
   CHECK(("occurrence__state"=2 AND "occurrence" IS NOT NULL) OR ("occurrence__state" IN (0,1) AND "occurrence" IS NULL)),
   CHECK(("action__state"=2 AND "action" IS NOT NULL) OR ("action__state" IN (0,1) AND "action" IS NULL)),
   CHECK(("worlds__state"=2 AND "worlds" IS NOT NULL) OR ("worlds__state" IN (0,1) AND "worlds" IS NULL)),
@@ -3781,7 +3783,8 @@ CREATE TABLE "r_payload_v24" (
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
   CHECK(("expansionVersion__state"=2 AND "expansionVersion" IS NOT NULL) OR ("expansionVersion__state" IN (0,1) AND "expansionVersion" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='event')
+  CHECK("record_kind"='event'),
+  CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_occurrence_mode" (
@@ -3916,6 +3919,16 @@ CREATE TABLE "r_payload_v24_expansion_version" (
   __row_id INTEGER PRIMARY KEY,
   variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
   v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_payload_v24_basis" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_evidence_basis"(__row_id),
   v1 TEXT,
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
@@ -5834,6 +5847,8 @@ CREATE TABLE "r_event" (
   "labels" INTEGER REFERENCES "r_event_labels"(__row_id),
   "expansionVersion__state" INTEGER NOT NULL CHECK("expansionVersion__state" IN (0,1,2)),
   "expansionVersion" INTEGER REFERENCES "r_event_expansion_version"(__row_id),
+  "basis__state" INTEGER NOT NULL CHECK("basis__state" IN (0,1,2)),
+  "basis" INTEGER REFERENCES "r_event_basis"(__row_id),
   CHECK(("occurrence__state"=2 AND "occurrence" IS NOT NULL) OR ("occurrence__state" IN (0,1) AND "occurrence" IS NULL)),
   CHECK(("action__state"=2 AND "action" IS NOT NULL) OR ("action__state" IN (0,1) AND "action" IS NULL)),
   CHECK(("worlds__state"=2 AND "worlds" IS NOT NULL) OR ("worlds__state" IN (0,1) AND "worlds" IS NULL)),
@@ -5845,7 +5860,8 @@ CREATE TABLE "r_event" (
   CHECK(("preconditions__state"=2 AND "preconditions" IS NOT NULL) OR ("preconditions__state" IN (0,1) AND "preconditions" IS NULL)),
   CHECK(("effects__state"=2 AND "effects" IS NOT NULL) OR ("effects__state" IN (0,1) AND "effects" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
-  CHECK(("expansionVersion__state"=2 AND "expansionVersion" IS NOT NULL) OR ("expansionVersion__state" IN (0,1) AND "expansionVersion" IS NULL))
+  CHECK(("expansionVersion__state"=2 AND "expansionVersion" IS NOT NULL) OR ("expansionVersion__state" IN (0,1) AND "expansionVersion" IS NULL)),
+  CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_event_action" (
@@ -5922,6 +5938,16 @@ CREATE TABLE "r_event_expansion_version" (
   __row_id INTEGER PRIMARY KEY,
   variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
   v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_event_basis" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_evidence_basis"(__row_id),
   v1 TEXT,
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
@@ -11319,6 +11345,10 @@ CREATE TRIGGER "r_payload_v24_expansion_version_no_update" BEFORE UPDATE ON "r_p
 
 CREATE TRIGGER "r_payload_v24_expansion_version_no_delete" BEFORE DELETE ON "r_payload_v24_expansion_version" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_payload_v24_basis_no_update" BEFORE UPDATE ON "r_payload_v24_basis" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v24_basis_no_delete" BEFORE DELETE ON "r_payload_v24_basis" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_payload_v25_no_update" BEFORE UPDATE ON "r_payload_v25" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v25_no_delete" BEFORE DELETE ON "r_payload_v25" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -12022,6 +12052,10 @@ CREATE TRIGGER "r_event_labels_items_no_delete" BEFORE DELETE ON "r_event_labels
 CREATE TRIGGER "r_event_expansion_version_no_update" BEFORE UPDATE ON "r_event_expansion_version" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_event_expansion_version_no_delete" BEFORE DELETE ON "r_event_expansion_version" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_event_basis_no_update" BEFORE UPDATE ON "r_event_basis" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_event_basis_no_delete" BEFORE DELETE ON "r_event_basis" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v24_no_update" BEFORE UPDATE ON "r_domain_operation_v24" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -19342,6 +19376,10 @@ const relationalCatalog = r'''{
         "record_kind": {
           "model": "Payload_v24_record_kind",
           "required": true
+        },
+        "basis": {
+          "model": "Payload_v24_basis",
+          "required": false
         }
       }
     },
@@ -19550,6 +19588,18 @@ const relationalCatalog = r'''{
       "table": "r_payload_v24_record_kind",
       "kind": "string",
       "const": "event"
+    },
+    "Payload_v24_basis": {
+      "table": "r_payload_v24_basis",
+      "kind": "union",
+      "variants": [
+        "EvidenceBasis",
+        "Payload_v24_basis_v1"
+      ]
+    },
+    "Payload_v24_basis_v1": {
+      "table": "r_payload_v24_basis_v1",
+      "kind": "null"
     },
     "Payload_v25": {
       "table": "r_payload_v25",
@@ -22318,6 +22368,10 @@ const relationalCatalog = r'''{
         "expansionVersion": {
           "model": "Event_expansionVersion",
           "required": false
+        },
+        "basis": {
+          "model": "Event_basis",
+          "required": false
         }
       }
     },
@@ -22420,6 +22474,18 @@ const relationalCatalog = r'''{
     },
     "Event_expansionVersion_v1": {
       "table": "r_event_expansion_version_v1",
+      "kind": "null"
+    },
+    "Event_basis": {
+      "table": "r_event_basis",
+      "kind": "union",
+      "variants": [
+        "EvidenceBasis",
+        "Event_basis_v1"
+      ]
+    },
+    "Event_basis_v1": {
+      "table": "r_event_basis_v1",
       "kind": "null"
     },
     "DomainOperation_v23_kind": {

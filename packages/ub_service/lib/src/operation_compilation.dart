@@ -79,6 +79,7 @@ EventRecord _event(EventRecord e) => EventRecord(
   effects: e.effects,
   labels: e.labels,
   expansionVersion: eventExpansionVersion,
+  basis: e.basis,
 );
 
 /// Prepares exact versioned changes. This grants no admission or approval rights

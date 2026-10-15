@@ -5687,6 +5687,10 @@
         "record_kind": {
           "model": "Payload_v24_record_kind",
           "required": true
+        },
+        "basis": {
+          "model": "Payload_v24_basis",
+          "required": false
         }
       }
     },
@@ -5895,6 +5899,18 @@
       "table": "r_payload_v24_record_kind",
       "kind": "string",
       "const": "event"
+    },
+    "Payload_v24_basis": {
+      "table": "r_payload_v24_basis",
+      "kind": "union",
+      "variants": [
+        "EvidenceBasis",
+        "Payload_v24_basis_v1"
+      ]
+    },
+    "Payload_v24_basis_v1": {
+      "table": "r_payload_v24_basis_v1",
+      "kind": "null"
     },
     "Payload_v25": {
       "table": "r_payload_v25",
@@ -8663,6 +8679,10 @@
         "expansionVersion": {
           "model": "Event_expansionVersion",
           "required": false
+        },
+        "basis": {
+          "model": "Event_basis",
+          "required": false
         }
       }
     },
@@ -8765,6 +8785,18 @@
     },
     "Event_expansionVersion_v1": {
       "table": "r_event_expansion_version_v1",
+      "kind": "null"
+    },
+    "Event_basis": {
+      "table": "r_event_basis",
+      "kind": "union",
+      "variants": [
+        "EvidenceBasis",
+        "Event_basis_v1"
+      ]
+    },
+    "Event_basis_v1": {
+      "table": "r_event_basis_v1",
       "kind": "null"
     },
     "DomainOperation_v23_kind": {

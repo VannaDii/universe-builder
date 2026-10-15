@@ -81,6 +81,14 @@ void main() {
         'digest': CanonicalString(payloadDigest('rule', payload)),
       });
     }
+    final event = sourcedEventPayload(
+      UniverseId.parse('unv_${'1'.padLeft(24, '0')}'),
+    );
+    cases.add({
+      'value': event,
+      'canonical': CanonicalString(event.toText()),
+      'digest': CanonicalString(payloadDigest('event', event)),
+    });
     database.execute('BEGIN IMMEDIATE');
     final rows = [
       for (final item in cases) codec.put('Payload', item['value']!),

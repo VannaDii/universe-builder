@@ -652,7 +652,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v23_ruleVersion_v1` | `r_payload_v23_rule_version_v1` (scalar column) | null |
 | `Payload_v23_rationale` | `r_payload_v23_rationale` (scalar column) | string |
 | `Payload_v23_record_kind` | `r_payload_v23_record_kind` (scalar column) | string |
-| `Payload_v24` | `r_payload_v24` | occurrence → OccurrenceMode, action → Payload_v24_action, worlds → Payload_v24_worlds, region → Payload_v24_region, time → TemporalExpression, sequence → Payload_v24_sequence, occurrenceId → Payload_v24_occurrenceId, participants → Payload_v24_participants, preconditions → Payload_v24_preconditions, effects → Payload_v24_effects, labels → Payload_v24_labels, expansionVersion → Payload_v24_expansionVersion, record_kind → Payload_v24_record_kind |
+| `Payload_v24` | `r_payload_v24` | occurrence → OccurrenceMode, action → Payload_v24_action, worlds → Payload_v24_worlds, region → Payload_v24_region, time → TemporalExpression, sequence → Payload_v24_sequence, occurrenceId → Payload_v24_occurrenceId, participants → Payload_v24_participants, preconditions → Payload_v24_preconditions, effects → Payload_v24_effects, labels → Payload_v24_labels, expansionVersion → Payload_v24_expansionVersion, record_kind → Payload_v24_record_kind, basis → Payload_v24_basis |
 | `OccurrenceMode` | `r_occurrence_mode` | OccurrenceMode_v0, OccurrenceMode_v1 |
 | `OccurrenceMode_v0` | `r_occurrence_mode_v0` (scalar column) | string |
 | `OccurrenceMode_v1` | `r_occurrence_mode_v1` | descriptive → OccurrenceMode_v1_descriptive |
@@ -683,6 +683,8 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v24_expansionVersion_v0` | `r_payload_v24_expansion_version_v0` (scalar column) | string |
 | `Payload_v24_expansionVersion_v1` | `r_payload_v24_expansion_version_v1` (scalar column) | null |
 | `Payload_v24_record_kind` | `r_payload_v24_record_kind` (scalar column) | string |
+| `Payload_v24_basis` | `r_payload_v24_basis` | EvidenceBasis, Payload_v24_basis_v1 |
+| `Payload_v24_basis_v1` | `r_payload_v24_basis_v1` (scalar column) | null |
 | `Payload_v25` | `r_payload_v25` | item → RecordRef, holderPredicate → RecordRef, powerPredicate → RecordRef, value → Value, scope → Scope, validity → Validity, record_kind → Payload_v25_record_kind |
 | `Payload_v25_record_kind` | `r_payload_v25_record_kind` (scalar column) | string |
 | `Payload_v26` | `r_payload_v26` | namespace → Payload_v26_namespace, key → Payload_v26_key, labels → Payload_v26_labels, requirements → Payload_v26_requirements, consequenceContract → ConsequenceContract, scope → Scope, validity → Validity, record_kind → Payload_v26_record_kind |
@@ -962,7 +964,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v22_kind` | `r_domain_operation_v22_kind` (scalar column) | string |
 | `DomainOperation_v23` | `r_domain_operation_v23` | client_ref → DomainOperation_v23_client_ref, record → Event, kind → DomainOperation_v23_kind |
 | `DomainOperation_v23_client_ref` | `r_domain_operation_v23_client_ref` (scalar column) | string |
-| `Event` | `r_event` | occurrence → OccurrenceMode, action → Event_action, worlds → Event_worlds, region → Event_region, time → TemporalExpression, sequence → Event_sequence, occurrenceId → Event_occurrenceId, participants → Event_participants, preconditions → Event_preconditions, effects → Event_effects, labels → Event_labels, expansionVersion → Event_expansionVersion |
+| `Event` | `r_event` | occurrence → OccurrenceMode, action → Event_action, worlds → Event_worlds, region → Event_region, time → TemporalExpression, sequence → Event_sequence, occurrenceId → Event_occurrenceId, participants → Event_participants, preconditions → Event_preconditions, effects → Event_effects, labels → Event_labels, expansionVersion → Event_expansionVersion, basis → Event_basis |
 | `Event_action` | `r_event_action` | RecordRef, Event_action_v1 |
 | `Event_action_v1` | `r_event_action_v1` (scalar column) | null |
 | `Event_worlds` | `r_event_worlds` | WorldId |
@@ -982,6 +984,8 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Event_expansionVersion` | `r_event_expansion_version` | Event_expansionVersion_v0, Event_expansionVersion_v1 |
 | `Event_expansionVersion_v0` | `r_event_expansion_version_v0` (scalar column) | string |
 | `Event_expansionVersion_v1` | `r_event_expansion_version_v1` (scalar column) | null |
+| `Event_basis` | `r_event_basis` | EvidenceBasis, Event_basis_v1 |
+| `Event_basis_v1` | `r_event_basis_v1` (scalar column) | null |
 | `DomainOperation_v23_kind` | `r_domain_operation_v23_kind` (scalar column) | string |
 | `DomainOperation_v24` | `r_domain_operation_v24` | record → RecordRef, expected_version → RecordVersionId, replacement → Event, kind → DomainOperation_v24_kind |
 | `DomainOperation_v24_kind` | `r_domain_operation_v24_kind` (scalar column) | string |

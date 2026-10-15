@@ -22,7 +22,7 @@ import 'structural_checks.dart';
 import 'validation_findings.dart';
 
 const candidateEvaluatorVersion =
-    'finite-policy-v16-scoped-source-review';
+    'finite-policy-v17-event-source-review';
 
 /// Candidate assessment only. Approval, source staging, snapshot selection and
 /// durable publication remain the responsibility of the author workflow.

@@ -41,7 +41,7 @@ void main() {
       );
       expect(
         () => validateStructuralCandidate([f.row(1, guarded)]),
-        throwsA(isA<UnsupportedSemanticsError>()),
+        throwsA(isA<InvalidArgumentError>()),
       );
     }
   });

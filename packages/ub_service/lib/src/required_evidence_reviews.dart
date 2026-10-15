@@ -2,6 +2,8 @@ import 'package:ub_contracts/ub_contracts.dart' as protocol;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart' as rules;
 
+import 'required_evidence_checks.dart';
+
 /// Completes source findings using the selected assessment already admitted by
 /// resolveAssessment. This function never selects, imports or approves a review.
 List<protocol.Finding> assessRequiredEvidenceReviews({
@@ -65,10 +67,13 @@ protocol.Finding _review(
     );
   }
   final row = index.get(source.records.single.record)!;
-  final assertion = row.payload as AssertionRecord;
-  final proposition =
-      index.get(assertion.proposition.record)!.payload as PropositionRecord;
-  final anchorRef = (assertion.basis as SourceAnchorBasis).anchor;
+  final payload = row.payload;
+  final scope = requiredEvidenceScope(payload, index)!;
+  final validity = payload is AssertionRecord
+      ? payload.validity
+      : InstantValidity((payload as EventRecord).time);
+  final anchorRef =
+      (requiredEvidenceBasis(payload, index) as SourceAnchorBasis).anchor;
   final anchor = index.get(anchorRef.record)!.payload as AnchorRecord;
   final locator = anchor.locator;
   if (locator is! ByteRangeLocator) {
@@ -87,30 +92,58 @@ protocol.Finding _review(
 
   bool matches(protocol.ClaimMapping mapping) {
     final semantic = mapping.semantic;
-    if (semantic is! protocol.ClaimSemanticMapping ||
-        !mapping.candidateLinks.any(
+    if (!mapping.candidateLinks.any(
           (link) =>
               link.kind != protocol.CandidateLinkKind.historicalEvidence &&
               exact(link.version, row.identity.recordId),
         ) ||
-        !exact(mapping.context, assertion.scope.context.record) ||
-        !exact(semantic.subject, proposition.subject.record) ||
-        !exact(semantic.predicate, proposition.predicate.record) ||
-        semantic.polarity != assertion.polarity ||
-        proposition.value != null && semantic.value != proposition.value ||
-        semantic.roles.length != proposition.roles.length) {
+        !exact(mapping.context, scope.context.record)) {
       return false;
     }
-    for (var i = 0; i < semantic.roles.length; i++) {
-      if (semantic.roles[i].role != proposition.roles[i].role ||
-          !exact(
-            semantic.roles[i].participant,
-            proposition.roles[i].participant.record,
+    if (payload is AssertionRecord) {
+      final proposition =
+          index.get(payload.proposition.record)!.payload as PropositionRecord;
+      if (semantic is! protocol.ClaimSemanticMapping ||
+          !exact(semantic.subject, proposition.subject.record) ||
+          !exact(semantic.predicate, proposition.predicate.record) ||
+          semantic.polarity != payload.polarity ||
+          proposition.value != null && semantic.value != proposition.value ||
+          semantic.roles.length != proposition.roles.length) {
+        return false;
+      }
+      for (var i = 0; i < semantic.roles.length; i++) {
+        if (semantic.roles[i].role != proposition.roles[i].role ||
+            !exact(
+              semantic.roles[i].participant,
+              proposition.roles[i].participant.record,
+            )) {
+          return false;
+        }
+      }
+    } else {
+      final event = payload as EventRecord;
+      final effectPropositions = event.effects
+          .map((e) => e.proposition.record)
+          .toSet();
+      if (semantic is! protocol.ActionSemanticMapping ||
+          event.action == null ||
+          !exact(semantic.action, event.action!.record) ||
+          semantic.participants.length != event.participants.length ||
+          !semantic.participants.every(
+            (p) => event.participants.any(
+              (e) => e.role == p.role && exact(p.participant, e.record.record),
+            ),
+          ) ||
+          semantic.effects.length != effectPropositions.length ||
+          !semantic.effects.every(
+            (ref) =>
+                effectPropositions.contains(ref.record) &&
+                exact(ref, ref.record),
           )) {
         return false;
       }
     }
-    final realm = assertion.scope.realm;
+    final realm = scope.realm;
     if (realm == null
         ? mapping.realm != null
         : mapping.realm == null || !exact(mapping.realm!, realm.record)) {
@@ -134,10 +167,7 @@ protocol.Finding _review(
   }
 
   final mappings = body.claimMappings.where(matches).toList();
-  final worlds = switch ((
-    policy.applicability,
-    assertion.scope.applicability,
-  )) {
+  final worlds = switch ((policy.applicability, scope.applicability)) {
     (
       WorldsApplicability(worldIds: final a),
       WorldsApplicability(worldIds: final b),
@@ -166,11 +196,7 @@ protocol.Finding _review(
     );
     if (unresolved.any(
       (m) =>
-          _overlapsRequiredTime(
-            assertion.validity,
-            policy.validity,
-            m.storyTime,
-          ) !=
+          _overlapsRequiredTime(validity, policy.validity, m.storyTime) !=
           false,
     )) {
       return finding(
@@ -178,7 +204,7 @@ protocol.Finding _review(
       );
     }
     final covered = _coversRequiredTime(
-      assertion.validity,
+      validity,
       policy.validity,
       scoped
           // Attributed/hypothetical material does not establish an objective
@@ -186,6 +212,8 @@ protocol.Finding _review(
           .where(
             (m) =>
                 m.judgment == protocol.MappingJudgment.supported &&
+                (payload is! EventRecord ||
+                    m.occurrence == protocol.Occurrence.occurred) &&
                 (m.modality == protocol.Modality.asserted ||
                     m.modality == protocol.Modality.negated),
           )
