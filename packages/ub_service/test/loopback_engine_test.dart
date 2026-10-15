@@ -37,7 +37,14 @@ void main() {
       webAssets: assets.path,
     );
     final http = HttpClient();
-    Future<({int status, List<int> bytes, String? type, int length})> fetch(
+    Future<({
+      int status,
+      List<int> bytes,
+      String? type,
+      int length,
+      String? policy,
+      String? cache,
+    })> fetch(
       String path, {
       String method = 'GET',
       String? host,
@@ -59,6 +66,8 @@ void main() {
         bytes: bytes,
         type: response.headers.contentType?.mimeType,
         length: response.contentLength,
+        policy: response.headers.value('content-security-policy'),
+        cache: response.headers.value(HttpHeaders.cacheControlHeader),
       );
     }
 
@@ -67,7 +76,15 @@ void main() {
       expect(index.status, HttpStatus.ok);
       expect(utf8.decode(index.bytes), '<html>Universe Builder é</html>');
       expect(index.type, 'text/html');
-      expect((await fetch('/main.dart.js?v=1')).type, 'text/javascript');
+      expect(index.cache, 'no-store');
+      expect(index.policy, contains("script-src 'self' 'wasm-unsafe-eval'"));
+      expect(index.policy, contains("frame-ancestors 'none'"));
+      expect(index.policy, contains("object-src 'none'"));
+      expect(index.policy, isNot(contains("'unsafe-eval'")));
+      final script = await fetch('/main.dart.js?v=1');
+      expect(script.type, 'text/javascript');
+      expect(script.policy, index.policy);
+      expect(script.cache, 'no-store');
       final wasm = await fetch('/engine.wasm');
       expect(wasm.type, 'application/wasm');
       expect(wasm.bytes, [0, 97, 115, 109]);
@@ -76,6 +93,7 @@ void main() {
       expect(head.status, HttpStatus.ok);
       expect(head.bytes, isEmpty);
       expect(head.length, index.bytes.length);
+      expect(head.policy, index.policy);
       for (final path in [
         '/engine/hello',
         '/engine-http.json',

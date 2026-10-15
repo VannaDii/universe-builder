@@ -226,6 +226,18 @@ final class LoopbackEngineServer {
     try {
       final response = request.response;
       response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+      response.headers.set(
+        'content-security-policy',
+        "default-src 'self'; "
+            "script-src 'self' 'wasm-unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "connect-src 'self' https://fonts.gstatic.com; "
+            "font-src 'self' https://fonts.gstatic.com data:; "
+            "img-src 'self' blob: data:; "
+            "worker-src 'self' blob:; "
+            "object-src 'none'; base-uri 'self'; "
+            "frame-ancestors 'none'; form-action 'none'",
+      );
       final origin = request.headers.value('origin');
       if (request.headers.value(HttpHeaders.hostHeader) != endpoint.authority ||
           origin != null && origin != endpoint.origin) {

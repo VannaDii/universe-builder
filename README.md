@@ -259,7 +259,12 @@ and engine restart invalidate access. Cookie names distinguish local listener
 ports. The packaged macOS engine serves its bundled Flutter web pages at that
 endpoint. For a standalone development engine, use `--web-assets <absolute path>`
 to serve a Flutter web build. Only that asset directory is served, without directory
-listings or symbolic links; installation files remain private. Open the returned
+listings or symbolic links; installation files remain private. The web loader uses
+the bundled CanvasKit renderer. The service's content security policy restricts
+scripts and renderer code to the same origin, permits Flutter's WebAssembly,
+styles and workers, and disallows embedding the app in another page. Flutter's
+font fallback can still fetch fonts from `fonts.gstatic.com`, including for
+additional scripts and symbols. Open the returned
 endpoint in a browser, paste `enrollment_token` into Connection code, and choose
 Connect or resume. After refresh, leave the code blank to resume the same tab's
 unexpired session. Sign out revokes that session. The command prints the connection
