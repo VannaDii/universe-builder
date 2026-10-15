@@ -12,8 +12,9 @@ final class UnfinishedSourceForm {
     this.rationale = '',
     Iterable<DomainOperation> staged = const [],
     this.anchorSource,
-    this.draftVersion,
-  }) : staged = List.unmodifiable(staged);
+    BigInt? draftVersion,
+  }) : staged = List.unmodifiable(staged),
+       draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef, label, text, rationale;
@@ -56,7 +57,7 @@ final class UnfinishedSourceForm {
       anchorSource: f.optional('anchor_source', VersionRef.fromCanonical),
       draftVersion: f.optional(
         'draft_version',
-        (v) => checkedU64(BigInt.parse(wireString(v))),
+        (v) => BigInt.parse(wireString(v)),
       ),
     );
   }
