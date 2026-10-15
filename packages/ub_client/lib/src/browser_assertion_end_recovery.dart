@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_input_fields.dart';
 
 final class BrowserAssertionEndFormRecovery {
   const BrowserAssertionEndFormRecovery({
@@ -51,7 +52,7 @@ extension type _EndRow._(JSObject _) implements JSObject {
     required String expectedRecordVersion,
     required String calendar,
     required String coordinate,
-    required String originalBasis,
+    required JSAny originalBasisFields,
     required String basisKind,
     required String basisNote,
     required String anchorRecord,
@@ -69,6 +70,7 @@ extension type _EndRow._(JSObject _) implements JSObject {
   external String get expectedRecordVersion;
   external String get calendar;
   external String get coordinate;
+  external JSAny get originalBasisFields;
   external String get originalBasis;
   external String get basisKind;
   external String get basisNote;
@@ -77,6 +79,63 @@ extension type _EndRow._(JSObject _) implements JSObject {
   external bool get verified;
   external String get rationale;
   external String? get draftVersion;
+}
+
+SavedAssertionEndForm _decodeAssertionEnd(_EndRow row, {bool legacy = false}) {
+  return SavedAssertionEndForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedAssertionEndForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      target: ExpressionReferenceInput(
+        record: row.targetRecord,
+        universe: row.targetUniverse,
+      ),
+      expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
+      calendar: CalendarId.parse(row.calendar),
+      coordinate: row.coordinate,
+      originalBasis: EvidenceBasis.fromWire(
+        legacy
+            ? CanonicalValue.parseWireJson(row.originalBasis)
+            : decodeBrowserInput(row.originalBasisFields),
+      ),
+      basis: EvidenceBasisInput(
+        kind: row.basisKind,
+        note: row.basisNote,
+        anchorRecord: row.anchorRecord,
+        anchorUniverse: row.anchorUniverse,
+        verified: row.verified,
+      ),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_EndRow _encodeAssertionEnd(SavedAssertionEndForm saved) {
+  final form = saved.form;
+  return _EndRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    targetRecord: form.target.record,
+    targetUniverse: form.target.universe,
+    expectedRecordVersion: form.expectedRecordVersion.value,
+    calendar: form.calendar.value,
+    coordinate: form.coordinate,
+    originalBasisFields: encodeBrowserInput(form.originalBasis.toWire())!,
+    basisKind: form.basis.kind,
+    basisNote: form.basis.note,
+    anchorRecord: form.basis.anchorRecord,
+    anchorUniverse: form.basis.anchorUniverse,
+    verified: form.basis.verified,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain endpoint input, evidence basis and pinned references.
@@ -93,7 +152,7 @@ final class BrowserAssertionEndFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserAssertionEndFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -102,10 +161,30 @@ final class BrowserAssertionEndFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeAssertionEnd(
+                    _decodeAssertionEnd(cursor.value as _EndRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -160,35 +239,7 @@ final class BrowserAssertionEndFormRecoveryStore {
   SavedAssertionEndForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _EndRow;
-    return SavedAssertionEndForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedAssertionEndForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        target: ExpressionReferenceInput(
-          record: row.targetRecord,
-          universe: row.targetUniverse,
-        ),
-        expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
-        calendar: CalendarId.parse(row.calendar),
-        coordinate: row.coordinate,
-        originalBasis: EvidenceBasis.fromWire(
-          CanonicalValue.parseWireJson(row.originalBasis),
-        ),
-        basis: EvidenceBasisInput(
-          kind: row.basisKind,
-          note: row.basisNote,
-          anchorRecord: row.anchorRecord,
-          anchorUniverse: row.anchorUniverse,
-          verified: row.verified,
-        ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeAssertionEnd(row);
   }
 
   Future<SavedAssertionEndForm?> load(EditorFormScope scope) {
@@ -277,28 +328,7 @@ final class BrowserAssertionEndFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _EndRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              targetRecord: form.target.record,
-              targetUniverse: form.target.universe,
-              expectedRecordVersion: form.expectedRecordVersion.value,
-              calendar: form.calendar.value,
-              coordinate: form.coordinate,
-              originalBasis: form.originalBasis.toWire().toText(),
-              basisKind: form.basis.kind,
-              basisNote: form.basis.note,
-              anchorRecord: form.basis.anchorRecord,
-              anchorUniverse: form.basis.anchorUniverse,
-              verified: form.basis.verified,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeAssertionEnd(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error

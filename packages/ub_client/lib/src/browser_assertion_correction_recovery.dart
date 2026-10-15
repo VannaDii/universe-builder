@@ -50,11 +50,10 @@ extension type _CorrectionRow._(JSObject _) implements JSObject {
     required String targetRecord,
     required String targetUniverse,
     required String expectedRecordVersion,
-    required String original,
+    required JSAny originalFields,
     required String propositionRecord,
     required String propositionUniverse,
     required JSAny evidence,
-    String? validity,
     required String rationale,
     String? draftVersion,
   });
@@ -65,6 +64,7 @@ extension type _CorrectionRow._(JSObject _) implements JSObject {
   external String get targetRecord;
   external String get targetUniverse;
   external String get expectedRecordVersion;
+  external JSAny get originalFields;
   external String get original;
   external String get propositionRecord;
   external String get propositionUniverse;
@@ -72,6 +72,64 @@ extension type _CorrectionRow._(JSObject _) implements JSObject {
   external String? get validity;
   external String get rationale;
   external String? get draftVersion;
+}
+
+SavedAssertionCorrectionForm _decodeAssertionCorrection(
+  _CorrectionRow row, {
+  bool legacy = false,
+}) {
+  return SavedAssertionCorrectionForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedAssertionCorrectionForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      target: ExpressionReferenceInput(
+        record: row.targetRecord,
+        universe: row.targetUniverse,
+      ),
+      expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
+      original: AssertionRecord.fromWire(
+        legacy
+            ? CanonicalValue.parseWireJson(row.original)
+            : decodeBrowserInput(row.originalFields),
+      ),
+      proposition: ExpressionReferenceInput(
+        record: row.propositionRecord,
+        universe: row.propositionUniverse,
+      ),
+      evidence: AttributeEvidenceInput.fromWire(
+        CanonicalObject([
+          ...(decodeBrowserInput(row.evidence) as CanonicalObject).fields,
+          if (legacy && row.validity != null)
+            MapEntry('validity', CanonicalValue.parseWireJson(row.validity!)),
+        ]),
+      ),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_CorrectionRow _encodeAssertionCorrection(SavedAssertionCorrectionForm saved) {
+  final form = saved.form;
+  return _CorrectionRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    targetRecord: form.target.record,
+    targetUniverse: form.target.universe,
+    expectedRecordVersion: form.expectedRecordVersion.value,
+    originalFields: encodeBrowserInput(form.original.toWire())!,
+    propositionRecord: form.proposition.record,
+    propositionUniverse: form.proposition.universe,
+    evidence: encodeBrowserInput(form.evidence.toWire())!,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain correction input, evidence and pinned source references.
@@ -88,7 +146,7 @@ final class BrowserAssertionCorrectionFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserAssertionCorrectionFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -97,10 +155,33 @@ final class BrowserAssertionCorrectionFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeAssertionCorrection(
+                    _decodeAssertionCorrection(
+                      cursor.value as _CorrectionRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -155,37 +236,7 @@ final class BrowserAssertionCorrectionFormRecoveryStore {
   SavedAssertionCorrectionForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _CorrectionRow;
-    return SavedAssertionCorrectionForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedAssertionCorrectionForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        target: ExpressionReferenceInput(
-          record: row.targetRecord,
-          universe: row.targetUniverse,
-        ),
-        expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
-        original: AssertionRecord.fromWire(
-          CanonicalValue.parseWireJson(row.original),
-        ),
-        proposition: ExpressionReferenceInput(
-          record: row.propositionRecord,
-          universe: row.propositionUniverse,
-        ),
-        evidence: AttributeEvidenceInput.fromWire(
-          CanonicalObject([
-            ...(decodeBrowserInput(row.evidence) as CanonicalObject).fields,
-            if (row.validity != null)
-              MapEntry('validity', CanonicalValue.parseWireJson(row.validity!)),
-          ]),
-        ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeAssertionCorrection(row);
   }
 
   Future<SavedAssertionCorrectionForm?> load(EditorFormScope scope) {
@@ -276,31 +327,7 @@ final class BrowserAssertionCorrectionFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _CorrectionRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              targetRecord: form.target.record,
-              targetUniverse: form.target.universe,
-              expectedRecordVersion: form.expectedRecordVersion.value,
-              original: form.original.toWire().toText(),
-              propositionRecord: form.proposition.record,
-              propositionUniverse: form.proposition.universe,
-              evidence: encodeBrowserInput(
-                CanonicalObject(
-                  form.evidence.toWire().fields.where(
-                    (field) => field.key != 'validity',
-                  ),
-                ),
-              )!,
-              validity: form.evidence.validity?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeAssertionCorrection(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
