@@ -6,6 +6,9 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
+import 'catalog.dart';
+import 'relational.dart';
+import 'recovery_domain_rows.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
 const _where =
@@ -15,7 +18,10 @@ const _fields =
 const _imageFields =
     'ordinal,asset_record,asset_universe,caption,purpose,preview,staged_ref,digest,media_type,byte_size,width,height,original_name';
 const _linkFields = 'ordinal,entry_record,entry_universe,relationship,note';
-const _schema = """
+final _originalModel = recoveryPayloadModel('appearance');
+final _domainStorage = RecoveryDomainSchema([_originalModel]);
+final _schema =
+    """
 CREATE TABLE appearance_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL, continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
  generation TEXT NOT NULL, base_revision TEXT NOT NULL, client_ref TEXT NOT NULL,
@@ -23,7 +29,7 @@ CREATE TABLE appearance_form (
  label TEXT NOT NULL, physical_description TEXT NOT NULL, atmosphere TEXT NOT NULL,
  validity_kind TEXT NOT NULL, calendar TEXT NOT NULL, start TEXT NOT NULL, end TEXT NOT NULL,
  start_unbounded INTEGER NOT NULL CHECK(start_unbounded IN (0,1)), end_unbounded INTEGER NOT NULL CHECK(end_unbounded IN (0,1)),
- rationale TEXT NOT NULL, target_record TEXT, target_universe TEXT, expected_record_version TEXT, original TEXT, draft_version TEXT,
+ rationale TEXT NOT NULL, target_record TEXT, target_universe TEXT, expected_record_version TEXT, original INTEGER REFERENCES "${BodyCatalog.instance.model(_originalModel).table}"(__row_id), draft_version TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
 CREATE TABLE appearance_image (
@@ -40,11 +46,31 @@ CREATE TABLE appearance_link (
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES appearance_form(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=1;
+${_domainStorage.statements.join('\n')}
+PRAGMA user_version=2;
 """;
 
+String _textProjection(String columns, {bool legacy = false}) => columns
+    .split(',')
+    .map(
+      (c) =>
+          {
+                'end_unbounded',
+                'height',
+                'ordinal',
+                'start_unbounded',
+                'width',
+              }.contains(c) ||
+              (c == 'original' && !legacy)
+          ? c
+          : 'CAST($c AS BLOB) AS $c',
+    )
+    .join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
+
 /// Device-private named fields and ordered references. Only the retained original
-/// is a canonical domain record; incomplete form state is never a JSON blob.
+/// is stored through the existing typed domain codec.
 final class AppearanceFormRecoveryStore {
   AppearanceFormRecoveryStore._(this._db);
   final Database _db;
@@ -74,6 +100,61 @@ final class AppearanceFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
+        } else if (version == 1) {
+          final tables = {
+            'appearance_form': '$_keys,$_fields',
+            'appearance_image': '$_keys,$_imageFields',
+            'appearance_link': '$_keys,$_linkFields',
+          };
+          for (final table in tables.keys) {
+            db.execute('ALTER TABLE $table RENAME TO legacy_$table');
+          }
+          db.execute(_schema);
+          for (final table in tables.entries) {
+            final columns = table.value.split(',');
+            for (final row in db.select(
+              'SELECT ${_textProjection(table.value, legacy: true)} FROM legacy_${table.key}',
+            )) {
+              final values = <Object?>[
+                for (final column in columns)
+                  row[column] is List<int>
+                      ? decodeExactUtf8(row[column] as List<int>)
+                      : row[column],
+              ];
+              if (table.key == 'appearance_form') {
+                final index = columns.indexOf('original');
+                if (values[index] != null) {
+                  values[index] = RelationalCodec(db).put(
+                    _originalModel,
+                    CanonicalValue.parseWireJson(values[index] as String),
+                  );
+                }
+              }
+              db.execute(
+                'INSERT INTO ${table.key} VALUES(${List.filled(columns.length, '?').join(',')})',
+                values,
+              );
+            }
+          }
+          final store = AppearanceFormRecoveryStore._(db);
+          for (final row in db.select(
+            'SELECT ${_textProjection(_keys)} FROM appearance_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(row, 'instance')),
+              profile: ProfileId.parse(_text(row, 'profile')),
+              universe: UniverseId.parse(_text(row, 'universe')),
+              continuity: ContinuityId.parse(_text(row, 'continuity')),
+              representedContext: RecordId.parse(_text(row, 'context')),
+              typeClientRef: _text(row, 'editor_key').isEmpty
+                  ? null
+                  : _text(row, 'editor_key'),
+            );
+            store._validate(scope, store._read(scope)!.form);
+          }
+          for (final table in tables.keys.toList().reversed) {
+            db.execute('DROP TABLE legacy_$table');
+          }
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -100,37 +181,40 @@ final class AppearanceFormRecoveryStore {
         .select(
           "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
         )
-        .map((row) => row['name'])
+        .map((r) => r['name'])
         .toSet();
     if (names.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (version != 1 ||
-        names.length != 3 ||
-        !names.containsAll([
-          'appearance_form',
-          'appearance_image',
-          'appearance_link',
-        ]) ||
+    final expected = {
+      'appearance_form': '$_keys,$_fields',
+      'appearance_image': '$_keys,$_imageFields',
+      'appearance_link': '$_keys,$_linkFields',
+    };
+    final columnsMatch = expected.entries.every(
+      (e) =>
+          db
+              .select('PRAGMA table_info(${e.key})')
+              .map((r) => r['name'])
+              .join(',') ==
+          e.value,
+    );
+    final legacy =
+        version == 1 && names.length == expected.length && columnsMatch;
+    final current =
+        version == 2 &&
+        names.length == expected.length + _domainStorage.statements.length &&
+        columnsMatch &&
         db
                 .select('PRAGMA table_info(appearance_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            '$_keys,$_fields' ||
-        db
-                .select('PRAGMA table_info(appearance_image)')
-                .map((row) => row['name'])
-                .join(',') !=
-            '$_keys,$_imageFields' ||
-        db
-                .select('PRAGMA table_info(appearance_link)')
-                .map((row) => row['name'])
-                .join(',') !=
-            '$_keys,$_linkFields') {
+                .singleWhere((r) => r['name'] == 'original')['type'] ==
+            'INTEGER' &&
+        _domainStorage.matches(db);
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
     }
-    return 1;
+    return version as int;
   }
 
   List<String> _binding(EditorFormScope scope) {
@@ -157,95 +241,95 @@ final class AppearanceFormRecoveryStore {
   SavedAppearanceForm? _read(EditorFormScope scope) {
     final binding = _binding(scope);
     final rows = _db.select(
-      'SELECT * FROM appearance_form WHERE $_where',
+      'SELECT ${_textProjection('$_keys,$_fields')} FROM appearance_form WHERE $_where',
       binding,
     );
     if (rows.isEmpty) return null;
     final row = rows.single;
     final images = _db
         .select(
-          'SELECT * FROM appearance_image WHERE $_where ORDER BY ordinal',
+          'SELECT ${_textProjection('$_keys,$_imageFields')} FROM appearance_image WHERE $_where ORDER BY ordinal',
           binding,
         )
         .map(
           (child) => AppearanceImageInput(
             asset: ExpressionReferenceInput(
-              record: child['asset_record'] as String,
-              universe: child['asset_universe'] as String,
+              record: _text(child, 'asset_record'),
+              universe: _text(child, 'asset_universe'),
             ),
-            caption: child['caption'] as String,
-            purpose: child['purpose'] as String,
-            preview: child['preview'] as String,
+            caption: _text(child, 'caption'),
+            purpose: _text(child, 'purpose'),
+            preview: _text(child, 'preview'),
             stagedOperation: child['staged_ref'] == null
                 ? null
                 : AddImageAssetOperation(
-                    clientRef: child['staged_ref'] as String,
+                    clientRef: _text(child, 'staged_ref'),
                     record: ImageAssetRecord(
-                      contentDigest: child['digest'] as String,
-                      mediaType: child['media_type'] as String,
-                      byteSize: BigInt.parse(child['byte_size'] as String),
+                      contentDigest: _text(child, 'digest'),
+                      mediaType: _text(child, 'media_type'),
+                      byteSize: BigInt.parse(_text(child, 'byte_size')),
                       width: child['width'] as int,
                       height: child['height'] as int,
-                      originalName: child['original_name'] as String,
+                      originalName: _text(child, 'original_name'),
                     ),
                   ),
           ),
         );
     final links = _db
         .select(
-          'SELECT * FROM appearance_link WHERE $_where ORDER BY ordinal',
+          'SELECT ${_textProjection('$_keys,$_linkFields')} FROM appearance_link WHERE $_where ORDER BY ordinal',
           binding,
         )
         .map(
           (child) => AppearanceLinkInput(
             entry: ExpressionReferenceInput(
-              record: child['entry_record'] as String,
-              universe: child['entry_universe'] as String,
+              record: _text(child, 'entry_record'),
+              universe: _text(child, 'entry_universe'),
             ),
-            relationship: child['relationship'] as String,
-            note: child['note'] as String,
+            relationship: _text(child, 'relationship'),
+            note: _text(child, 'note'),
           ),
         );
     return SavedAppearanceForm(
-      generation: BigInt.parse(row['generation'] as String),
+      generation: BigInt.parse(_text(row, 'generation')),
       form: UnfinishedAppearanceForm(
-        baseRevision: RevisionId.parse(row['base_revision'] as String),
+        baseRevision: RevisionId.parse(_text(row, 'base_revision')),
         representedContext: scope.representedContext!,
-        clientRef: row['client_ref'] as String,
-        targetKind: row['target_kind'] as String,
+        clientRef: _text(row, 'client_ref'),
+        targetKind: _text(row, 'target_kind'),
         target: ExpressionReferenceInput(
-          record: row['target_entry'] as String,
-          universe: row['target_owner'] as String,
+          record: _text(row, 'target_entry'),
+          universe: _text(row, 'target_owner'),
         ),
-        label: row['label'] as String,
-        physicalDescription: row['physical_description'] as String,
-        atmosphere: row['atmosphere'] as String,
+        label: _text(row, 'label'),
+        physicalDescription: _text(row, 'physical_description'),
+        atmosphere: _text(row, 'atmosphere'),
         images: images,
         links: links,
-        validityKind: row['validity_kind'] as String,
-        calendar: row['calendar'] as String,
-        start: row['start'] as String,
-        end: row['end'] as String,
+        validityKind: _text(row, 'validity_kind'),
+        calendar: _text(row, 'calendar'),
+        start: _text(row, 'start'),
+        end: _text(row, 'end'),
         startUnbounded: row['start_unbounded'] == 1,
         endUnbounded: row['end_unbounded'] == 1,
-        rationale: row['rationale'] as String,
+        rationale: _text(row, 'rationale'),
         revisionTarget: row['target_record'] == null
             ? null
             : ExpressionReferenceInput(
-                record: row['target_record'] as String,
-                universe: row['target_universe'] as String,
+                record: _text(row, 'target_record'),
+                universe: _text(row, 'target_universe'),
               ),
         expectedRecordVersion: row['expected_record_version'] == null
             ? null
-            : RecordVersionId.parse(row['expected_record_version'] as String),
+            : RecordVersionId.parse(_text(row, 'expected_record_version')),
         original: row['original'] == null
             ? null
             : AppearanceRecord.fromWire(
-                CanonicalValue.parseWireJson(row['original'] as String),
+                RelationalCodec(_db).get(_originalModel, row['original']),
               ),
         draftVersion: row['draft_version'] == null
             ? null
-            : BigInt.parse(row['draft_version'] as String),
+            : BigInt.parse(_text(row, 'draft_version')),
       ),
     );
   }
@@ -262,16 +346,7 @@ final class AppearanceFormRecoveryStore {
     }
   }
 
-  SavedAppearanceForm save(
-    EditorFormScope scope,
-    UnfinishedAppearanceForm form,
-    BigInt expectedGeneration,
-  ) {
-    final binding = _binding(scope);
-    if (expectedGeneration < BigInt.zero ||
-        expectedGeneration >= (BigInt.one << 64)) {
-      throw const FormatException('Invalid expected editor generation');
-    }
+  void _validate(EditorFormScope scope, UnfinishedAppearanceForm form) {
     if (form.representedContext != scope.representedContext ||
         scope.typeClientRef != null &&
             scope.typeClientRef != form.recoveryKey) {
@@ -301,6 +376,19 @@ final class AppearanceFormRecoveryStore {
     }
 
     exact(form.toWire());
+  }
+
+  SavedAppearanceForm save(
+    EditorFormScope scope,
+    UnfinishedAppearanceForm form,
+    BigInt expectedGeneration,
+  ) {
+    final binding = _binding(scope);
+    if (expectedGeneration < BigInt.zero ||
+        expectedGeneration >= (BigInt.one << 64)) {
+      throw const FormatException('Invalid expected editor generation');
+    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope), generation = currentGeneration(current);
@@ -318,6 +406,13 @@ final class AppearanceFormRecoveryStore {
         );
       }
       final next = generation + BigInt.one;
+      final old = _db.select(
+        'SELECT original FROM appearance_form WHERE $_where',
+        binding,
+      );
+      final original = form.original == null
+          ? null
+          : RelationalCodec(_db).put(_originalModel, form.original!.toWire());
       final values = <Object?>[
         ...binding,
         next.toString(),
@@ -339,7 +434,7 @@ final class AppearanceFormRecoveryStore {
         form.revisionTarget?.record,
         form.revisionTarget?.universe,
         form.expectedRecordVersion?.value,
-        form.original?.toWire().toText(),
+        original,
         form.draftVersion?.toString(),
       ];
       final columns = '$_keys,$_fields'.split(',');
@@ -387,6 +482,9 @@ final class AppearanceFormRecoveryStore {
             link.note,
           ],
         );
+      }
+      if (old.isNotEmpty) {
+        _domainStorage.deleteOwned(_db, _originalModel, old.single['original']);
       }
       _db.execute('COMMIT');
       return SavedAppearanceForm(generation: next, form: form);

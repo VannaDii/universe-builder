@@ -6,21 +6,39 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
+import 'catalog.dart';
+import 'relational.dart';
+import 'recovery_domain_rows.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _fields =
     'generation,base_revision,value,mode,reason,rationale,target_record,target_universe,expected_record_version,original,draft_version';
-const _schema = """
+final _originalModel = 'Chronology';
+final _domainStorage = RecoveryDomainSchema([_originalModel]);
+final _schema =
+    """
 CREATE TABLE story_time_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL, continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
  generation TEXT NOT NULL, base_revision TEXT NOT NULL, value TEXT NOT NULL, mode TEXT NOT NULL, reason TEXT NOT NULL, rationale TEXT NOT NULL,
- target_record TEXT NOT NULL, target_universe TEXT NOT NULL, expected_record_version TEXT NOT NULL, original TEXT NOT NULL, draft_version TEXT,
+ target_record TEXT NOT NULL, target_universe TEXT NOT NULL, expected_record_version TEXT NOT NULL, original INTEGER NOT NULL REFERENCES "${BodyCatalog.instance.model(_originalModel).table}"(__row_id), draft_version TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=1;
+${_domainStorage.statements.join('\n')}
+PRAGMA user_version=2;
 """;
+
+String _textProjection(String columns, {bool legacy = false}) => columns
+    .split(',')
+    .map(
+      (c) => <String>{}.contains(c) || (c == 'original' && !legacy)
+          ? c
+          : 'CAST($c AS BLOB) AS $c',
+    )
+    .join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
 
 /// Device-private named input fields and the pinned original domain chronology.
 final class StoryTimeFormRecoveryStore {
@@ -52,6 +70,57 @@ final class StoryTimeFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
+        } else if (version == 1) {
+          final tables = {'story_time_form': '$_keys,$_fields'};
+          for (final table in tables.keys) {
+            db.execute('ALTER TABLE $table RENAME TO legacy_$table');
+          }
+          db.execute(_schema);
+          for (final table in tables.entries) {
+            final columns = table.value.split(',');
+            for (final row in db.select(
+              'SELECT ${_textProjection(table.value, legacy: true)} FROM legacy_${table.key}',
+            )) {
+              final values = <Object?>[
+                for (final column in columns)
+                  row[column] is List<int>
+                      ? decodeExactUtf8(row[column] as List<int>)
+                      : row[column],
+              ];
+              if (table.key == 'story_time_form') {
+                final index = columns.indexOf('original');
+                if (values[index] != null) {
+                  values[index] = RelationalCodec(db).put(
+                    _originalModel,
+                    CanonicalValue.parseWireJson(values[index] as String),
+                  );
+                }
+              }
+              db.execute(
+                'INSERT INTO ${table.key} VALUES(${List.filled(columns.length, '?').join(',')})',
+                values,
+              );
+            }
+          }
+          final store = StoryTimeFormRecoveryStore._(db);
+          for (final row in db.select(
+            'SELECT ${_textProjection(_keys)} FROM story_time_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(row, 'instance')),
+              profile: ProfileId.parse(_text(row, 'profile')),
+              universe: UniverseId.parse(_text(row, 'universe')),
+              continuity: ContinuityId.parse(_text(row, 'continuity')),
+              representedContext: RecordId.parse(_text(row, 'context')),
+              typeClientRef: _text(row, 'editor_key').isEmpty
+                  ? null
+                  : _text(row, 'editor_key'),
+            );
+            store._validate(scope, store._read(scope)!.form);
+          }
+          for (final table in tables.keys.toList().reversed) {
+            db.execute('DROP TABLE legacy_$table');
+          }
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -78,23 +147,36 @@ final class StoryTimeFormRecoveryStore {
         .select(
           "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
         )
-        .map((row) => row['name'])
+        .map((r) => r['name'])
         .toSet();
     if (names.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (version != 1 ||
-        names.length != 1 ||
-        !names.contains('story_time_form') ||
+    final expected = {'story_time_form': '$_keys,$_fields'};
+    final columnsMatch = expected.entries.every(
+      (e) =>
+          db
+              .select('PRAGMA table_info(${e.key})')
+              .map((r) => r['name'])
+              .join(',') ==
+          e.value,
+    );
+    final legacy =
+        version == 1 && names.length == expected.length && columnsMatch;
+    final current =
+        version == 2 &&
+        names.length == expected.length + _domainStorage.statements.length &&
+        columnsMatch &&
         db
                 .select('PRAGMA table_info(story_time_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            '$_keys,$_fields') {
+                .singleWhere((r) => r['name'] == 'original')['type'] ==
+            'INTEGER' &&
+        _domainStorage.matches(db);
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
     }
-    return 1;
+    return version as int;
   }
 
   List<String> _binding(EditorFormScope scope) {
@@ -121,33 +203,33 @@ final class StoryTimeFormRecoveryStore {
   SavedStoryTimeForm? _read(EditorFormScope scope) {
     final binding = _binding(scope);
     final rows = _db.select(
-      'SELECT * FROM story_time_form WHERE $_where',
+      'SELECT ${_textProjection('$_keys,$_fields')} FROM story_time_form WHERE $_where',
       binding,
     );
     if (rows.isEmpty) return null;
     final row = rows.single;
     return SavedStoryTimeForm(
-      generation: BigInt.parse(row['generation'] as String),
+      generation: BigInt.parse(_text(row, 'generation')),
       form: UnfinishedStoryTimeForm(
-        baseRevision: RevisionId.parse(row['base_revision'] as String),
+        baseRevision: RevisionId.parse(_text(row, 'base_revision')),
         representedContext: scope.representedContext!,
         target: ExpressionReferenceInput(
-          record: row['target_record'] as String,
-          universe: row['target_universe'] as String,
+          record: _text(row, 'target_record'),
+          universe: _text(row, 'target_universe'),
         ),
         expectedRecordVersion: RecordVersionId.parse(
-          row['expected_record_version'] as String,
+          _text(row, 'expected_record_version'),
         ),
         original: Chronology.fromWire(
-          CanonicalValue.parseWireJson(row['original'] as String),
+          RelationalCodec(_db).get(_originalModel, row['original']),
         ),
-        value: row['value'] as String,
-        mode: row['mode'] as String,
-        reason: row['reason'] as String,
-        rationale: row['rationale'] as String,
+        value: _text(row, 'value'),
+        mode: _text(row, 'mode'),
+        reason: _text(row, 'reason'),
+        rationale: _text(row, 'rationale'),
         draftVersion: row['draft_version'] == null
             ? null
-            : BigInt.parse(row['draft_version'] as String),
+            : BigInt.parse(_text(row, 'draft_version')),
       ),
     );
   }
@@ -164,16 +246,7 @@ final class StoryTimeFormRecoveryStore {
     }
   }
 
-  SavedStoryTimeForm save(
-    EditorFormScope scope,
-    UnfinishedStoryTimeForm form,
-    BigInt expectedGeneration,
-  ) {
-    final binding = _binding(scope);
-    if (expectedGeneration < BigInt.zero ||
-        expectedGeneration >= (BigInt.one << 64)) {
-      throw const FormatException('Invalid expected editor generation');
-    }
+  void _validate(EditorFormScope scope, UnfinishedStoryTimeForm form) {
     if (form.representedContext != scope.representedContext ||
         scope.typeClientRef != null &&
             scope.typeClientRef != form.recoveryKey) {
@@ -201,6 +274,19 @@ final class StoryTimeFormRecoveryStore {
     }
 
     exact(form.toWire());
+  }
+
+  SavedStoryTimeForm save(
+    EditorFormScope scope,
+    UnfinishedStoryTimeForm form,
+    BigInt expectedGeneration,
+  ) {
+    final binding = _binding(scope);
+    if (expectedGeneration < BigInt.zero ||
+        expectedGeneration >= (BigInt.one << 64)) {
+      throw const FormatException('Invalid expected editor generation');
+    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope), generation = currentGeneration(current);
@@ -218,6 +304,12 @@ final class StoryTimeFormRecoveryStore {
         );
       }
       final next = generation + BigInt.one;
+      final old = _db.select(
+        'SELECT original FROM story_time_form WHERE $_where',
+        binding,
+      );
+      final original = RelationalCodec(_db)
+          .put(_originalModel, form.original.toWire());
       final values = <Object?>[
         ...binding,
         next.toString(),
@@ -229,7 +321,7 @@ final class StoryTimeFormRecoveryStore {
         form.target.record,
         form.target.universe,
         form.expectedRecordVersion.value,
-        form.original.toWire().toText(),
+        original,
         form.draftVersion?.toString(),
       ];
       final columns = '$_keys,$_fields'.split(',');
@@ -237,6 +329,9 @@ final class StoryTimeFormRecoveryStore {
         'INSERT INTO story_time_form(${columns.join(',')}) VALUES(${List.filled(columns.length, '?').join(',')}) ON CONFLICT($_keys) DO UPDATE SET ${_fields.split(',').map((field) => '$field=excluded.$field').join(',')}',
         values,
       );
+      if (old.isNotEmpty) {
+        _domainStorage.deleteOwned(_db, _originalModel, old.single['original']);
+      }
       _db.execute('COMMIT');
       return SavedStoryTimeForm(generation: next, form: form);
     } catch (_) {

@@ -6,20 +6,26 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
+import 'catalog.dart';
+import 'relational.dart';
+import 'recovery_domain_rows.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _fields =
     'generation,base_revision,client_ref,reader_disclosed,has_concealment,concealment,validity_kind,calendar,start,end,start_unbounded,end_unbounded,rationale,target_record,target_universe,expected_record_version,original,draft_version';
-const _schema = """
+final _originalModel = recoveryPayloadModel('secret');
+final _domainStorage = RecoveryDomainSchema([_originalModel]);
+final _schema =
+    """
 CREATE TABLE secret_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL, continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
  generation TEXT NOT NULL, base_revision TEXT NOT NULL, client_ref TEXT NOT NULL,
  reader_disclosed INTEGER CHECK(reader_disclosed IN (0,1)), has_concealment INTEGER NOT NULL CHECK(has_concealment IN (0,1)),
  concealment TEXT NOT NULL, validity_kind TEXT NOT NULL, calendar TEXT NOT NULL, start TEXT NOT NULL, end TEXT NOT NULL,
  start_unbounded INTEGER NOT NULL CHECK(start_unbounded IN (0,1)), end_unbounded INTEGER NOT NULL CHECK(end_unbounded IN (0,1)),
- rationale TEXT NOT NULL, target_record TEXT, target_universe TEXT, expected_record_version TEXT, original TEXT, draft_version TEXT,
+ rationale TEXT NOT NULL, target_record TEXT, target_universe TEXT, expected_record_version TEXT, original INTEGER REFERENCES "${BodyCatalog.instance.model(_originalModel).table}"(__row_id), draft_version TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
 CREATE TABLE secret_reference (
@@ -28,11 +34,31 @@ CREATE TABLE secret_reference (
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,list_kind,ordinal),
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES secret_form(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=1;
+${_domainStorage.statements.join('\n')}
+PRAGMA user_version=2;
 """;
 
+String _textProjection(String columns, {bool legacy = false}) => columns
+    .split(',')
+    .map(
+      (c) =>
+          {
+                'end_unbounded',
+                'has_concealment',
+                'ordinal',
+                'reader_disclosed',
+                'start_unbounded',
+              }.contains(c) ||
+              (c == 'original' && !legacy)
+          ? c
+          : 'CAST($c AS BLOB) AS $c',
+    )
+    .join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
+
 /// Device-private named fields and ordered references. Only the retained original
-/// is a canonical domain record; incomplete form state is never a JSON blob.
+/// is stored through the existing typed domain codec.
 final class SecretFormRecoveryStore {
   SecretFormRecoveryStore._(this._db);
   final Database _db;
@@ -62,6 +88,61 @@ final class SecretFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
+        } else if (version == 1) {
+          final tables = {
+            'secret_form': '$_keys,$_fields',
+            'secret_reference':
+                '$_keys,list_kind,ordinal,record_input,universe_input',
+          };
+          for (final table in tables.keys) {
+            db.execute('ALTER TABLE $table RENAME TO legacy_$table');
+          }
+          db.execute(_schema);
+          for (final table in tables.entries) {
+            final columns = table.value.split(',');
+            for (final row in db.select(
+              'SELECT ${_textProjection(table.value, legacy: true)} FROM legacy_${table.key}',
+            )) {
+              final values = <Object?>[
+                for (final column in columns)
+                  row[column] is List<int>
+                      ? decodeExactUtf8(row[column] as List<int>)
+                      : row[column],
+              ];
+              if (table.key == 'secret_form') {
+                final index = columns.indexOf('original');
+                if (values[index] != null) {
+                  values[index] = RelationalCodec(db).put(
+                    _originalModel,
+                    CanonicalValue.parseWireJson(values[index] as String),
+                  );
+                }
+              }
+              db.execute(
+                'INSERT INTO ${table.key} VALUES(${List.filled(columns.length, '?').join(',')})',
+                values,
+              );
+            }
+          }
+          final store = SecretFormRecoveryStore._(db);
+          for (final row in db.select(
+            'SELECT ${_textProjection(_keys)} FROM secret_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(row, 'instance')),
+              profile: ProfileId.parse(_text(row, 'profile')),
+              universe: UniverseId.parse(_text(row, 'universe')),
+              continuity: ContinuityId.parse(_text(row, 'continuity')),
+              representedContext: RecordId.parse(_text(row, 'context')),
+              typeClientRef: _text(row, 'editor_key').isEmpty
+                  ? null
+                  : _text(row, 'editor_key'),
+            );
+            store._validate(scope, store._read(scope)!.form);
+          }
+          for (final table in tables.keys.toList().reversed) {
+            db.execute('DROP TABLE legacy_$table');
+          }
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -88,28 +169,40 @@ final class SecretFormRecoveryStore {
         .select(
           "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
         )
-        .map((row) => row['name'])
+        .map((r) => r['name'])
         .toSet();
     if (names.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (version != 1 ||
-        names.length != 2 ||
-        !names.containsAll(['secret_form', 'secret_reference']) ||
+    final expected = {
+      'secret_form': '$_keys,$_fields',
+      'secret_reference':
+          '$_keys,list_kind,ordinal,record_input,universe_input',
+    };
+    final columnsMatch = expected.entries.every(
+      (e) =>
+          db
+              .select('PRAGMA table_info(${e.key})')
+              .map((r) => r['name'])
+              .join(',') ==
+          e.value,
+    );
+    final legacy =
+        version == 1 && names.length == expected.length && columnsMatch;
+    final current =
+        version == 2 &&
+        names.length == expected.length + _domainStorage.statements.length &&
+        columnsMatch &&
         db
                 .select('PRAGMA table_info(secret_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            '$_keys,$_fields' ||
-        db
-                .select('PRAGMA table_info(secret_reference)')
-                .map((row) => row['name'])
-                .join(',') !=
-            '$_keys,list_kind,ordinal,record_input,universe_input') {
+                .singleWhere((r) => r['name'] == 'original')['type'] ==
+            'INTEGER' &&
+        _domainStorage.matches(db);
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
     }
-    return 1;
+    return version as int;
   }
 
   List<String> _binding(EditorFormScope scope) {
@@ -135,58 +228,61 @@ final class SecretFormRecoveryStore {
 
   SavedSecretForm? _read(EditorFormScope scope) {
     final binding = _binding(scope);
-    final rows = _db.select('SELECT * FROM secret_form WHERE $_where', binding);
+    final rows = _db.select(
+      'SELECT ${_textProjection('$_keys,$_fields')} FROM secret_form WHERE $_where',
+      binding,
+    );
     if (rows.isEmpty) return null;
     final row = rows.single;
     List<ExpressionReferenceInput> references(String kind) => _db
         .select(
-          'SELECT record_input,universe_input FROM secret_reference WHERE $_where AND list_kind=? ORDER BY ordinal',
+          'SELECT ${_textProjection('record_input,universe_input')} FROM secret_reference WHERE $_where AND list_kind=? ORDER BY ordinal',
           [...binding, kind],
         )
         .map(
           (child) => ExpressionReferenceInput(
-            record: child['record_input'] as String,
-            universe: child['universe_input'] as String,
+            record: _text(child, 'record_input'),
+            universe: _text(child, 'universe_input'),
           ),
         )
         .toList();
     return SavedSecretForm(
-      generation: BigInt.parse(row['generation'] as String),
+      generation: BigInt.parse(_text(row, 'generation')),
       form: UnfinishedSecretForm(
-        baseRevision: RevisionId.parse(row['base_revision'] as String),
+        baseRevision: RevisionId.parse(_text(row, 'base_revision')),
         representedContext: scope.representedContext!,
-        clientRef: row['client_ref'] as String,
+        clientRef: _text(row, 'client_ref'),
         scope: references('scope'),
         fictionalKnowers: references('fictional_knowers'),
         readerDisclosed: row['reader_disclosed'] == null
             ? null
             : row['reader_disclosed'] == 1,
         hasConcealment: row['has_concealment'] == 1,
-        concealment: row['concealment'] as String,
-        validityKind: row['validity_kind'] as String,
-        calendar: row['calendar'] as String,
-        start: row['start'] as String,
-        end: row['end'] as String,
+        concealment: _text(row, 'concealment'),
+        validityKind: _text(row, 'validity_kind'),
+        calendar: _text(row, 'calendar'),
+        start: _text(row, 'start'),
+        end: _text(row, 'end'),
         startUnbounded: row['start_unbounded'] == 1,
         endUnbounded: row['end_unbounded'] == 1,
-        rationale: row['rationale'] as String,
+        rationale: _text(row, 'rationale'),
         revisionTarget: row['target_record'] == null
             ? null
             : ExpressionReferenceInput(
-                record: row['target_record'] as String,
-                universe: row['target_universe'] as String,
+                record: _text(row, 'target_record'),
+                universe: _text(row, 'target_universe'),
               ),
         expectedRecordVersion: row['expected_record_version'] == null
             ? null
-            : RecordVersionId.parse(row['expected_record_version'] as String),
+            : RecordVersionId.parse(_text(row, 'expected_record_version')),
         original: row['original'] == null
             ? null
             : SecretRecord.fromWire(
-                CanonicalValue.parseWireJson(row['original'] as String),
+                RelationalCodec(_db).get(_originalModel, row['original']),
               ),
         draftVersion: row['draft_version'] == null
             ? null
-            : BigInt.parse(row['draft_version'] as String),
+            : BigInt.parse(_text(row, 'draft_version')),
       ),
     );
   }
@@ -203,16 +299,7 @@ final class SecretFormRecoveryStore {
     }
   }
 
-  SavedSecretForm save(
-    EditorFormScope scope,
-    UnfinishedSecretForm form,
-    BigInt expectedGeneration,
-  ) {
-    final binding = _binding(scope);
-    if (expectedGeneration < BigInt.zero ||
-        expectedGeneration >= (BigInt.one << 64)) {
-      throw const FormatException('Invalid expected editor generation');
-    }
+  void _validate(EditorFormScope scope, UnfinishedSecretForm form) {
     if (form.representedContext != scope.representedContext ||
         scope.typeClientRef != null &&
             scope.typeClientRef != form.recoveryKey) {
@@ -240,6 +327,19 @@ final class SecretFormRecoveryStore {
     }
 
     exact(form.toWire());
+  }
+
+  SavedSecretForm save(
+    EditorFormScope scope,
+    UnfinishedSecretForm form,
+    BigInt expectedGeneration,
+  ) {
+    final binding = _binding(scope);
+    if (expectedGeneration < BigInt.zero ||
+        expectedGeneration >= (BigInt.one << 64)) {
+      throw const FormatException('Invalid expected editor generation');
+    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope), generation = currentGeneration(current);
@@ -257,6 +357,13 @@ final class SecretFormRecoveryStore {
         );
       }
       final next = generation + BigInt.one;
+      final old = _db.select(
+        'SELECT original FROM secret_form WHERE $_where',
+        binding,
+      );
+      final original = form.original == null
+          ? null
+          : RelationalCodec(_db).put(_originalModel, form.original!.toWire());
       final values = <Object?>[
         ...binding,
         next.toString(),
@@ -279,7 +386,7 @@ final class SecretFormRecoveryStore {
         form.revisionTarget?.record,
         form.revisionTarget?.universe,
         form.expectedRecordVersion?.value,
-        form.original?.toWire().toText(),
+        original,
         form.draftVersion?.toString(),
       ];
       final columns = '$_keys,$_fields'.split(',');
@@ -298,6 +405,9 @@ final class SecretFormRecoveryStore {
             [...binding, kind, i, refs[i].record, refs[i].universe],
           );
         }
+      }
+      if (old.isNotEmpty) {
+        _domainStorage.deleteOwned(_db, _originalModel, old.single['original']);
       }
       _db.execute('COMMIT');
       return SavedSecretForm(generation: next, form: form);
