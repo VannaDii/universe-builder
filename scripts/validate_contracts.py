@@ -31,6 +31,18 @@ def main():
         del malformed['universe']
         assert not validator.is_valid(malformed)
         count += 1
+    # Query event-side pairing must not make event-effect record inputs
+    # impossible: those records have event/slot, with no event_side member.
+    event = {'record': 'rec_000000000000000000000001'}
+    for name in ('universe_validate', 'universe_propose'):
+        root = schemas[name][0].schema
+        for model, value in (
+            ('EventEffectRef', {'event': event, 'slot': 'stock'}),
+            ('EvidenceBasis', {'kind': 'event_effect', 'event': event, 'slot': 'stock'}),
+        ):
+            validator = Draft202012Validator({'$defs': root['$defs'], **root['$defs'][model]})
+            validator.validate(value)
+            assert not validator.is_valid({**value, 'event_side': 'entry'})
     print(f'PASS: {2 * len(schemas)} schemas, {len(examples)} valid examples, {count} invalid examples')
 
 if __name__ == '__main__':

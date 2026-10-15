@@ -1101,8 +1101,8 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
 fn augment_schema(mut schema: serde_json::Value) -> serde_json::Value {
     fn visit(v: &mut serde_json::Value) {
         if let Some(props) = v.get("properties").and_then(|p| p.as_object()) {
-            let world = props.contains_key("world_id");
-            let event = props.contains_key("event");
+            let world = props.contains_key("world_id") && props.contains_key("world");
+            let event = props.contains_key("event") && props.contains_key("event_side");
             if world {
                 v["dependentRequired"] = serde_json::json!({"world_id":["world"]});
             }

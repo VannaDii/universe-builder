@@ -4716,18 +4716,7 @@
               "required": [
                 "kind",
                 "event"
-              ],
-              "dependentRequired": {
-                "world_id": [
-                  "world"
-                ],
-                "event": [
-                  "event_side"
-                ],
-                "event_side": [
-                  "event"
-                ]
-              }
+              ]
             },
             {
               "description": "Opaque pinned occurred-event handle returned by factual research.",
@@ -7800,18 +7789,7 @@
                 "kind",
                 "event",
                 "side"
-              ],
-              "dependentRequired": {
-                "world_id": [
-                  "world"
-                ],
-                "event": [
-                  "event_side"
-                ],
-                "event_side": [
-                  "event"
-                ]
-              }
+              ]
             }
           ]
         },
@@ -33195,18 +33173,7 @@
                 "kind",
                 "event",
                 "slot"
-              ],
-              "dependentRequired": {
-                "world_id": [
-                  "world"
-                ],
-                "event": [
-                  "event_side"
-                ],
-                "event_side": [
-                  "event"
-                ]
-              }
+              ]
             },
             {
               "description": "Explicit reviewed instance start, with immutable source evidence.",
@@ -33319,18 +33286,7 @@
           "required": [
             "event",
             "slot"
-          ],
-          "dependentRequired": {
-            "world_id": [
-              "world"
-            ],
-            "event": [
-              "event_side"
-            ],
-            "event_side": [
-              "event"
-            ]
-          }
+          ]
         },
         "ItemPower": {
           "description": "Explicit dependency: holding this item grants a value while both the\npossession evidence and this definition apply. It never changes identity.",
@@ -41481,18 +41437,7 @@
                 "kind",
                 "event",
                 "side"
-              ],
-              "dependentRequired": {
-                "world_id": [
-                  "world"
-                ],
-                "event": [
-                  "event_side"
-                ],
-                "event_side": [
-                  "event"
-                ]
-              }
+              ]
             }
           ]
         },
@@ -45664,18 +45609,7 @@
                 "kind",
                 "event",
                 "slot"
-              ],
-              "dependentRequired": {
-                "world_id": [
-                  "world"
-                ],
-                "event": [
-                  "event_side"
-                ],
-                "event_side": [
-                  "event"
-                ]
-              }
+              ]
             },
             {
               "description": "Explicit reviewed instance start, with immutable source evidence.",
@@ -45788,18 +45722,7 @@
           "required": [
             "event",
             "slot"
-          ],
-          "dependentRequired": {
-            "world_id": [
-              "world"
-            ],
-            "event": [
-              "event_side"
-            ],
-            "event_side": [
-              "event"
-            ]
-          }
+          ]
         },
         "ItemPower": {
           "description": "Explicit dependency: holding this item grants a value while both the\npossession evidence and this definition apply. It never changes identity.",
