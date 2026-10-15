@@ -7,21 +7,48 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
 
-const _columns =
-    'instance,profile,universe,continuity,context,editor_key,generation,form_input';
+const _keys = 'instance,profile,universe,continuity,context,editor_key';
+const _legacyColumns = '$_keys,generation,form_input';
+const _fields =
+    'generation,base_revision,client_ref,work_record,work_universe,version_label,binding_kind,binding_continuity,binding_revision,target_record,target_universe,expected_record_version,rationale,draft_version';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = """
 CREATE TABLE work_version_form (
- instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
- generation TEXT NOT NULL, form_input TEXT NOT NULL,
+ instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL, continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
+ generation TEXT NOT NULL, base_revision TEXT NOT NULL, client_ref TEXT NOT NULL,
+ work_record TEXT NOT NULL,
+ work_universe TEXT NOT NULL,
+ version_label TEXT NOT NULL,
+ binding_kind TEXT NOT NULL,
+ binding_continuity TEXT NOT NULL,
+ binding_revision TEXT NOT NULL,
+ target_record TEXT,
+ target_universe TEXT,
+ expected_record_version TEXT,
+ rationale TEXT NOT NULL, draft_version TEXT,
+ CHECK((target_record IS NULL AND target_universe IS NULL) OR (target_record IS NOT NULL AND target_universe IS NOT NULL)),
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=1;
+CREATE TABLE work_version_segment (
+ instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL, continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
+ ordinal INTEGER NOT NULL CHECK(ordinal>=0),
+ segment TEXT NOT NULL,
+ binding_continuity TEXT NOT NULL,
+ binding_revision TEXT NOT NULL,
+ PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
+ FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES work_version_form(instance,profile,universe,continuity,context,editor_key)
+) STRICT;
+PRAGMA user_version=2;
 """;
+String _textProjection(String columns) => columns
+    .split(',')
+    .map((c) => c == 'ordinal' ? c : 'CAST($c AS BLOB) AS $c')
+    .join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
 
-/// Device-private incomplete work_version input, separate from canon.
+/// Device-private named work version fields, separate from canon.
 final class WorkVersionFormRecoveryStore {
   WorkVersionFormRecoveryStore._(this._db);
   final Database _db;
@@ -52,6 +79,38 @@ final class WorkVersionFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
+        } else if (version == 1) {
+          db.execute(
+            'ALTER TABLE work_version_form RENAME TO legacy_work_version_form',
+          );
+          db.execute(_schema);
+          final store = WorkVersionFormRecoveryStore._(db);
+          for (final row in db.select(
+            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_work_version_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(row, 'instance')),
+              profile: ProfileId.parse(_text(row, 'profile')),
+              universe: UniverseId.parse(_text(row, 'universe')),
+              continuity: ContinuityId.parse(_text(row, 'continuity')),
+              representedContext: RecordId.parse(_text(row, 'context')),
+              typeClientRef: _text(row, 'editor_key').isEmpty
+                  ? null
+                  : _text(row, 'editor_key'),
+            );
+            final form = UnfinishedWorkVersionForm.fromWire(
+              CanonicalValue.parseWireJson(_text(row, 'form_input')),
+            );
+            store._validate(scope, form);
+            store._write(
+              scope,
+              SavedWorkVersionForm(
+                generation: BigInt.parse(_text(row, 'generation')),
+                form: form,
+              ),
+            );
+          }
+          db.execute('DROP TABLE legacy_work_version_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -79,13 +138,19 @@ final class WorkVersionFormRecoveryStore {
     );
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (tables.length != 1 ||
-        version != 1 ||
-        db
-                .select('PRAGMA table_info(work_version_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            _columns) {
+    String columns(String table) =>
+        db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
+    final legacy =
+        version == 1 &&
+        tables.length == 1 &&
+        columns('work_version_form') == _legacyColumns;
+    final current =
+        version == 2 &&
+        tables.length == 2 &&
+        columns('work_version_form') == '$_keys,$_fields' &&
+        columns('work_version_segment') ==
+            '$_keys,ordinal,segment,binding_continuity,binding_revision';
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -102,7 +167,7 @@ final class WorkVersionFormRecoveryStore {
         scope.entityClassificationRecord != null ||
         scope.entityOperationIndex != null ||
         scope.attributeClientRef != null) {
-      throw const FormatException('Choose the work_version context.');
+      throw const FormatException('Choose the work version context.');
     }
     return [
       scope.instance.value,
@@ -117,17 +182,111 @@ final class WorkVersionFormRecoveryStore {
   SavedWorkVersionForm? _read(EditorFormScope scope) {
     final binding = _binding(scope);
     final rows = _db.select(
-      'SELECT * FROM work_version_form WHERE $_where',
+      'SELECT ${_textProjection('$_keys,$_fields')} FROM work_version_form WHERE $_where',
       binding,
     );
     if (rows.isEmpty) return null;
     final row = rows.single;
     return SavedWorkVersionForm(
-      generation: BigInt.parse(row['generation'] as String),
-      form: UnfinishedWorkVersionForm.fromWire(
-        CanonicalValue.parseWireJson(row['form_input'] as String),
+      generation: BigInt.parse(_text(row, 'generation')),
+      form: UnfinishedWorkVersionForm(
+        baseRevision: RevisionId.parse(_text(row, 'base_revision')),
+        representedContext: scope.representedContext!,
+        clientRef: _text(row, 'client_ref'),
+        work: ExpressionReferenceInput(
+          record: _text(row, 'work_record'),
+          universe: _text(row, 'work_universe'),
+        ),
+        versionLabel: _text(row, 'version_label'),
+        bindingKind: _text(row, 'binding_kind'),
+        continuity: _text(row, 'binding_continuity'),
+        revision: _text(row, 'binding_revision'),
+        bindingTarget: row['target_record'] == null
+            ? null
+            : ExpressionReferenceInput(
+                record: _text(row, 'target_record'),
+                universe: _text(row, 'target_universe'),
+              ),
+        expectedRecordVersion: row['expected_record_version'] == null
+            ? null
+            : RecordVersionId.parse(_text(row, 'expected_record_version')),
+        segments:
+            _children(
+              'work_version_segment',
+              'segment,binding_continuity,binding_revision',
+              binding,
+            ).map(
+              (r) => WorkSegmentInput(
+                segment: _text(r, 'segment'),
+                continuity: _text(r, 'binding_continuity'),
+                revision: _text(r, 'binding_revision'),
+              ),
+            ),
+        rationale: _text(row, 'rationale'),
+        draftVersion: row['draft_version'] == null
+            ? null
+            : BigInt.parse(_text(row, 'draft_version')),
       ),
     );
+  }
+
+  List<Row> _children(String table, String columns, List<String> binding) {
+    final rows = _db.select(
+      'SELECT ordinal,${_textProjection(columns)} FROM $table WHERE $_where ORDER BY ordinal',
+      binding,
+    );
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i]['ordinal'] != i) {
+        throw const FormatException('Incomplete form row order.');
+      }
+    }
+    return rows;
+  }
+
+  void _write(EditorFormScope scope, SavedWorkVersionForm saved) {
+    final binding = _binding(scope), form = saved.form;
+    final values = <Object?>[
+      ...binding,
+      saved.generation.toString(),
+      form.baseRevision.value,
+      form.clientRef,
+      form.work.record,
+      form.work.universe,
+      form.versionLabel,
+      form.bindingKind,
+      form.continuity,
+      form.revision,
+      form.bindingTarget?.record,
+      form.bindingTarget?.universe,
+      form.expectedRecordVersion?.value,
+      form.rationale,
+      form.draftVersion?.toString(),
+    ];
+    final columns = '$_keys,$_fields'.split(',');
+    _db.execute(
+      'INSERT INTO work_version_form(${columns.join(',')}) VALUES(${List.filled(columns.length, '?').join(',')}) ON CONFLICT($_keys) DO UPDATE SET ${_fields.split(',').map((c) => '$c=excluded.$c').join(',')}',
+      values,
+    );
+    _db.execute('DELETE FROM work_version_segment WHERE $_where', binding);
+    for (var i = 0; i < form.segments.length; i++) {
+      final row = form.segments[i];
+      _db.execute(
+        'INSERT INTO work_version_segment VALUES(?,?,?,?,?,?,?,?,?,?)',
+        [...binding, i, row.segment, row.continuity, row.revision],
+      );
+    }
+  }
+
+  void _validate(EditorFormScope scope, UnfinishedWorkVersionForm form) {
+    if (scope.representedContext != form.representedContext ||
+        scope.typeClientRef != null && scope.typeClientRef != form.clientRef) {
+      throw const FormatException('WorkVersion form context does not match.');
+    }
+    for (final text in form.exactTexts) {
+      if (decodeExactUtf8(utf8.encode(text)) != text) {
+        throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
+      }
+    }
   }
 
   SavedWorkVersionForm? load(EditorFormScope scope) {
@@ -147,23 +306,12 @@ final class WorkVersionFormRecoveryStore {
     UnfinishedWorkVersionForm form,
     BigInt expectedGeneration,
   ) {
-    final binding = _binding(scope);
+    _binding(scope);
     if (expectedGeneration < BigInt.zero ||
         expectedGeneration >= BigInt.one << 64) {
       throw const FormatException('Invalid expected editor generation');
     }
-    if (scope.representedContext != form.representedContext ||
-        (scope.typeClientRef != null &&
-            scope.typeClientRef != form.clientRef)) {
-      throw const FormatException(
-        'WorkVersion definition form context does not match.',
-      );
-    }
-    for (final text in form.exactTexts) {
-      if (decodeExactUtf8(utf8.encode(text)) != text) {
-        throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
-      }
-    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope);
@@ -185,10 +333,7 @@ final class WorkVersionFormRecoveryStore {
         generation: generation + BigInt.one,
         form: form,
       );
-      _db.execute(
-        'INSERT INTO work_version_form VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,form_input=excluded.form_input',
-        [...binding, saved.generation.toString(), form.toWire().toText()],
-      );
+      _write(scope, saved);
       _db.execute('COMMIT');
       return saved;
     } on EditorRecoveryException {
