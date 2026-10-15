@@ -80,7 +80,7 @@ extension type _EntityRow._(JSObject _) implements JSObject {
     String? language,
     String? community,
     String? role,
-    String? validity,
+    JSAny? validityFields,
     JSAny? temporal,
   });
   external String get generation;
@@ -98,6 +98,7 @@ extension type _EntityRow._(JSObject _) implements JSObject {
   external String? get language;
   external String? get community;
   external String? get role;
+  external JSAny? get validityFields;
   external String? get validity;
   external JSAny? get temporal;
 }
@@ -116,7 +117,7 @@ extension type _AssociationRow._(JSObject _) implements JSObject {
     required String world,
     required String role,
     int? originalOrdinal,
-    String? validity,
+    JSAny? validityFields,
     JSAny? temporal,
     JSAny? qualifiers,
   });
@@ -124,10 +125,131 @@ extension type _AssociationRow._(JSObject _) implements JSObject {
   external String get world;
   external String get role;
   external int? get originalOrdinal;
+  external JSAny? get validityFields;
   external String? get validity;
   external JSAny? get temporal;
   external JSAny? get qualifiers;
 }
+
+EntityAssociationForm _decodeAssociation(
+  _AssociationRow a, {
+  bool legacy = false,
+}) => EntityAssociationForm(
+  world: a.world,
+  role: a.role,
+  originalOrdinal: a.originalOrdinal,
+  validity: legacy
+      ? (a.validity == null
+            ? null
+            : Validity.fromWire(CanonicalValue.parseWireJson(a.validity!)))
+      : a.validityFields == null
+      ? null
+      : Validity.fromWire(decodeBrowserInput(a.validityFields!)),
+  temporalValidity: a.temporal == null
+      ? null
+      : TemporalValidityInput.fromWire(decodeBrowserInput(a.temporal!)),
+  qualifiers: a.qualifiers == null
+      ? null
+      : (decodeBrowserInput(a.qualifiers!) as CanonicalArray).items
+            .map(QualifierInput.fromWire)
+            .toList(),
+);
+SavedEntityForm _decodeEntity(
+  _EntityRow row,
+  Iterable<_WorldRow> worlds,
+  Iterable<_AssociationRow> associationRows, {
+  bool legacy = false,
+}) {
+  return SavedEntityForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedEntityForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      name: row.name,
+      classification: row.classification,
+      worldRole: row.worldRole,
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      nameDetails: row.namePresent != true
+          ? null
+          : EntityNameForm(
+              language: row.language,
+              community: row.community,
+              role: row.role,
+              validity: legacy
+                  ? (row.validity == null
+                        ? null
+                        : Validity.fromWire(
+                            CanonicalValue.parseWireJson(row.validity!),
+                          ))
+                  : row.validityFields == null
+                  ? null
+                  : Validity.fromWire(decodeBrowserInput(row.validityFields!)),
+              temporalValidity: row.temporal == null
+                  ? null
+                  : TemporalValidityInput.fromWire(
+                      decodeBrowserInput(row.temporal!),
+                    ),
+            ),
+      worlds: worlds.map((world) => WorldId.parse(world.value)),
+      associations: !row.associationsPresent
+          ? null
+          : associationRows.map((a) => _decodeAssociation(a, legacy: legacy)),
+    ),
+  );
+}
+
+_EntityRow _encodeEntity(SavedEntityForm saved) {
+  final form = saved.form;
+  return _EntityRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    name: form.name,
+    classification: form.classification,
+    worldRole: form.worldRole,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    associationsPresent: form.associations != null,
+    namePresent: form.nameDetails != null,
+    language: form.nameDetails?.language,
+    community: form.nameDetails?.community,
+    role: form.nameDetails?.role,
+    validityFields: form.nameDetails?.validity == null
+        ? null
+        : encodeBrowserInput(form.nameDetails!.validity!.toWire()),
+    temporal: form.nameDetails?.temporalValidity == null
+        ? null
+        : encodeBrowserInput(form.nameDetails!.temporalValidity!.toWire()),
+  );
+}
+
+_AssociationRow _encodeAssociation(int ordinal, EntityAssociationForm a) =>
+    _AssociationRow(
+      ordinal: ordinal,
+      world: a.world,
+      role: a.role,
+      originalOrdinal: a.originalOrdinal,
+      validityFields: a.validity == null
+          ? null
+          : encodeBrowserInput(a.validity!.toWire()),
+      temporal: a.temporalValidity == null
+          ? null
+          : encodeBrowserInput(a.temporalValidity!.toWire()),
+      qualifiers: a.qualifiers == null
+          ? null
+          : encodeBrowserInput(
+              CanonicalArray(a.qualifiers!.map((q) => q.toWire())),
+            ),
+    );
 
 /// Named fields and ordered child rows, never a serialized UI-state blob.
 /// IndexedDB transactions compare generations and commit all children together.
@@ -147,7 +269,7 @@ final class BrowserEntityFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserEntityFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -156,10 +278,44 @@ final class BrowserEntityFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            void migrate(String table, JSAny Function(JSAny) convert) {
+              final scan = tx.objectStore(table).openCursor();
+              scan.onsuccess = ((web.Event _) {
+                try {
+                  if (scan.result == null || scan.result.isUndefined) return;
+                  final cursor = scan.result as web.IDBCursorWithValue;
+                  cursor.update(convert(cursor.value!));
+                  cursor.continue_();
+                } catch (_) {
+                  tx.abort();
+                }
+              }).toJS;
+            }
+
+            migrate(
+              _tables[0],
+              (value) => _encodeEntity(
+                _decodeEntity(value as _EntityRow, [], [], legacy: true),
+              ),
+            );
+            migrate(_tables[2], (value) {
+              final row = value as _AssociationRow;
+              return _encodeAssociation(
+                row.ordinal,
+                _decodeAssociation(row, legacy: true),
+              );
+            });
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -235,67 +391,7 @@ final class BrowserEntityFormRecoveryStore {
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
     final associationRows = (labels.result as JSArray<_AssociationRow>).toDart
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedEntityForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedEntityForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        name: row.name,
-        classification: row.classification,
-        worldRole: row.worldRole,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        nameDetails: row.namePresent != true
-            ? null
-            : EntityNameForm(
-                language: row.language,
-                community: row.community,
-                role: row.role,
-                validity: row.validity == null
-                    ? null
-                    : Validity.fromWire(
-                        CanonicalValue.parseWireJson(row.validity!),
-                      ),
-                temporalValidity: row.temporal == null
-                    ? null
-                    : TemporalValidityInput.fromWire(
-                        decodeBrowserInput(row.temporal!),
-                      ),
-              ),
-        worlds: worlds.map((world) => WorldId.parse(world.value)),
-        associations: !row.associationsPresent
-            ? null
-            : associationRows.map(
-                (a) => EntityAssociationForm(
-                  world: a.world,
-                  role: a.role,
-                  originalOrdinal: a.originalOrdinal,
-                  validity: a.validity == null
-                      ? null
-                      : Validity.fromWire(
-                          CanonicalValue.parseWireJson(a.validity!),
-                        ),
-                  temporalValidity: a.temporal == null
-                      ? null
-                      : TemporalValidityInput.fromWire(
-                          decodeBrowserInput(a.temporal!),
-                        ),
-                  qualifiers: a.qualifiers == null
-                      ? null
-                      : (decodeBrowserInput(a.qualifiers!) as CanonicalArray)
-                            .items
-                            .map(QualifierInput.fromWire)
-                            .toList(),
-                ),
-              ),
-      ),
-    );
+    return _decodeEntity(row, worlds, associationRows);
   }
 
   Future<SavedEntityForm?> load(EditorFormScope scope) {
@@ -410,32 +506,7 @@ final class BrowserEntityFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _EntityRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              name: form.name,
-              classification: form.classification,
-              worldRole: form.worldRole,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              associationsPresent: form.associations != null,
-              namePresent: form.nameDetails != null,
-              language: form.nameDetails?.language,
-              community: form.nameDetails?.community,
-              role: form.nameDetails?.role,
-              validity: form.nameDetails?.validity?.toWire().toText(),
-              temporal: form.nameDetails?.temporalValidity == null
-                  ? null
-                  : encodeBrowserInput(
-                      form.nameDetails!.temporalValidity!.toWire(),
-                    ),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeEntity(saved!), key.toJS);
           aliasStore.delete(range);
           labelStore.delete(range);
           for (var i = 0; i < form.worlds.length; i++) {
@@ -447,24 +518,7 @@ final class BrowserEntityFormRecoveryStore {
           final associations = form.associations ?? <EntityAssociationForm>[];
           for (var i = 0; i < associations.length; i++) {
             final a = associations[i];
-            labelStore.put(
-              _AssociationRow(
-                ordinal: i,
-                world: a.world,
-                role: a.role,
-                originalOrdinal: a.originalOrdinal,
-                validity: a.validity?.toWire().toText(),
-                temporal: a.temporalValidity == null
-                    ? null
-                    : encodeBrowserInput(a.temporalValidity!.toWire()),
-                qualifiers: a.qualifiers == null
-                    ? null
-                    : encodeBrowserInput(
-                        CanonicalArray(a.qualifiers!.map((q) => q.toWire())),
-                      ),
-              ),
-              [...key, i.toJS].toJS,
-            );
+            labelStore.put(_encodeAssociation(i, a), [...key, i.toJS].toJS);
           }
         } on Object catch (error) {
           failure = error is EditorRecoveryException
