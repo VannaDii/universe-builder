@@ -55,7 +55,7 @@ extension type _PowerRow._(JSObject _) implements JSObject {
     required JSAny validity,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
     JSAny? correctionTarget,
     String? expectedRecordVersion,
   });
@@ -71,9 +71,79 @@ extension type _PowerRow._(JSObject _) implements JSObject {
   external JSAny get validity;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external JSAny? get correctionTarget;
   external String? get expectedRecordVersion;
+}
+
+SavedItemPowerForm _decodeItemPower(_PowerRow row, {bool legacy = false}) {
+  return SavedItemPowerForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedItemPowerForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      item: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.item)),
+      holderPredicate: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.holderPredicate),
+      ),
+      powerPredicate: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.powerPredicate),
+      ),
+      value: QualifierInput.fromWire(decodeBrowserInput(row.value)),
+      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : ItemPowerRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : ItemPowerRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      correctionTarget: row.correctionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.correctionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_PowerRow _encodeItemPower(SavedItemPowerForm saved) {
+  final form = saved.form;
+  return _PowerRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    item: encodeBrowserInput(form.item.toWire())!,
+    holderPredicate: encodeBrowserInput(form.holderPredicate.toWire())!,
+    powerPredicate: encodeBrowserInput(form.powerPredicate.toWire())!,
+    value: encodeBrowserInput(form.value.toWire())!,
+    factualScope: encodeBrowserInput(form.scope.toWire())!,
+    validity: encodeBrowserInput(form.validity.toWire())!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    correctionTarget: form.correctionTarget == null
+        ? null
+        : encodeBrowserInput(form.correctionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain item-power references, nested values, factual scope and validity input.
@@ -90,7 +160,7 @@ final class BrowserItemPowerFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserItemPowerFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -99,10 +169,30 @@ final class BrowserItemPowerFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeItemPower(
+                    _decodeItemPower(cursor.value as _PowerRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -157,43 +247,7 @@ final class BrowserItemPowerFormRecoveryStore {
   SavedItemPowerForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _PowerRow;
-    return SavedItemPowerForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedItemPowerForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        item: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.item)),
-        holderPredicate: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.holderPredicate),
-        ),
-        powerPredicate: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.powerPredicate),
-        ),
-        value: QualifierInput.fromWire(decodeBrowserInput(row.value)),
-        scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-        validity: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.validity),
-        ),
-        original: row.original == null
-            ? null
-            : ItemPowerRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        correctionTarget: row.correctionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.correctionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeItemPower(row);
   }
 
   Future<SavedItemPowerForm?> load(EditorFormScope scope) {
@@ -282,30 +336,7 @@ final class BrowserItemPowerFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _PowerRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              item: encodeBrowserInput(form.item.toWire())!,
-              holderPredicate: encodeBrowserInput(
-                form.holderPredicate.toWire(),
-              )!,
-              powerPredicate: encodeBrowserInput(form.powerPredicate.toWire())!,
-              value: encodeBrowserInput(form.value.toWire())!,
-              factualScope: encodeBrowserInput(form.scope.toWire())!,
-              validity: encodeBrowserInput(form.validity.toWire())!,
-              original: form.original?.toWire().toText(),
-              correctionTarget: form.correctionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.correctionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeItemPower(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
