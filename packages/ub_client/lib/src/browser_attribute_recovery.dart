@@ -50,7 +50,6 @@ extension type _AttributeRow._(JSObject _) implements JSObject {
     required String draftVersion,
     required JSAny value,
     JSAny? evidence,
-    String? validity,
     JSAny? creation,
     JSAny? roles,
   });
@@ -64,6 +63,64 @@ extension type _AttributeRow._(JSObject _) implements JSObject {
   external String? get validity;
   external JSAny? get creation;
   external JSAny? get roles;
+}
+
+SavedAttributeForm _decodeAttribute(_AttributeRow row, {bool legacy = false}) {
+  return SavedAttributeForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedAttributeForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      draftVersion: BigInt.parse(row.draftVersion),
+      value: QualifierInput.fromWire(decodeBrowserInput(row.value)),
+      evidenceInput: row.evidence == null
+          ? null
+          : AttributeEvidenceInput.fromWire(
+              CanonicalObject([
+                ...(decodeBrowserInput(
+                  row.evidence!,
+                ) as CanonicalObject).fields,
+                if (legacy && row.validity != null)
+                  MapEntry(
+                    'validity',
+                    CanonicalValue.parseWireJson(row.validity!),
+                  ),
+              ]),
+            ),
+      creationInput: row.creation == null
+          ? null
+          : AttributeCreationInput.fromWire(decodeBrowserInput(row.creation!)),
+      roles: row.roles == null
+          ? null
+          : (decodeBrowserInput(row.roles!) as CanonicalArray).items.map(
+              PropositionRoleInput.fromWire,
+            ),
+    ),
+  );
+}
+
+_AttributeRow _encodeAttribute(SavedAttributeForm saved) {
+  final form = saved.form;
+  return _AttributeRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    draftVersion: form.draftVersion.toString(),
+    value: encodeBrowserInput(form.value.toWire())!,
+    evidence: form.evidenceInput == null
+        ? null
+        : encodeBrowserInput(form.evidenceInput!.toWire()),
+    creation: form.creationInput == null
+        ? null
+        : encodeBrowserInput(form.creationInput!.toWire()),
+    roles: form.roles == null
+        ? null
+        : encodeBrowserInput(
+            CanonicalArray(form.roles!.map((role) => role.toWire())),
+          ),
+  );
 }
 
 /// Named fields retain attribute values, evidence and ordered role input.
@@ -80,7 +137,7 @@ final class BrowserAttributeFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserAttributeFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -89,10 +146,33 @@ final class BrowserAttributeFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeAttribute(
+                    _decodeAttribute(
+                      cursor.value as _AttributeRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -149,40 +229,7 @@ final class BrowserAttributeFormRecoveryStore {
   SavedAttributeForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _AttributeRow;
-    return SavedAttributeForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedAttributeForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        draftVersion: BigInt.parse(row.draftVersion),
-        value: QualifierInput.fromWire(decodeBrowserInput(row.value)),
-        evidenceInput: row.evidence == null
-            ? null
-            : AttributeEvidenceInput.fromWire(
-                CanonicalObject([
-                  ...(decodeBrowserInput(
-                    row.evidence!,
-                  ) as CanonicalObject).fields,
-                  if (row.validity != null)
-                    MapEntry(
-                      'validity',
-                      CanonicalValue.parseWireJson(row.validity!),
-                    ),
-                ]),
-              ),
-        creationInput: row.creation == null
-            ? null
-            : AttributeCreationInput.fromWire(
-                decodeBrowserInput(row.creation!),
-              ),
-        roles: row.roles == null
-            ? null
-            : (decodeBrowserInput(row.roles!) as CanonicalArray).items.map(
-                PropositionRoleInput.fromWire,
-              ),
-      ),
-    );
+    return _decodeAttribute(row);
   }
 
   Future<SavedAttributeForm?> load(EditorFormScope scope) {
@@ -281,35 +328,7 @@ final class BrowserAttributeFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _AttributeRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              draftVersion: form.draftVersion.toString(),
-              value: encodeBrowserInput(form.value.toWire())!,
-              evidence: form.evidenceInput == null
-                  ? null
-                  : encodeBrowserInput(
-                      CanonicalObject(
-                        form.evidenceInput!.toWire().fields.where(
-                          (field) => field.key != 'validity',
-                        ),
-                      ),
-                    ),
-              validity: form.evidenceInput?.validity?.toWire().toText(),
-              creation: form.creationInput == null
-                  ? null
-                  : encodeBrowserInput(form.creationInput!.toWire()),
-              roles: form.roles == null
-                  ? null
-                  : encodeBrowserInput(
-                      CanonicalArray(form.roles!.map((role) => role.toWire())),
-                    ),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeAttribute(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
