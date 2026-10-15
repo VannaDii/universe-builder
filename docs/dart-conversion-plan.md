@@ -4,6 +4,11 @@ Date: October 11, 2026.
 
 Status: implementation baseline approved by Vanna's conversion goal, subject to the explicitly unresolved decisions and subsequent instructions. Implementation and required platform checks with disposable data are authorized. Live-data conversion, hosting expenditure, production deployment and release publication require separate authorization. Unrelated paused work remains paused.
 
+October 15 scope update: Vanna is handling sign-in and billing. Windows support
+is deferred for this delivery. The remaining Dart conversion, Real World
+behavior, mobile workflows and runtime cutover remain in scope; these handoffs
+do not establish their completion.
+
 ## 1. Intended outcome
 
 Convert all project-owned runtime application logic to Dart, deliver a Flutter application for macOS, Windows, Linux, iOS, Android and web, and run the same factual service against either SQLite or PostgreSQL.
