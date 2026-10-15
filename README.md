@@ -195,7 +195,11 @@ retains the existing form. Guarded editors request their existing private input
 saves immediately when the
 app loses focus or enters the background, including forms behind a popup. Changes
 rationale and package-import choices use their existing save paths. A save must
-finish before input is durable; failures retain input in the form. Mobile owners can receive one shared text file without connecting or changing
+finish before input is durable; failures retain input in the form.
+In the active guarded editor, Command+S on Apple platforms or Ctrl+S elsewhere
+requests the same private save. In Changes it saves the rationale; it does not
+submit, approve or publish work. The shortcut also works with an attached mobile
+keyboard. Mobile owners can receive one shared text file without connecting or changing
 canon. On iOS, use the Files share sheet/Open With action for a `.txt` or `.md`
 file. Android accepts those files through Share/Open With and also accepts shared
 plain text. The runner copies at most 1 MiB into private cache; a waiting file is

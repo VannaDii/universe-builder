@@ -3086,6 +3086,10 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       Text(
         'Universe Builder keeps attributed facts and continuity. Changes to canon require an exact review, approval and separate publication.',
       ),
+      SizedBox(height: 16),
+      Text(
+        'In an editor, Command+S on Apple platforms or Ctrl+S elsewhere saves unfinished work. In Changes, it saves your rationale. Review, approval and publication remain separate actions.',
+      ),
     ],
   );
 }

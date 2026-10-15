@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 final _leaveRequests = Expando<Future<void> Function()>(
   'editor leave requests',
@@ -28,8 +30,9 @@ class GuardedPopScope<T> extends StatefulWidget {
   final bool canPop;
   final Future<void> Function() onLeave;
 
-  /// Request private input persistence before focus/suspension. This neither
-  /// navigates nor admits canonical work; the editor retains save failures.
+  /// Request private input persistence before focus/suspension or with the
+  /// platform Save shortcut. This neither navigates nor admits canonical work;
+  /// the editor retains save failures.
   final Future<void> Function()? onBackground;
   final PopInvokedWithResultCallback<T>? onPopInvokedWithResult;
   final Widget child;
@@ -68,9 +71,29 @@ class _GuardedPopScopeState<T> extends State<GuardedPopScope<T>>
   }
 
   @override
-  Widget build(BuildContext context) => PopScope<T>(
-    canPop: widget.canPop,
-    onPopInvokedWithResult: widget.onPopInvokedWithResult,
-    child: widget.child,
-  );
+  Widget build(BuildContext context) {
+    final save = widget.onBackground;
+    final apple =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    return PopScope<T>(
+      canPop: widget.canPop,
+      onPopInvokedWithResult: widget.onPopInvokedWithResult,
+      child: save == null
+          ? widget.child
+          : CallbackShortcuts(
+              bindings: {
+                SingleActivator(
+                  LogicalKeyboardKey.keyS,
+                  meta: apple,
+                  control: !apple,
+                  includeRepeats: false,
+                ): () {
+                  if (_route?.isCurrent == true) save().ignore();
+                },
+              },
+              child: widget.child,
+            ),
+    );
+  }
 }
