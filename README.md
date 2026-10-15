@@ -4,6 +4,14 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 
 ## Dart conversion development
 
+Universe creation offers Fictional and Real World settings. Real World publishes
+a default evidence policy and an initially empty category of qualifying sources.
+Authors select the sources before publishing required factual claims; the
+default adds no compulsory interpretation review. The setting is retained with
+unfinished creation input on native and web clients. Existing universes and older
+unfinished forms keep their prior behavior.
+The equivalent CLI option is `universe create <name> --first-time <value> --real-world`.
+
 The Real World evidence-policy contract now has an optional Rule
 `requiredEvidence` declaration. It pins published source-category packs and lists
 accepted interpretation-review methods; an empty method list requires no review.
@@ -22,7 +30,7 @@ An event's optional `basis` names its source; the declared action supplies its
 context and realm. Verified generated effects can use that source, while a
 required effect review must still identify the exact effect claim. Plans and
 reports retain their existing occurrence distinctions. Arbitrary derived
-evidence and the Real World creation/review UI remain unfinished. The Rust engine still rejects
+evidence, policy editing and world overrides/review UI remain unfinished. The Rust engine still rejects
 all `requiredEvidence` declarations explicitly.
 
 The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,

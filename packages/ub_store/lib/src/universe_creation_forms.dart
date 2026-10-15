@@ -7,8 +7,9 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
 
-const _columns =
+const _v1Columns =
     'instance,profile,generation,name,calendar,date,time,offset,calendarName,initialTick,tickLabel,ticksPerMonth,creationPending';
+const _columns = '$_v1Columns,realWorld';
 
 /// Private, instance/profile-scoped creation input; never creates a universe.
 final class UniverseCreationFormRecoveryStore {
@@ -51,10 +52,15 @@ CREATE TABLE universe_creation_form (
  "tickLabel" TEXT NOT NULL,
  "ticksPerMonth" TEXT NOT NULL,
  "creationPending" INTEGER NOT NULL CHECK("creationPending" IN (0,1)),
+ "realWorld" INTEGER NOT NULL CHECK("realWorld" IN (0,1)),
  PRIMARY KEY(instance,profile)
 ) STRICT;
-PRAGMA user_version=1;
+PRAGMA user_version=2;
 ''');
+        } else if (db.select('PRAGMA user_version').single.values.single == 1) {
+          db.execute(
+            'ALTER TABLE universe_creation_form ADD COLUMN "realWorld" INTEGER NOT NULL DEFAULT 0 CHECK("realWorld" IN (0,1)); PRAGMA user_version=2',
+          );
         }
         db.execute('COMMIT');
       } on Object {
@@ -78,14 +84,15 @@ PRAGMA user_version=1;
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
     );
     if (tables.isEmpty) return false;
-    if (db.select('PRAGMA user_version').single.values.single != 1 ||
+    final version = db.select('PRAGMA user_version').single.values.single;
+    if (version != 1 && version != 2 ||
         tables.length != 1 ||
         tables.single['name'] != 'universe_creation_form' ||
         db
                 .select('PRAGMA table_info(universe_creation_form)')
                 .map((r) => r['name'])
                 .join(',') !=
-            _columns) {
+            (version == 1 ? _v1Columns : _columns)) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -113,6 +120,7 @@ PRAGMA user_version=1;
         tickLabel: decodeExactUtf8(row['exact_tickLabel'] as List<int>),
         ticksPerMonth: decodeExactUtf8(row['exact_ticksPerMonth'] as List<int>),
         creationPending: row['creationPending'] == 1,
+        realWorld: row['realWorld'] == 1,
       ),
     );
   }
@@ -162,7 +170,7 @@ PRAGMA user_version=1;
         generation: generation + BigInt.one,
       );
       _db.execute(
-        'INSERT OR REPLACE INTO universe_creation_form($_columns) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT OR REPLACE INTO universe_creation_form($_columns) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [
           scope.$1.value,
           scope.$2.value,
@@ -177,6 +185,7 @@ PRAGMA user_version=1;
           form.tickLabel,
           form.ticksPerMonth,
           form.creationPending ? 1 : 0,
+          form.realWorld ? 1 : 0,
         ],
       );
       _db.execute('COMMIT');

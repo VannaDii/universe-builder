@@ -27,6 +27,7 @@ import 'operation_compilation_test.dart' as f;
 import 'effective_objects_test.dart' as objects;
 import 'writing_units_test.dart' as units;
 import 'writing_event_edits_test.dart' as event_edits;
+import 'helpers/universe_creation.dart' as creation;
 
 void main() {
   final port = int.tryParse(
@@ -104,6 +105,135 @@ void main() {
           await observer.close();
         }
       });
+      test(
+        'PostgreSQL Real World creation publishes an enforceable durable default',
+        () async {
+          final author = await runtime.connect(hello(authorId));
+          final created =
+              <
+                ({
+                  UniverseId universe,
+                  ContinuityId continuity,
+                  RevisionId revision,
+                  bool realWorld,
+                })
+              >[];
+          for (final realWorld in [false, true]) {
+            final name = realWorld ? 'Real World memoir' : 'Fictional memoir';
+            final response = WireFields(
+              await author.execute(
+                CreateUniverseEngineRequest(
+                  name: name,
+                  start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
+                  realWorld: realWorld,
+                ),
+              ),
+              {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+            );
+            final universe = UniverseId.parse(response.string('universe_id'));
+            universes.add(universe);
+            final continuity = ContinuityId.parse(
+              response.string('continuity_id'),
+            );
+            final context = RecordId.parse(response.string('context_id'));
+            final opened = await tool(
+              author,
+              OpenContextRequest(
+                universe: Selector(name),
+                continuityId: continuity,
+                revision: const HeadRevisionSelector(),
+                representedContext: ContextIdSelector(context),
+                temporalQuery: const TimelessFrameTime(),
+                temporalSystems: [],
+                perspective: const AuthorPerspective(),
+              ),
+              OpenedContext.fromWire,
+            );
+            final proposal = await tool(
+              author,
+              CreateProposalRequest(
+                universe: Selector(name),
+                contextId: opened.contextId,
+                operations: creation.unsourcedCreationFact(universe, context),
+                submission: Submission.submitted,
+                rationale: 'First authored fact',
+                idempotencyKey: 'first-fact',
+              ),
+              Proposal.fromWire,
+            );
+            final result = await tool(
+              author,
+              ProposalValidationRequest(
+                universe: Selector(name),
+                contextId: opened.contextId,
+                proposalReference: ProposalRef(
+                  proposalId: proposal.proposalId,
+                  version: proposal.version,
+                  digest: proposal.digest,
+                ),
+                checkScope: CheckScope.candidate,
+              ),
+              ValidationV3.fromWire,
+            ) as EvaluatedValidation;
+            expect(
+              result.execution.findings.any(
+                (f) => f.outcome == EvidenceOutcome.notEstablished,
+              ),
+              realWorld,
+            );
+            created.add((
+              universe: universe,
+              continuity: continuity,
+              revision: RevisionId.parse(response.string('revision')),
+              realWorld: realWorld,
+            ));
+          }
+          await runtime.close();
+          await store.close();
+          store = await PostgresInstallationStore.openExisting(
+            endpoint(),
+            settings: settings,
+          );
+          runtime = NativePostgresRuntime(store: store);
+          for (final item in created) {
+            final rows = await store.transaction((s) async {
+              final journal = s.kernel(item.universe).journal;
+              expect(await journal.head(item.continuity), item.revision);
+              final membership = await journal.snapshot(
+                item.continuity,
+                item.revision,
+              );
+              return [
+                for (final version in membership.values)
+                  RecordVersion.fromWire(
+                    (await journal.load(version)).toCanonical(),
+                  ),
+              ];
+            });
+            final policies = rows
+                .where(
+                  (r) =>
+                      r.payload is RuleRecord &&
+                      (r.payload as RuleRecord).requiredEvidence != null,
+                )
+                .toList();
+            expect(policies.length, item.realWorld ? 1 : 0);
+            if (item.realWorld) {
+              final policy = policies.single.payload as RuleRecord;
+              expect(policy.applicability, isA<UniverseApplicability>());
+              expect(policy.requiredEvidence!.reviewMethods, isEmpty);
+              final ref = policy.requiredEvidence!.sourceCategories.single;
+              final category = rows.singleWhere(
+                (r) =>
+                    r.identity.recordId == ref.record &&
+                    r.recordVersionId == ref.version,
+              );
+              expect((category.payload as DomainPackRecord).records, isEmpty);
+            }
+          }
+        },
+      );
+
       test('local PostgreSQL server owns discovery and drains on author shutdown without SQLite fallback', () async {
       await runtime.close();
       await store.close();

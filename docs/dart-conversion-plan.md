@@ -95,6 +95,16 @@ Offer Fictional and Real World as understandable creation choices. For historica
 
 The universe-level choice establishes a reviewed default policy. World-level selections compile into explicit policy applicability. The author sees the effective policy and its inherited origin. A world override changes applicability explicitly; it is not “nearest setting wins” over overlapping contradictory rules. Adding a world requires an explicit choice to use the universe policy or another reviewed policy.
 
+The initial creation choice publishes the `real_world:default` evidence rule
+with universe-wide applicability and an exact pin to an empty
+`real_world.sources` category. Its review-method list is empty; scoped policies
+may require interpretation review later. The author explicitly selects qualifying
+source membership and reviews the resulting policy revision before those sources
+can satisfy new claims. The creation action establishes this default together
+with the authored context and calendar. Fictional creation adds no evidence
+policy. Creation input recovery retains the choice; older unfinished input
+defaults to its previous fictional behavior without replaying a request.
+
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 
 ### 4.2 Evidence flow

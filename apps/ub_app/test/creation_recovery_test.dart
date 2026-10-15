@@ -31,6 +31,7 @@ void main() {
       calendarName: 'Before dawn',
       initialTick: '-123456789012345678901234567890',
       tickLabel: '',
+      realWorld: true,
     );
     const complete = UniverseCreationForm(
       name: 'Ages 記憶',
@@ -41,6 +42,7 @@ void main() {
       calendarName: 'Before dawn',
       initialTick: '-123456789012345678901234567890',
       tickLabel: 'beat',
+      realWorld: true,
     );
     try {
       session = await device.connect();

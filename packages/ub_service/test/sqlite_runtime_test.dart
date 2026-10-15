@@ -26,6 +26,7 @@ import 'writing_units_test.dart' as units;
 import 'source_verification_test.dart' as sources;
 import 'assessment_validation_test.dart' as assessments;
 import 'writing_event_edits_test.dart' as event_edits;
+import 'helpers/universe_creation.dart' as creation;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -2465,6 +2466,131 @@ void main() {
       );
     } finally {
       package.close();
+    }
+  });
+
+  test('native Real World creation publishes a durable enforceable default without compulsory review', () async {
+    final connection = runtime.connect(hello(author.id));
+    final created =
+        <
+          ({
+            UniverseId universe,
+            ContinuityId continuity,
+            RevisionId revision,
+            String path,
+            bool realWorld,
+          })
+        >[];
+    for (final realWorld in [false, true]) {
+      final name = realWorld ? 'Real World memoir' : 'Fictional memoir';
+      final response = WireFields(
+        await engine(
+          connection,
+          CreateUniverseEngineRequest(
+            name: name,
+            start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            realWorld: realWorld,
+          ),
+        ),
+        {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+      );
+      final universe = UniverseId.parse(response.string('universe_id'));
+      final continuity = ContinuityId.parse(response.string('continuity_id'));
+      final context = RecordId.parse(response.string('context_id'));
+      final opened = OpenedContext.fromWire(
+        (await tool(
+          connection,
+          OpenContextRequest(
+            universe: Selector(name),
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(context),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+        )).result,
+      );
+      final proposal = Proposal.fromWire(
+        (await tool(
+          connection,
+          CreateProposalRequest(
+            universe: Selector(name),
+            contextId: opened.contextId,
+            operations: creation.unsourcedCreationFact(universe, context),
+            submission: Submission.submitted,
+            rationale: 'First authored fact',
+            idempotencyKey: 'first-fact',
+          ),
+        )).result,
+      );
+      final result = ValidationV3.fromWire(
+        (await tool(
+          connection,
+          ProposalValidationRequest(
+            universe: Selector(name),
+            contextId: opened.contextId,
+            proposalReference: ProposalRef(
+              proposalId: proposal.proposalId,
+              version: proposal.version,
+              digest: proposal.digest,
+            ),
+            checkScope: CheckScope.candidate,
+          ),
+        )).result,
+      ) as EvaluatedValidation;
+      expect(
+        result.execution.findings.any(
+          (f) => f.outcome == EvidenceOutcome.notEstablished,
+        ),
+        realWorld,
+      );
+      created.add((
+        universe: universe,
+        continuity: continuity,
+        revision: RevisionId.parse(response.string('revision')),
+        path: authority
+            .catalog(author)
+            .singleWhere((e) => e.universeId == universe)
+            .path,
+        realWorld: realWorld,
+      ));
+    }
+    await runtime.close();
+    for (final item in created) {
+      final package = OwnedSqliteDatabase.openExisting(item.path);
+      try {
+        package.recover();
+        final journal = SqliteKernel(package.database, item.universe).journal;
+        expect(journal.head(item.continuity), item.revision);
+        final rows = journal
+            .snapshot(item.continuity, item.revision)
+            .values
+            .map((v) => RecordVersion.fromWire(journal.load(v).toCanonical()))
+            .toList();
+        final policies = rows
+            .where(
+              (r) =>
+                  r.payload is RuleRecord &&
+                  (r.payload as RuleRecord).requiredEvidence != null,
+            )
+            .toList();
+        expect(policies.length, item.realWorld ? 1 : 0);
+        if (item.realWorld) {
+          final policy = policies.single.payload as RuleRecord;
+          expect(policy.applicability, isA<UniverseApplicability>());
+          expect(policy.requiredEvidence!.reviewMethods, isEmpty);
+          final ref = policy.requiredEvidence!.sourceCategories.single;
+          final category = rows.singleWhere(
+            (r) =>
+                r.identity.recordId == ref.record &&
+                r.recordVersionId == ref.version,
+          );
+          expect((category.payload as DomainPackRecord).records, isEmpty);
+        }
+      } finally {
+        package.close();
+      }
     }
   });
 

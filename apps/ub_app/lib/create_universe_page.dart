@@ -26,6 +26,7 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
       _tickLabel = TextEditingController(),
       _month = TextEditingController();
   CreationCalendar _calendar = CreationCalendar.gregorian;
+  bool _realWorld = false;
   bool _busy = false,
       _uncertain = false,
       _loading = true,
@@ -49,6 +50,7 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
     tickLabel: _tickLabel.text,
     ticksPerMonth: _month.text,
     creationPending: _uncertain,
+    realWorld: _realWorld,
   );
 
   @override
@@ -72,6 +74,7 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
         _tickLabel.text = form.tickLabel;
         _month.text = form.ticksPerMonth;
         _calendar = form.calendar;
+        _realWorld = form.realWorld;
         _uncertain = form.creationPending;
         _generation = saved!.generation;
         _saved = form.toWire().toText();
@@ -317,6 +320,38 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
                 const SizedBox(height: 20),
               ],
               _field(_name, 'Universe name', autofocus: true),
+              const Text('Setting', style: TextStyle(fontSize: 20)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                children: [
+                  for (final realWorld in [false, true])
+                    ChoiceChip(
+                      label: Text(realWorld ? 'Real World' : 'Fictional'),
+                      selected: _realWorld == realWorld,
+                      onSelected: !_loaded || _busy || _uncertain
+                          ? null
+                          : (_) {
+                              _realWorld = realWorld;
+                              _changed();
+                            },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _realWorld
+                    ? 'Factual claims will need qualifying sources. You choose which sources qualify; private recollections can be included. Interpretation review is required only where a scoped policy requests it.'
+                    : 'Build your own canon and choose the continuity rules your story needs.',
+              ),
+              if (_realWorld)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Start with an empty selection of qualifying sources. Add your chosen sources before publishing new factual claims.',
+                  ),
+                ),
+              const SizedBox(height: 24),
               const Text('Starting calendar', style: TextStyle(fontSize: 20)),
               const SizedBox(height: 12),
               Wrap(

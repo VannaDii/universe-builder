@@ -37,6 +37,7 @@ sealed class EngineRequest {
       'label',
       'limit',
       'method',
+      'real_world',
       'mode',
       'name',
       'operation_id',
@@ -1408,19 +1409,27 @@ final class ApproveEngineRequest extends EngineRequest {
 }
 
 final class CreateUniverseEngineRequest extends EngineRequest {
-  const CreateUniverseEngineRequest({required this.name, required this.start});
+  const CreateUniverseEngineRequest({
+    required this.name,
+    required this.start,
+    this.realWorld = false,
+  });
   final String name;
   final UniverseStart start;
+  final bool realWorld;
   @override
   String get method => 'create_universe';
   factory CreateUniverseEngineRequest.fromWire(CanonicalValue value) {
-    final f = WireFields(value, {'method', 'name', 'start'});
+    final f = WireFields(value, {'method', 'name', 'start', 'real_world'});
     if (f.string('method') != 'create_universe') {
       throw const FormatException('Wrong engine method');
     }
     return CreateUniverseEngineRequest(
       name: f.string('name'),
       start: UniverseStart.fromWire(f.require('start')),
+      realWorld: f.values.containsKey('real_world')
+          ? f.boolean('real_world')
+          : false,
     );
   }
   @override
@@ -1428,6 +1437,7 @@ final class CreateUniverseEngineRequest extends EngineRequest {
     MapEntry('method', CanonicalString('create_universe')),
     MapEntry('name', CanonicalString(name)),
     MapEntry('start', start.toWire()),
+    if (realWorld) MapEntry('real_world', CanonicalBool(true)),
   ]);
 }
 

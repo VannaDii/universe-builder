@@ -12,6 +12,7 @@ import 'installation_authority.dart';
 import 'runtime_admission.dart';
 import 'sqlite_validation.dart';
 import 'validation_scheduler.dart';
+import 'universe_evidence_policy.dart';
 
 /// Native engine ownership. Run the service in the engine process or the mobile
 /// service isolate, keeping native database work away from the Flutter renderer.
@@ -823,6 +824,7 @@ final class NativeSqliteRuntime {
           ),
         ),
         record(calendar.toRecordId(), definition),
+        ...initialEvidencePolicyRecords(id, request.realWorld),
       ];
       final revision = kernel.commit(
         CommitInput(
@@ -831,7 +833,9 @@ final class NativeSqliteRuntime {
           expectedHead: kernel.journal.head(continuity),
           principal: actor,
           decision: 'create-universe',
-          reason: 'Author created objective context',
+          reason: request.realWorld
+              ? 'Author created objective context with Real World evidence policy'
+              : 'Author created objective context',
           idempotencyKey: 'create-universe',
           changes: records.map(
             (row) => Assignment(

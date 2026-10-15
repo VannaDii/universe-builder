@@ -21,7 +21,7 @@ const _usage = '''Usage: universe --installation <path> [--profile <id>] <comman
 
 init | status | doctor | enroll | shutdown | browser-session
 configure sqlite | configure postgres [--allow-loopback-postgres-development]
-create <name> --first-time <value> [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
+create <name> --first-time <value> [--real-world] [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
 register <path> <name> | rename <universe-id> <name> | revoke <profile-id>
 grant <profile-id> <universe-id> [--world <id>]... [--propose] [--edit] [--protected]
 tool <file> | library <universe>
@@ -342,6 +342,7 @@ Future<EngineRequest> parseAuthorCommand(
     _ => <String>{},
   };
   final flags = switch (command) {
+    'create' => {'real-world'},
     'grant' => {'propose', 'edit', 'protected'},
     'export' => {'complete-history'},
     'maintain' => {'collect'},
@@ -414,6 +415,7 @@ Future<EngineRequest> parseAuthorCommand(
       return CreateUniverseEngineRequest(
         name: args.positional[0],
         start: start,
+        realWorld: args.has('real-world'),
       );
     case 'register':
       args.count(2);

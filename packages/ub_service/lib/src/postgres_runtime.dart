@@ -12,6 +12,7 @@ import 'postgres_validation.dart';
 import 'postgres_validation_jobs.dart';
 import 'runtime_admission.dart';
 import 'validation_scheduler.dart';
+import 'universe_evidence_policy.dart';
 
 /// Native PostgreSQL engine dispatch. The caller owns the installation store
 /// until runtime close has drained requests and validation workers. Socket/host
@@ -737,6 +738,7 @@ final class NativePostgresRuntime {
       ),
       (calendar.toRecordId(), definition as RecordPayload),
     ];
+    final evidence = initialEvidencePolicyRecords(universe, request.realWorld);
     final revision = await session
         .kernel(universe)
         .commit(
@@ -746,9 +748,21 @@ final class NativePostgresRuntime {
             expectedHead: genesis,
             principal: actor,
             decision: 'create-universe',
-            reason: 'Author created objective context',
+            reason: request.realWorld
+                ? 'Author created objective context with Real World evidence policy'
+                : 'Author created objective context',
             idempotencyKey: 'create-universe',
             changes: [
+              for (final row in evidence)
+                Assignment(
+                  recordId: row.identity.recordId,
+                  next: StoredVersion(
+                    versionId: row.recordVersionId,
+                    identity: row.identity,
+                    payload: row.payload.toWire(),
+                    digest: row.payloadDigest,
+                  ),
+                ),
               for (final (id, payload) in records)
                 Assignment(
                   recordId: id,

@@ -300,10 +300,20 @@ void main() {
       '--tick-label',
       'days',
       '--ticks-per-month=36',
+      '--real-world',
     ]) as CreateUniverseEngineRequest;
     expect(
       (creation.start as FictionalUniverseStart).initialTick,
       '9007199254740993',
+    );
+    expect(creation.realWorld, isTrue);
+    expect(
+      (await parseAuthorCommand('create', [
+        'Memoir',
+        '--first-time',
+        '2040-01-01T00:00:00Z',
+      ]) as CreateUniverseEngineRequest).realWorld,
+      isFalse,
     );
   });
 

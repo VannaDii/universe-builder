@@ -1,8 +1,50 @@
 import 'package:test/test.dart';
 import 'package:ub_app/universe_creation.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_contracts/ub_contracts.dart'
+    show EngineRequest, CreateUniverseEngineRequest;
 
 void main() {
+  test('Real World creation remains an explicit recovered request choice', () {
+    const form = UniverseCreationForm(
+      name: 'Memoir',
+      calendar: CreationCalendar.gregorian,
+      date: '2040-01-01',
+      time: '00:00:00',
+      offset: 'Z',
+      realWorld: true,
+    );
+    final recovered = UniverseCreationForm.fromWire(
+      form.withPending(true).toWire(),
+    );
+    expect(recovered.realWorld, isTrue);
+    expect(recovered.request, throwsFormatException);
+    final request = recovered.withPending(false).request();
+    expect(
+      (EngineRequest.fromWire(
+        request.toWire(),
+      ) as CreateUniverseEngineRequest).realWorld,
+      isTrue,
+    );
+    final old = UniverseCreationForm.fromWire(
+      CanonicalObject(form.toWire().fields.where((e) => e.key != 'realWorld')),
+    );
+    expect(old.realWorld, isFalse);
+    expect(old.request().toWire().toText(), isNot(contains('real_world')));
+    expect(
+      () => EngineRequest.fromWire(
+        CanonicalObject(
+          request.toWire().fields.map(
+            (e) => MapEntry(
+              e.key,
+              e.key == 'real_world' ? CanonicalString('true') : e.value,
+            ),
+          ),
+        ),
+      ),
+      throwsFormatException,
+    );
+  });
   test('recovered creation attempt cannot become another request before a library check', () {
     const form = UniverseCreationForm(
       name: 'History',

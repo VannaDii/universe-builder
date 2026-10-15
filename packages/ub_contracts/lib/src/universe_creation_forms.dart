@@ -17,6 +17,7 @@ final class UniverseCreationForm {
     this.tickLabel = '',
     this.ticksPerMonth = '',
     this.creationPending = false,
+    this.realWorld = false,
   });
   final String name,
       date,
@@ -28,6 +29,7 @@ final class UniverseCreationForm {
       ticksPerMonth;
   final CreationCalendar calendar;
   final bool creationPending;
+  final bool realWorld;
 
   UniverseCreationForm withPending(bool pending) => UniverseCreationForm(
     name: name,
@@ -40,6 +42,7 @@ final class UniverseCreationForm {
     ticksPerMonth: ticksPerMonth,
     calendar: calendar,
     creationPending: pending,
+    realWorld: realWorld,
   );
 
   CanonicalObject toWire() => CanonicalObject([
@@ -53,6 +56,7 @@ final class UniverseCreationForm {
     MapEntry('ticksPerMonth', CanonicalString(ticksPerMonth)),
     MapEntry('calendar', CanonicalString(calendar.name)),
     MapEntry('creationPending', CanonicalBool(creationPending)),
+    if (realWorld) MapEntry('realWorld', CanonicalBool(true)),
   ]);
 
   factory UniverseCreationForm.fromWire(CanonicalValue value) {
@@ -67,6 +71,7 @@ final class UniverseCreationForm {
       'ticksPerMonth',
       'calendar',
       'creationPending',
+      'realWorld',
     });
     return UniverseCreationForm(
       name: fields.string('name'),
@@ -79,6 +84,9 @@ final class UniverseCreationForm {
       ticksPerMonth: fields.string('ticksPerMonth'),
       calendar: CreationCalendar.values.byName(fields.string('calendar')),
       creationPending: fields.boolean('creationPending'),
+      realWorld: fields.values.containsKey('realWorld')
+          ? fields.boolean('realWorld')
+          : false,
     );
   }
 
@@ -124,7 +132,11 @@ final class UniverseCreationForm {
       );
       start.build(CalendarId.generate());
     }
-    return CreateUniverseEngineRequest(name: name, start: start);
+    return CreateUniverseEngineRequest(
+      name: name,
+      start: start,
+      realWorld: realWorld,
+    );
   }
 }
 
