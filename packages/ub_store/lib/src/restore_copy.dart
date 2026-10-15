@@ -62,12 +62,18 @@ void copyTrustedRows(
   bool archive = false,
 }) {
   if (!target.autocommit ||
-      target.select('SELECT count(*) AS n FROM universes').single['n'] != 0) {
+      target.select('SELECT count(*) AS n FROM universes').single['n'] != 0 ||
+      target.select('PRAGMA foreign_keys').single.values.single != 1) {
     throw StateError('Transfer requires a new uninitialized target');
   }
   String quote(String name) => '"${name.replaceAll('"', '""')}"';
-  target.execute('BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;');
+  // Table order is not dependency order (recursive bodies also form cycles).
+  // Deferred parent inserts repeatedly scan unindexed child references, making
+  // large restores quadratic. This target is private and empty: copy its rows
+  // atomically, then check every foreign key once before accepting the copy.
+  target.execute('PRAGMA foreign_keys=OFF');
   try {
+    target.execute('BEGIN IMMEDIATE');
     for (final table in target.select(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'search_index%' ORDER BY name",
     )) {
@@ -110,9 +116,23 @@ void copyTrustedRows(
         'INSERT OR IGNORE INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts',
       );
     }
+    if (target
+        .select('SELECT 1 FROM pragma_foreign_key_check LIMIT 1')
+        .isNotEmpty) {
+      throw SqliteException(
+        extendedResultCode: SqlExtendedError.SQLITE_CONSTRAINT_FOREIGNKEY,
+        message: 'FOREIGN KEY constraint failed',
+        operation: 'checking transferred rows before commit',
+      );
+    }
     target.execute('COMMIT');
   } on Object {
     if (!target.autocommit) target.execute('ROLLBACK');
     rethrow;
+  } finally {
+    target.execute('PRAGMA foreign_keys=ON');
+    if (target.select('PRAGMA foreign_keys').single.values.single != 1) {
+      throw StateError('Transfer could not restore foreign key enforcement');
+    }
   }
 }
