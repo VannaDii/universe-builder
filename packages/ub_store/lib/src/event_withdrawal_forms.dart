@@ -7,21 +7,29 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
 
-const _columns =
-    'instance,profile,universe,continuity,context,editor_key,generation,form_input';
+const _keys = 'instance,profile,universe,continuity,context,editor_key';
+const _legacyColumns = '$_keys,generation,form_input';
+const _fields =
+    'generation,base_revision,client_ref,target_record,target_universe,expected_record_version,rationale,draft_version';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = """
 CREATE TABLE event_withdrawal_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
  continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
- generation TEXT NOT NULL, form_input TEXT NOT NULL,
+ generation TEXT NOT NULL, base_revision TEXT NOT NULL, client_ref TEXT NOT NULL,
+ target_record TEXT NOT NULL, target_universe TEXT NOT NULL,
+ expected_record_version TEXT NOT NULL, rationale TEXT NOT NULL, draft_version TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=1;
+PRAGMA user_version=2;
 """;
+String _textProjection(String columns) =>
+    columns.split(',').map((c) => 'CAST($c AS BLOB) AS $c').join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
 
-/// Device-private incomplete occurrence withdrawal input, separate from canon.
+/// Device-private named occurrence withdrawal fields, separate from canon.
 final class EventWithdrawalFormRecoveryStore {
   EventWithdrawalFormRecoveryStore._(this._db);
   final Database _db;
@@ -52,6 +60,38 @@ final class EventWithdrawalFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
+        } else if (version == 1) {
+          db.execute(
+            'ALTER TABLE event_withdrawal_form RENAME TO legacy_event_withdrawal_form',
+          );
+          db.execute(_schema);
+          final store = EventWithdrawalFormRecoveryStore._(db);
+          for (final row in db.select(
+            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_event_withdrawal_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(row, 'instance')),
+              profile: ProfileId.parse(_text(row, 'profile')),
+              universe: UniverseId.parse(_text(row, 'universe')),
+              continuity: ContinuityId.parse(_text(row, 'continuity')),
+              representedContext: RecordId.parse(_text(row, 'context')),
+              typeClientRef: _text(row, 'editor_key').isEmpty
+                  ? null
+                  : _text(row, 'editor_key'),
+            );
+            final form = UnfinishedEventWithdrawalForm.fromWire(
+              CanonicalValue.parseWireJson(_text(row, 'form_input')),
+            );
+            store._validate(scope, form);
+            store._write(
+              scope,
+              SavedEventWithdrawalForm(
+                generation: BigInt.parse(_text(row, 'generation')),
+                form: form,
+              ),
+            );
+          }
+          db.execute('DROP TABLE legacy_event_withdrawal_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -79,13 +119,13 @@ final class EventWithdrawalFormRecoveryStore {
     );
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
+    final columns = db
+        .select('PRAGMA table_info(event_withdrawal_form)')
+        .map((row) => row['name'])
+        .join(',');
     if (tables.length != 1 ||
-        version != 1 ||
-        db
-                .select('PRAGMA table_info(event_withdrawal_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            _columns) {
+        !(version == 1 && columns == _legacyColumns ||
+            version == 2 && columns == '$_keys,$_fields')) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -115,19 +155,65 @@ final class EventWithdrawalFormRecoveryStore {
   }
 
   SavedEventWithdrawalForm? _read(EditorFormScope scope) {
-    final binding = _binding(scope);
     final rows = _db.select(
-      'SELECT * FROM event_withdrawal_form WHERE $_where',
-      binding,
+      'SELECT ${_textProjection('$_keys,$_fields')} FROM event_withdrawal_form WHERE $_where',
+      _binding(scope),
     );
     if (rows.isEmpty) return null;
     final row = rows.single;
     return SavedEventWithdrawalForm(
-      generation: BigInt.parse(row['generation'] as String),
-      form: UnfinishedEventWithdrawalForm.fromWire(
-        CanonicalValue.parseWireJson(row['form_input'] as String),
+      generation: BigInt.parse(_text(row, 'generation')),
+      form: UnfinishedEventWithdrawalForm(
+        baseRevision: RevisionId.parse(_text(row, 'base_revision')),
+        representedContext: scope.representedContext!,
+        clientRef: _text(row, 'client_ref'),
+        target: ExpressionReferenceInput(
+          record: _text(row, 'target_record'),
+          universe: _text(row, 'target_universe'),
+        ),
+        expectedRecordVersion: RecordVersionId.parse(
+          _text(row, 'expected_record_version'),
+        ),
+        rationale: _text(row, 'rationale'),
+        draftVersion: row['draft_version'] == null
+            ? null
+            : BigInt.parse(_text(row, 'draft_version')),
       ),
     );
+  }
+
+  void _write(EditorFormScope scope, SavedEventWithdrawalForm saved) {
+    final form = saved.form;
+    final values = <Object?>[
+      ..._binding(scope),
+      saved.generation.toString(),
+      form.baseRevision.value,
+      form.clientRef,
+      form.target.record,
+      form.target.universe,
+      form.expectedRecordVersion.value,
+      form.rationale,
+      form.draftVersion?.toString(),
+    ];
+    final columns = '$_keys,$_fields'.split(',');
+    _db.execute(
+      'INSERT INTO event_withdrawal_form(${columns.join(',')}) VALUES(${List.filled(columns.length, '?').join(',')}) ON CONFLICT($_keys) DO UPDATE SET ${_fields.split(',').map((c) => '$c=excluded.$c').join(',')}',
+      values,
+    );
+  }
+
+  void _validate(EditorFormScope scope, UnfinishedEventWithdrawalForm form) {
+    if (scope.representedContext != form.representedContext ||
+        scope.typeClientRef != null && scope.typeClientRef != form.clientRef) {
+      throw const FormatException(
+        'Occurrence withdrawal form context does not match.',
+      );
+    }
+    for (final text in form.exactTexts) {
+      if (decodeExactUtf8(utf8.encode(text)) != text) {
+        throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
+      }
+    }
   }
 
   SavedEventWithdrawalForm? load(EditorFormScope scope) {
@@ -147,23 +233,12 @@ final class EventWithdrawalFormRecoveryStore {
     UnfinishedEventWithdrawalForm form,
     BigInt expectedGeneration,
   ) {
-    final binding = _binding(scope);
+    _binding(scope);
     if (expectedGeneration < BigInt.zero ||
         expectedGeneration >= BigInt.one << 64) {
       throw const FormatException('Invalid expected editor generation');
     }
-    if (scope.representedContext != form.representedContext ||
-        (scope.typeClientRef != null &&
-            scope.typeClientRef != form.clientRef)) {
-      throw const FormatException(
-        'Occurrence withdrawal form context does not match.',
-      );
-    }
-    for (final text in form.exactTexts) {
-      if (decodeExactUtf8(utf8.encode(text)) != text) {
-        throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
-      }
-    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope);
@@ -185,10 +260,7 @@ final class EventWithdrawalFormRecoveryStore {
         generation: generation + BigInt.one,
         form: form,
       );
-      _db.execute(
-        'INSERT INTO event_withdrawal_form VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,form_input=excluded.form_input',
-        [...binding, saved.generation.toString(), form.toWire().toText()],
-      );
+      _write(scope, saved);
       _db.execute('COMMIT');
       return saved;
     } on EditorRecoveryException {

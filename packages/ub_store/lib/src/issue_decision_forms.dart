@@ -7,21 +7,44 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
 
-const _columns =
-    'instance,profile,universe,continuity,context,editor_key,generation,form_input';
+const _keys = 'instance,profile,universe,continuity,context,editor_key';
+const _legacyColumns = '$_keys,generation,form_input';
+const _fields =
+    'generation,base_revision,client_ref,principal,mode,decision_scope,rationale,draft_version,has_original,original_mode,original_scope,original_rationale,original_principal';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = """
 CREATE TABLE issue_decision_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
  continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
- generation TEXT NOT NULL, form_input TEXT NOT NULL,
+ generation TEXT NOT NULL, base_revision TEXT NOT NULL, client_ref TEXT NOT NULL,
+ principal TEXT NOT NULL, mode TEXT NOT NULL, decision_scope TEXT NOT NULL,
+ rationale TEXT NOT NULL, draft_version TEXT,
+ has_original INTEGER NOT NULL CHECK(has_original IN (0,1)),
+ original_mode TEXT, original_scope TEXT, original_rationale TEXT, original_principal TEXT,
+ CHECK((has_original=0 AND original_mode IS NULL AND original_scope IS NULL AND original_rationale IS NULL AND original_principal IS NULL)
+    OR (has_original=1 AND original_mode IS NOT NULL AND original_scope IS NOT NULL AND original_rationale IS NOT NULL AND original_principal IS NOT NULL)),
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=1;
+CREATE TABLE issue_decision_fingerprint (
+ instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
+ continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
+ list_kind TEXT NOT NULL CHECK(list_kind IN ('input','original')),
+ ordinal INTEGER NOT NULL CHECK(ordinal>=0), fingerprint_input TEXT NOT NULL,
+ PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,list_kind,ordinal),
+ FOREIGN KEY(instance,profile,universe,continuity,context,editor_key)
+ REFERENCES issue_decision_form(instance,profile,universe,continuity,context,editor_key)
+) STRICT;
+PRAGMA user_version=2;
 """;
+String _textProjection(String columns) => columns
+    .split(',')
+    .map((c) => c == 'has_original' ? c : 'CAST($c AS BLOB) AS $c')
+    .join(',');
+String _text(Row row, String column) =>
+    decodeExactUtf8(row[column] as List<int>);
 
-/// Device-private incomplete issue_decision input, separate from canon.
+/// Named private fields and ordered fingerprints, separate from canon.
 final class IssueDecisionFormRecoveryStore {
   IssueDecisionFormRecoveryStore._(this._db);
   final Database _db;
@@ -52,6 +75,38 @@ final class IssueDecisionFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
+        } else if (version == 1) {
+          db.execute(
+            'ALTER TABLE issue_decision_form RENAME TO legacy_issue_decision_form',
+          );
+          db.execute(_schema);
+          final store = IssueDecisionFormRecoveryStore._(db);
+          for (final row in db.select(
+            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_issue_decision_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(row, 'instance')),
+              profile: ProfileId.parse(_text(row, 'profile')),
+              universe: UniverseId.parse(_text(row, 'universe')),
+              continuity: ContinuityId.parse(_text(row, 'continuity')),
+              representedContext: RecordId.parse(_text(row, 'context')),
+              typeClientRef: _text(row, 'editor_key').isEmpty
+                  ? null
+                  : _text(row, 'editor_key'),
+            );
+            final form = UnfinishedIssueDecisionForm.fromWire(
+              CanonicalValue.parseWireJson(_text(row, 'form_input')),
+            );
+            store._validate(scope, form);
+            store._write(
+              scope,
+              SavedIssueDecisionForm(
+                generation: BigInt.parse(_text(row, 'generation')),
+                form: form,
+              ),
+            );
+          }
+          db.execute('DROP TABLE legacy_issue_decision_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -79,13 +134,21 @@ final class IssueDecisionFormRecoveryStore {
     );
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (tables.length != 1 ||
-        version != 1 ||
+    final main = db
+        .select('PRAGMA table_info(issue_decision_form)')
+        .map((row) => row['name'])
+        .join(',');
+    final legacy = version == 1 && tables.length == 1 && main == _legacyColumns;
+    final current =
+        version == 2 &&
+        tables.length == 2 &&
+        main == '$_keys,$_fields' &&
         db
-                .select('PRAGMA table_info(issue_decision_form)')
+                .select('PRAGMA table_info(issue_decision_fingerprint)')
                 .map((row) => row['name'])
-                .join(',') !=
-            _columns) {
+                .join(',') ==
+            '$_keys,list_kind,ordinal,fingerprint_input';
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -117,17 +180,104 @@ final class IssueDecisionFormRecoveryStore {
   SavedIssueDecisionForm? _read(EditorFormScope scope) {
     final binding = _binding(scope);
     final rows = _db.select(
-      'SELECT * FROM issue_decision_form WHERE $_where',
+      'SELECT ${_textProjection('$_keys,$_fields')} FROM issue_decision_form WHERE $_where',
       binding,
     );
     if (rows.isEmpty) return null;
     final row = rows.single;
+    List<String> fingerprints(String kind) => _db
+        .select(
+          'SELECT CAST(fingerprint_input AS BLOB) AS fingerprint_input FROM issue_decision_fingerprint WHERE $_where AND list_kind=? ORDER BY ordinal',
+          [...binding, kind],
+        )
+        .map((r) => _text(r, 'fingerprint_input'))
+        .toList();
     return SavedIssueDecisionForm(
-      generation: BigInt.parse(row['generation'] as String),
-      form: UnfinishedIssueDecisionForm.fromWire(
-        CanonicalValue.parseWireJson(row['form_input'] as String),
+      generation: BigInt.parse(_text(row, 'generation')),
+      form: UnfinishedIssueDecisionForm(
+        baseRevision: RevisionId.parse(_text(row, 'base_revision')),
+        representedContext: scope.representedContext!,
+        clientRef: _text(row, 'client_ref'),
+        principal: PrincipalId.parse(_text(row, 'principal')),
+        mode: _text(row, 'mode'),
+        fingerprints: fingerprints('input'),
+        scope: _text(row, 'decision_scope'),
+        rationale: _text(row, 'rationale'),
+        draftVersion: row['draft_version'] == null
+            ? null
+            : BigInt.parse(_text(row, 'draft_version')),
+        original: row['has_original'] == 0
+            ? null
+            : IssueDecisionRecord(
+                fingerprints: fingerprints('original')
+                    .map(FindingFingerprint.new),
+                mode: IssueDecisionMode.fromName(_text(row, 'original_mode')),
+                scope: _text(row, 'original_scope'),
+                rationale: _text(row, 'original_rationale'),
+                principal: PrincipalId.parse(_text(row, 'original_principal')),
+              ),
       ),
     );
+  }
+
+  void _write(EditorFormScope scope, SavedIssueDecisionForm saved) {
+    final binding = _binding(scope),
+        form = saved.form,
+        original = form.original;
+    final values = <Object?>[
+      ...binding,
+      saved.generation.toString(),
+      form.baseRevision.value,
+      form.clientRef,
+      form.principal.value,
+      form.mode,
+      form.scope,
+      form.rationale,
+      form.draftVersion?.toString(),
+      original == null ? 0 : 1,
+      original?.mode.name,
+      original?.scope,
+      original?.rationale,
+      original?.principal.value,
+    ];
+    final columns = '$_keys,$_fields'.split(',');
+    _db.execute(
+      'INSERT INTO issue_decision_form(${columns.join(',')}) VALUES(${List.filled(columns.length, '?').join(',')}) ON CONFLICT($_keys) DO UPDATE SET ${_fields.split(',').map((c) => '$c=excluded.$c').join(',')}',
+      values,
+    );
+    _db.execute(
+      'DELETE FROM issue_decision_fingerprint WHERE $_where',
+      binding,
+    );
+    final lists = {
+      'input': form.fingerprints,
+      'original':
+          original?.fingerprints.map((f) => f.value).toList() ?? <String>[],
+    };
+    for (final list in lists.entries) {
+      for (var i = 0; i < list.value.length; i++) {
+        _db.execute(
+          'INSERT INTO issue_decision_fingerprint VALUES(?,?,?,?,?,?,?,?,?)',
+          [...binding, list.key, i, list.value[i]],
+        );
+      }
+    }
+  }
+
+  void _validate(EditorFormScope scope, UnfinishedIssueDecisionForm form) {
+    if (form.principal.value !=
+            scope.profile.value.replaceFirst('prf_', 'prn_') ||
+        scope.representedContext != form.representedContext ||
+        scope.typeClientRef != null && scope.typeClientRef != form.clientRef) {
+      throw const FormatException(
+        'Issue decision form context does not match.',
+      );
+    }
+    for (final text in form.exactTexts) {
+      if (decodeExactUtf8(utf8.encode(text)) != text) {
+        throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
+      }
+    }
   }
 
   SavedIssueDecisionForm? load(EditorFormScope scope) {
@@ -147,25 +297,12 @@ final class IssueDecisionFormRecoveryStore {
     UnfinishedIssueDecisionForm form,
     BigInt expectedGeneration,
   ) {
-    final binding = _binding(scope);
+    _binding(scope);
     if (expectedGeneration < BigInt.zero ||
         expectedGeneration >= BigInt.one << 64) {
       throw const FormatException('Invalid expected editor generation');
     }
-    if (form.principal.value !=
-            scope.profile.value.replaceFirst('prf_', 'prn_') ||
-        scope.representedContext != form.representedContext ||
-        (scope.typeClientRef != null &&
-            scope.typeClientRef != form.clientRef)) {
-      throw const FormatException(
-        'IssueDecision definition form context does not match.',
-      );
-    }
-    for (final text in form.exactTexts) {
-      if (decodeExactUtf8(utf8.encode(text)) != text) {
-        throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
-      }
-    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope);
@@ -187,10 +324,7 @@ final class IssueDecisionFormRecoveryStore {
         generation: generation + BigInt.one,
         form: form,
       );
-      _db.execute(
-        'INSERT INTO issue_decision_form VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,form_input=excluded.form_input',
-        [...binding, saved.generation.toString(), form.toWire().toText()],
-      );
+      _write(scope, saved);
       _db.execute('COMMIT');
       return saved;
     } on EditorRecoveryException {
