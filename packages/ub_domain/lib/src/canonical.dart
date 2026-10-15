@@ -45,8 +45,17 @@ sealed class CanonicalValue {
   /// Strict ordinary JSON for typed wire inputs. Keeps arbitrary-precision
   /// numeric tokens numeric, matching serde_json::Number serialization. Use
   /// [parseJson] when applying the historical serde-to-canonical digest bridge.
-  static CanonicalValue parseWireJson(String text) =>
-      _Parser(text, canonical: false, bridgeNumbers: false).parse();
+  /// [preserveObjectOrder] retains source field order for software metadata
+  /// such as schema generation. Ordinary domain decoding keeps sorted objects.
+  static CanonicalValue parseWireJson(
+    String text, {
+    bool preserveObjectOrder = false,
+  }) => _Parser(
+    text,
+    canonical: false,
+    bridgeNumbers: false,
+    preserveObjectOrder: preserveObjectOrder,
+  ).parse();
 }
 
 final class CanonicalNull extends CanonicalValue {
@@ -193,12 +202,18 @@ void _writeString(StringBuffer buffer, String text) {
 }
 
 final class _Parser {
-  _Parser(this.text, {required this.canonical, this.bridgeNumbers = true}) {
+  _Parser(
+    this.text, {
+    required this.canonical,
+    this.bridgeNumbers = true,
+    this.preserveObjectOrder = false,
+  }) {
     _validateUnicode(text);
   }
   final String text;
   final bool canonical;
   final bool bridgeNumbers;
+  final bool preserveObjectOrder;
   int position = 0;
   static final _jsonNumber = RegExp(
     r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?',
@@ -252,7 +267,7 @@ final class _Parser {
           if (!_take(44)) _fail('Expected comma or closing brace');
         }
       }
-      return canonical
+      return canonical || preserveObjectOrder
           ? CanonicalObject._ordered(fields)
           : CanonicalObject(fields);
     }

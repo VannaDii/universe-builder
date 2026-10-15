@@ -1,6 +1,6 @@
 # Exact field mapping
 
-Generated from current domain schemas and checked-in public contracts. The replacement model is normative before release. Private envelopes are explicitly specified in `build_schema.py`; DraftContent.operations uses typed operations. Superseded editor formats are one-time input concerns (see compatibility.md). `__state`: 0 absent, 1 explicit null, 2 value. Collections use child rows; an empty collection still has a header. Numeric wire tokens use decimal TEXT, never SQLite REAL.
+Generated from current domain schemas and checked-in public contracts. The replacement model is normative before release. Private envelopes are explicitly specified in `tool/build_schema.dart`; DraftContent.operations uses typed operations. Superseded editor formats are one-time input concerns (see compatibility.md). `__state`: 0 absent, 1 explicit null, 2 value. Collections use child rows; an empty collection still has a header. Numeric wire tokens use decimal TEXT, never SQLite REAL.
 
 | Contract | Table / scalar domain | Fields or links |
 |---|---|---|

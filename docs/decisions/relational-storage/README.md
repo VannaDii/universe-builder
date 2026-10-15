@@ -4,6 +4,11 @@ October 3, 2026. Vanna's direction: replace the existing model; decisions revise
 
 ## Concrete storage
 
+Generate the catalog, typed SQL and field mapping with
+`dart run tool/build_schema.dart` from the repository root. Use `--check` for
+generated-file drift, then `dart run tool/embed_schema.dart` to update the engine's
+bundled schema. The Python schema generator has been retired.
+
 - [typed.sql](typed.sql): one closed model for all 38 canonical families, typed values, expressions, operations, workflow envelopes and assessment bodies.
 - [kernel.sql](kernel.sql): stable identities, factual record revisions, commits, changes, continuities, reservations, receipts and row-based snapshots. Every canonical body uses one Payload route, with no schema-version or storage-layout discriminator.
 - [semantic.sql](semantic.sql): definition, classification and attribute projections tied to canonical facts, explicit ambiguity evidence and initialization receipts.

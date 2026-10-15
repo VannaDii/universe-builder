@@ -4,6 +4,25 @@ import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 void main() {
+  test('ordered metadata keeps exact numbers and Unicode without changing ordinary domain ordering', () {
+    const text =
+        r'{"z":18446744073709551615,"a":{"y":"\u00e9","b":340282366920938463463374607431768211455}}';
+    expect(
+      CanonicalValue.parseWireJson(text, preserveObjectOrder: true).toText(),
+      '{"z":18446744073709551615,"a":{"y":"é","b":340282366920938463463374607431768211455}}',
+    );
+    expect(
+      CanonicalValue.parseWireJson(text).toText(),
+      '{"a":{"b":340282366920938463463374607431768211455,"y":"é"},"z":18446744073709551615}',
+    );
+    expect(
+      () => CanonicalValue.parseWireJson(
+        r'{"a":1,"\u0061":2}',
+        preserveObjectOrder: true,
+      ),
+      throwsFormatException,
+    );
+  });
   test(
     'exact UTF-8 retains authored BOMs and rejects malformed byte sequences',
     () {

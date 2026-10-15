@@ -1705,8 +1705,11 @@ media staging metadata remains separate from content-link admission. Service
 authorization still needs its port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
-run `dart run tool/embed_schema.dart` from the repository root to regenerate
-them. Opening an incompatible database refuses conversion and preserves it.
+run `dart run tool/build_schema.dart` from the repository root to generate the
+relational catalog, SQL and field mapping from the maintained contracts.
+`dart run tool/build_schema.dart --check` checks for generated-file drift.
+Then run `dart run tool/embed_schema.dart` to bundle those resources into the
+engine. Opening an incompatible database refuses conversion and preserves it.
 
 Typed values retain their existing record-wire encoding independently from
 domain-value comparison encoding. In particular, record ranges use

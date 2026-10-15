@@ -1,6 +1,8 @@
 """Typed row writer for disposable functional test fixtures."""
 import re
-from build_schema import q
+
+def q(name):
+    return '"' + name.replace('"', '""') + '"'
 
 MISSING = object()
 
