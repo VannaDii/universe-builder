@@ -47,7 +47,7 @@ def formula(assets, release_version, repository=None, local=False):
     version(release_version)
     if not local and (not repository or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository)):
         raise ValueError('Expected GitHub owner/repository')
-    values = {'version': release_version, 'homepage': f'https://github.com/{repository}' if repository else 'https://brew.sh'}
+    values = {'version': release_version, 'homepage': f'https://github.com/{repository}' if repository else 'https://brew.sh', 'bundle_name': 'Multiverse MCP.app'}
     downloads = []
     present = []
     for architecture, key in [('arm64', 'arm'), ('x86_64', 'intel')]:

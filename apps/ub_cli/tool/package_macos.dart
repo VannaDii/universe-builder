@@ -215,10 +215,40 @@ Future<void> _package(Directory root, String mode) async {
     '$contents/Info.plist',
   ]);
   if (version.exitCode != 0) throw StateError('Bundle version unavailable');
+  final architecture = await Process.run('/usr/bin/lipo', [
+    '-archs',
+    '$contents/MacOS/universe-engine',
+  ]);
+  final arch = (architecture.stdout as String).trim();
+  if (architecture.exitCode != 0 || !{'arm64', 'x86_64'}.contains(arch)) {
+    throw StateError('Expected a single supported engine architecture');
+  }
+  for (final executable in ['Universe Builder', ...packagedHelpers]) {
+    await _run('/usr/bin/lipo', [
+      '-verify_arch',
+      arch,
+      '$contents/MacOS/$executable',
+    ], root.path);
+  }
+  final revision = await Process.run('git', [
+    'rev-parse',
+    'HEAD',
+  ], workingDirectory: root.path);
+  final status = await Process.run('git', [
+    'status',
+    '--porcelain',
+  ], workingDirectory: root.path);
+  if (revision.exitCode != 0 || status.exitCode != 0) {
+    throw StateError('Source revision unavailable');
+  }
   final manifest = {
     'format': 1,
     'version': (version.stdout as String).trim(),
     'channel': 'local-development',
+    'build_mode': mode,
+    'architecture': arch,
+    'source_revision': (revision.stdout as String).trim(),
+    'dirty_build': (status.stdout as String).isNotEmpty,
     'helpers': {
       for (final helper in packagedHelpers)
         helper: await _digest(File('$contents/MacOS/$helper')),

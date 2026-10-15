@@ -24,6 +24,10 @@ jobs:
         working-directory: packages/ub_contracts
       - run: dart test
         working-directory: packages/ub_service
+      - run: dart analyze tool test/distribution_test.dart
+        working-directory: apps/ub_cli
+      - run: dart test test/distribution_test.dart
+        working-directory: apps/ub_cli
   macos:
     runs-on: macos-15
     steps:

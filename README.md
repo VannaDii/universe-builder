@@ -88,6 +88,18 @@ Both configurations permit the app-owned local service listener.
 This does not publish a release or provide distribution signing/notarization.
 Stop this bundle's app and helpers before rebuilding; assembly refuses to replace
 them while running. The former Python assembly script has been retired.
+For a versioned local preview archive of the optimized Flutter bundle, run
+`dart run apps/ub_cli/tool/distribution.dart archive --bundle "apps/ub_app/build/macos/Build/Products/Release/Universe Builder.app" --output dist --tag v0.1.0`.
+The tag must match the bundle version. Assembly records the actual engine
+architecture, source revision and whether the checkout was dirty; use
+`--allow-dirty` only for local checks. The archive contains the signed app and
+has a SHA-256 sidecar. Generate its local Homebrew formula with
+`dart run apps/ub_cli/tool/distribution.dart formula --assets dist --version 0.1.0 --local --output dist/multiverse-mcp.rb`.
+For release URLs, replace `--local` with `--repository OWNER/REPO`; both arm64
+and x86_64 archives must be present. Formulas pin checksums from the actual
+archive bytes and install `Universe Builder.app`. These commands neither upload
+assets nor publish a release. The older Rust release workflow remains a
+transitional route until its cutover.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only
