@@ -72,11 +72,15 @@ final class PostgresLogicalImport {
     final codec = PostgresRelationalCodec(_session, universe);
     final versions = db.prepare('SELECT id FROM record_versions');
     try {
-      final cursor = versions.selectCursor();
-      while (cursor.moveNext()) {
-        final row = cursor.current;
-        budget();
-        final record = journal.load(RecordVersionId.parse(row['id'] as String));
+      Iterable<RecordVersionId> ids() sync* {
+        final cursor = versions.selectCursor();
+        while (cursor.moveNext()) {
+          budget();
+          yield RecordVersionId.parse(cursor.current['id'] as String);
+        }
+      }
+
+      for (final record in journal.loadMany(ids())) {
         if (record.toCanonical().toBytes().length > 1048576) {
           throw const FormatException('Archive record too large');
         }

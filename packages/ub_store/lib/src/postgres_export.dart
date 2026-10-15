@@ -13,6 +13,7 @@ import 'postgres_journal.dart';
 import 'postgres_values.dart';
 import 'postgres_workflow_storage.dart';
 import 'relational.dart';
+import 'revision_input.dart';
 import 'workflow_storage.dart';
 
 /// Bounded backend transfer into the existing trusted logical archive format.
@@ -49,6 +50,18 @@ final class PostgresLogicalExport {
     } finally {
       await _session.execute('CLOSE $cursor');
     }
+  }
+
+  Stream<StoredVersion> _versions(PostgresJournal journal) async* {
+    var batch = <RecordVersionId>[];
+    await for (final row in _rows('record_versions', ['id'])) {
+      batch.add(RecordVersionId.parse(row['id'] as String));
+      if (batch.length == 50) {
+        yield* journal.loadMany(batch);
+        batch = [];
+      }
+    }
+    yield* journal.loadMany(batch);
   }
 
   Future<CanonicalObject> export(
@@ -138,10 +151,7 @@ final class PostgresLogicalExport {
       try {
         await copy('universes');
         await copy('record_identities');
-        await for (final row in _rows('record_versions', ['id'])) {
-          final record = await journal.load(
-            RecordVersionId.parse(row['id'] as String),
-          );
+        await for (final record in _versions(journal)) {
           if (record.toCanonical().toBytes().length > 1048576) {
             throw const FormatException('Archive record too large');
           }
