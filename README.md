@@ -58,6 +58,13 @@ proposal and its base revision; unavailable names do not change the findings.
 Earlier category pins are labeled as retained selections rather than the latest
 category version. Published rule details include the same requirement summary.
 
+Open a world and choose **Evidence policies** to see its visible inherited and
+world-specific requirements at the opened revision. The list follows all result
+pages, identifies unresolved applicability and incomplete reads, and opens each
+published policy for inspection and normal revision. All overlapping policies
+still apply; this view does not select an override or claim that facts have passed
+their checks.
+
 The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,
 the approved branding, and System/Light/Dark appearance controls in Settings.
 Its native connection adapter accepts `--installation`, `--profile` and optional

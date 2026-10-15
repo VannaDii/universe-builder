@@ -107,6 +107,14 @@ defaults to its previous fictional behavior without replaying a request.
 
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 
+The shared world detail screen now links to **Evidence policies**. It lists
+visible universe-wide and matching world-specific requirements, identifies their
+origin, and retains unresolved applicability as unresolved. Reads paginate at one
+exact opened revision and show incomplete delivery explicitly. Each policy opens
+its normal published detail/revision flow. This display does not weaken overlapping
+policies or implement world overrides; their applicability representation still
+requires the design choice discussed with Vanna.
+
 ### 4.2 Evidence flow
 
 1. The external writer identifies a material factual claim and its needed date/place/context.

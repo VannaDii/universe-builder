@@ -10,6 +10,7 @@ import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/world_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/world_browser.dart';
+import 'package:ub_app/world_evidence_policies.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -41,6 +42,7 @@ void main() {
         await session.call(
           const CreateUniverseEngineRequest(
             name: 'Alias history',
+            realWorld: true,
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
         ),
@@ -345,6 +347,130 @@ void main() {
       expect(
         (await resumed.publish(aliased, validation.execution.runId)).revision,
         published.revision,
+      );
+      final worldId = WorldId.parse(
+        'wld_${record.identity.recordId.value.substring(4)}',
+      );
+      final inherited = await readWorldEvidencePolicies(
+        session: session,
+        universe: entry,
+        context: opened,
+        world: worldId,
+      );
+      expect(inherited.complete, isTrue);
+      expect(inherited.policies.single.origin, WorldPolicyOrigin.universe);
+      expect(inherited.categories, hasLength(1));
+      final defaultRule = inherited.policies.single.rule;
+      final otherWorldRecord = RecordId.generate();
+      final otherWorld = WorldId.parse(
+        'wld_${otherWorldRecord.value.substring(4)}',
+      );
+      RuleRecord scopedRule(
+        String key,
+        Applicability applicability, {
+        bool evidence = true,
+      }) => RuleRecord.fromWire(
+        CanonicalObject([
+          for (final field in defaultRule.toWire().fields)
+            if (evidence || field.key != 'requiredEvidence')
+              MapEntry(field.key, switch (field.key) {
+                'key' => CanonicalString(key),
+                'applicability' => applicability.toWire(),
+                _ => field.value,
+              }),
+        ]),
+      );
+      final fresh = await resumed.rebase(
+        (await resumed.load())!,
+        startNew: true,
+      );
+      final policyDraft = SavedDraft.fromWire(
+        await session.call(
+          SaveDraftEngineRequest(
+            universe: Selector(entry.name),
+            continuityId: scope.continuity,
+            expectedVersion: fresh.version,
+            content: DraftContent(
+              baseRevision: fresh.content.baseRevision,
+              representedContext: context,
+              operations: [
+                CreateWorldOperation(
+                  clientRef: otherWorldRecord.value,
+                  record: WorldRecord(selector: 'Mountain'),
+                ),
+                for (var i = 0; i < 51; i++)
+                  DefineRuleOperation(
+                    clientRef: RecordId.generate().value,
+                    record: scopedRule(
+                      'ordinary-$i',
+                      const UniverseApplicability(),
+                      evidence: false,
+                    ),
+                  ),
+                DefineRuleOperation(
+                  clientRef: RecordId.generate().value,
+                  record: scopedRule(
+                    'river-sources',
+                    WorldsApplicability([worldId]),
+                  ),
+                ),
+                DefineRuleOperation(
+                  clientRef: RecordId.generate().value,
+                  record: scopedRule(
+                    'mountain-sources',
+                    WorldsApplicability([otherWorld]),
+                  ),
+                ),
+              ],
+              rationale: 'Add explicit scoped policies and ordinary rules.',
+            ),
+          ),
+        ),
+      );
+      final policyProposal = await resumed.submit(policyDraft);
+      final policyChecks =
+          await resumed.validate(policyProposal) as EvaluatedValidation;
+      await resumed.approve(policyProposal, policyChecks);
+      final policyReceipt = await resumed.publish(
+        policyProposal,
+        policyChecks.execution.runId,
+      );
+      final policyContext = await openAuthorReadContext(
+        session,
+        entry,
+        latestContinuity,
+        latestContinuity.representedContexts.single,
+        revision: policyReceipt.revision,
+      );
+      final policies = await readWorldEvidencePolicies(
+        session: session,
+        universe: entry,
+        context: policyContext,
+        world: worldId,
+      );
+      expect(policies.complete, isTrue);
+      expect(policies.policies, hasLength(2));
+      expect(
+        policies.policies.map((p) => p.origin),
+        containsAll([
+          WorldPolicyOrigin.universe,
+          WorldPolicyOrigin.selectedWorld,
+        ]),
+      );
+      expect(
+        policies.policies.map((p) => p.rule.key),
+        isNot(contains('mountain-sources')),
+      );
+      final oldPolicies = await readWorldEvidencePolicies(
+        session: session,
+        universe: entry,
+        context: opened,
+        world: worldId,
+      );
+      expect(oldPolicies.complete, isTrue);
+      expect(
+        oldPolicies.policies.single.record.recordVersionId,
+        inherited.policies.single.record.recordVersionId,
       );
     } finally {
       try {

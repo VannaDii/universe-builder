@@ -6,6 +6,7 @@ import 'connection.dart';
 import 'record_fields.dart';
 import 'world_browser.dart';
 import 'world_editor_page.dart';
+import 'world_evidence_policies_page.dart';
 
 class WorldDetailPage extends StatefulWidget {
   const WorldDetailPage({
@@ -145,6 +146,26 @@ class _WorldDetailPageState extends State<WorldDetailPage> {
               ),
               ExactFields(value: _record!.payload.toWire()),
               const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(
+                  onPressed: _loading
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => WorldEvidencePoliciesPage(
+                              session: widget.session,
+                              universe: widget.universe,
+                              scope: widget.scope,
+                              continuity: _continuity,
+                              representedContext: widget.representedContext,
+                              world: widget.world,
+                            ),
+                          ),
+                        ),
+                  child: const Text('Evidence policies'),
+                ),
+              ),
               if (widget.session.author)
                 Align(
                   alignment: Alignment.centerLeft,
