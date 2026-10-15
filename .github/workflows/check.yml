@@ -1,6 +1,27 @@
 name: Fixture checks
 on: [push, pull_request]
 jobs:
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install pinned Flutter and bundled Dart
+        run: |
+          git clone --depth 1 --branch "$(cat .flutter-version)" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Prepare the Android SDK used by the pinned Flutter toolchain
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          flutter config --jdk-dir "$JAVA_HOME"
+      - run: flutter pub get --enforce-lockfile
+      - name: Build the development-signed Android release bundle
+        working-directory: apps/ub_app
+        run: flutter build appbundle --release --no-pub
   dart-foundation:
     runs-on: ubuntu-24.04
     steps:
