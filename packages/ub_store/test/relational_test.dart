@@ -52,6 +52,31 @@ void main() {
     );
   });
 
+  test('authored leading U+FEFF survives scalar, array and map fields after restart', () {
+    final value = DomainPackRecord(
+      key: '\ufeffPack 記憶',
+      version: '\ufeff1',
+      dependencies: {'\ufeffAuthored key': '\ufeffAuthored value\r\n😀'},
+      capabilities: ['\ufeffFirst', 'Second'],
+      records: [],
+    ).toWire();
+    database.execute('BEGIN IMMEDIATE');
+    final pointer = codec.put('Payload', value);
+    database.execute('COMMIT');
+    database.close();
+    database = SqliteDatabase.open(
+      '${directory.path}/package.sqlite',
+      existing: true,
+    );
+    codec = RelationalCodec(database);
+    final retained = codec.get('Payload', pointer);
+    expect(retained.toText(), value.toText());
+    expect(
+      payloadDigest('domain_pack', retained),
+      payloadDigest('domain_pack', value),
+    );
+  });
+
   test('normative payloads reconstruct after restart with frozen digests', () {
     const root = '../../docs/decisions/relational-storage';
     final cases = (CanonicalValue.parseJson(

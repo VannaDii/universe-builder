@@ -113,6 +113,10 @@ final class RelationalCodec {
         ('boolean', 0) => const CanonicalBool(false),
         ('boolean', 1) => const CanonicalBool(true),
         ('string', String text) => CanonicalString(text),
+        ('string', List<int> bytes) => CanonicalString(decodeExactUtf8(bytes)),
+        ('integer', List<int> bytes) => CanonicalValue.parseJson(
+          decodeExactUtf8(bytes),
+        ),
         ('integer', String text) => CanonicalValue.parseJson(text),
         _ => throw const FormatException('Stored scalar type'),
       };
@@ -123,8 +127,34 @@ final class RelationalCodec {
       throw const FormatException('Cyclic or excessive body nesting');
     }
     try {
+      // Read text bytes without the driver's UTF-8 decoder consuming U+FEFF.
+      // Storage remains typed TEXT; only the SELECT projection uses BLOB.
+      String column(String field, String model) {
+        final type = catalog.model(model);
+        final quoted = quoteIdentifier(field);
+        return type.scalar && (type.kind == 'string' || type.kind == 'integer')
+            ? 'CAST($quoted AS BLOB) AS $quoted'
+            : quoted;
+      }
+
+      final columns = switch (m.kind) {
+        'object' || 'tuple' => [
+          '__row_id',
+          for (final entry in m.fields.entries) ...[
+            quoteIdentifier('${entry.key}__state'),
+            column(entry.key, entry.value.model),
+          ],
+        ],
+        'union' => [
+          '__row_id',
+          'variant',
+          for (var i = 0; i < m.variants.length; i++)
+            column('v$i', m.variants[i]),
+        ],
+        _ => ['__row_id'],
+      };
       final rows = database.select(
-        'SELECT * FROM ${quoteIdentifier(m.table)} WHERE __row_id=?',
+        'SELECT ${columns.join(',')} FROM ${quoteIdentifier(m.table)} WHERE __row_id=?',
         [reference],
       );
       if (rows.length != 1) throw const FormatException('Missing body row');
@@ -173,7 +203,7 @@ final class RelationalCodec {
         case 'map':
           final key = m.kind == 'array' ? 'ordinal' : 'name';
           final rows = database.select(
-            'SELECT $key,item FROM ${quoteIdentifier('${m.table}_items')} WHERE owner=? ORDER BY $key',
+            "SELECT ${m.kind == 'map' ? 'CAST(name AS BLOB) AS name' : 'ordinal'},${column('item', m.item!)} FROM ${quoteIdentifier('${m.table}_items')} WHERE owner=? ORDER BY $key",
             [reference],
           );
           final array = <CanonicalValue>[];
@@ -187,10 +217,10 @@ final class RelationalCodec {
               }
               array.add(value);
             } else {
-              if (row[key] is! String) {
+              if (row[key] is! List<int>) {
                 throw const FormatException('Invalid map key');
               }
-              map.add(MapEntry(row[key] as String, value));
+              map.add(MapEntry(decodeExactUtf8(row[key] as List<int>), value));
             }
           }
           return m.kind == 'array'
