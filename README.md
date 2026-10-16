@@ -234,14 +234,15 @@ submit, approve or publish work. The shortcut also works with an attached mobile
 keyboard. Mobile owners can receive one shared text file without connecting or changing
 canon. On iOS, use the Files share sheet/Open With action for a `.txt` or `.md`
 file. Android accepts those files through Share/Open With and also accepts shared
-plain text. The runner copies at most 1 MiB into private cache; a waiting file is
-preserved if another arrives. A Library message directs the author to open the
+plain text. The runner retains at most 1 MiB in a private persistent inbox,
+excluded from automatic backup. A completed delivery waits across restarts and
+cache cleanup until explicit intake; a waiting file is preserved if another arrives. A Library message directs the author to open the
 intended universe, choose **Import source**, then **Use shared text file**. The
 source editor retains an existing label and imports the exact UTF-8 text through
 the ordinary recoverable form. Receiving a file does not upload source content or change canon; the normal
 Add to Changes, review and publication steps remain explicit. Invalid
 encoding or oversized input leaves existing editor fields intact. The private
-cache copy is released after selection. Android touch/share-sheet checks and the
+inbox copy is released after selection. Android touch/share-sheet checks and the
 remaining mobile lifecycle/share flows are unfinished.
 
 The shared transport library also accepts an explicit HTTPS origin, TLS server

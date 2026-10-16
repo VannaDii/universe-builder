@@ -205,7 +205,8 @@ final class MobileSharedText {
   private var copying = false
   private var lastError: String?
   private var slot: URL {
-    FileManager.default.temporaryDirectory.appendingPathComponent("ub-shared-source", isDirectory: true)
+    FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("Universe Builder/Shared Sources/pending", isDirectory: true)
   }
 
   func attach(messenger: FlutterBinaryMessenger) {
@@ -252,6 +253,12 @@ final class MobileSharedText {
     DispatchQueue.global(qos: .userInitiated).async {
       var incoming: URL?
       do {
+        var inbox = destination.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true,
+          attributes: [.posixPermissions: 0o700])
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try inbox.setResourceValues(values)
         let path = try MobileFilePicker.copySelectedFile(source, limit: 1024 * 1024,
           allowEmpty: true, requireExternalAccess: true)
         let directory = URL(fileURLWithPath: path).deletingLastPathComponent()
@@ -275,6 +282,6 @@ final class MobileSharedText {
       try FileManager.default.removeItem(at: slot)
       lastError = nil
       changed()
-    } catch { /* Keep the waiting file available if cache cleanup fails. */ }
+    } catch { /* Keep the waiting file available if inbox cleanup fails. */ }
   }
 }

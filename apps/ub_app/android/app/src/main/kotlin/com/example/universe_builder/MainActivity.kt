@@ -21,7 +21,8 @@ class MainActivity : FlutterActivity() {
     private var sharedChannel: MethodChannel? = null
     private var copyingShared = false
     private var sharedError: String? = null
-    private val sharedDirectory: File get() = File(cacheDir, "ub-shared-source")
+    // A completed delivery waits for explicit intake, including after restart.
+    private val sharedDirectory: File get() = File(noBackupFilesDir, "ub-shared-source")
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
