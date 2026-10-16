@@ -223,7 +223,8 @@ void main() {
       final prefix = <String>[];
       if (packaged != null || binDirectory != null) {
         final bin =
-            binDirectory ?? '${Directory(packaged!).absolute.path}/Contents/MacOS';
+            binDirectory ??
+            '${Directory(packaged!).absolute.path}/Contents/MacOS';
         binary = '${Directory(bin).absolute.path}/multiverse-mcp';
         prefix.add('serve');
         expect(File(binary).existsSync(), isTrue);
@@ -243,7 +244,14 @@ void main() {
       }
       final child = await Process.start(
         binary,
-        [...prefix, '--installation', root.path, '--profile', author.value],
+        [
+          ...prefix,
+          '--installation',
+          root.path,
+          '--profile',
+          author.value,
+          '--advanced-tools',
+        ],
         workingDirectory: root.path,
         environment: {'PATH': ''},
       );
@@ -256,6 +264,50 @@ void main() {
           await childFrames.moveNext().timeout(const Duration(seconds: 5)),
           isTrue,
         );
+        final tools = <String>[];
+        String? cursor;
+        do {
+          child.stdin.add(
+            encodeMcpStdio(
+              CanonicalObject([
+                MapEntry('jsonrpc', CanonicalString('2.0')),
+                MapEntry('id', CanonicalString('compiled-discovery')),
+                MapEntry('method', CanonicalString('tools/list')),
+                MapEntry(
+                  'params',
+                  CanonicalObject([
+                    if (cursor != null)
+                      MapEntry('cursor', CanonicalString(cursor)),
+                  ]),
+                ),
+              ]),
+            ),
+          );
+          await child.stdin.flush();
+          expect(
+            await childFrames.moveNext().timeout(const Duration(seconds: 5)),
+            isTrue,
+          );
+          final listed =
+              field(childFrames.current, 'result') as CanonicalObject;
+          tools.addAll(
+            (field(listed, 'tools') as CanonicalArray).items.map(
+              (tool) => (field(
+                tool as CanonicalObject,
+                'name',
+              ) as CanonicalString).value,
+            ),
+          );
+          cursor = switch (listed.fields
+              .where((e) => e.key == 'nextCursor')
+              .singleOrNull
+              ?.value) {
+            CanonicalString(:final value) => value,
+            _ => null,
+          };
+        } while (cursor != null);
+        expect(tools, hasLength(16));
+        expect(tools.toSet(), hasLength(16));
         child.stdin.add(encodeMcpStdio(call('"compiled"')));
         await child.stdin.flush();
         expect(
