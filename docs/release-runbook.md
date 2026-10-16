@@ -227,6 +227,23 @@ This small-record catalog case does not establish large-record, network-latency
 or commercial capacity targets. Use a disposable database, never a hosted or
 author database.
 
+For the full PostgreSQL record-count workload, use the same disposable database
+and run this case alone:
+
+```sh
+umask 077
+UB_TEST_POSTGRES_PORT=PORT UB_RUN_STANDARD_WORKLOAD=1 dart test test/postgres_standard_workload_test.dart --reporter expanded
+```
+
+It reuses the 412,002-record admitted SQLite fixture and ten continuities,
+imports them through the core PostgreSQL transfer path, rebuilds projections,
+evaluates all 2,000 indexed rules, reopens the connection and restores a complete
+portable backup into a separate SQLite package. Exact version membership,
+digests and heads must survive. The test refuses an existing fixture namespace
+and removes only the namespace and temporary directory it created. This is a
+long-running core workload, separate from the reviewed service transfer cases;
+its harness timeout is not a product latency target.
+
 ## Data preservation guarantees and bounds
 
 Canonical revisions, source bytes, original image bytes, workflow entries and receipts are immutable and retained. Writes use one SQLite transaction with WAL, FULL synchronization and foreign keys; failed writes do not publish a partial event or receipt. Recovery and admission use compatible history/version/ancestry limits, so reaching a work limit cannot make previously accepted history unreadable.
