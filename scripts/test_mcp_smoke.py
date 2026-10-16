@@ -2,7 +2,7 @@
 import copy
 import json
 import unittest
-from mcp_smoke import check_server_contract
+from mcp_smoke import MCP, check_server_contract
 from validate_contracts import ROOT
 
 
@@ -15,6 +15,19 @@ class DeliveryTests(unittest.TestCase):
 
     def test_guidance_wording_and_tool_order_can_change(self):
         check_server_contract(self.initialization, list(reversed(self.tools)))
+
+    def test_catalog_follows_discovery_cursor_before_contract_validation(self):
+        calls = []
+        pages = iter([{'tools': self.tools[:3], 'nextCursor': 'opaque-next-page'},
+                      {'tools': self.tools[3:]}])
+        client = MCP.__new__(MCP)
+        def request(method, params):
+            calls.append((method, params))
+            return next(pages)
+        client.request = request
+        check_server_contract(self.initialization, client.list_tools())
+        self.assertEqual(calls, [('tools/list', {}),
+                                 ('tools/list', {'cursor': 'opaque-next-page'})])
 
     def test_missing_guidance_and_wrong_catalog_fail(self):
         for guidance in (None, '', '  ', []):

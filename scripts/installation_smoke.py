@@ -1,16 +1,17 @@
 """Independent CLI/MCP persistent-engine checks. Never prints profile credentials."""
 import argparse
+import base64
+import http.client
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
 import signal
 import sqlite3
-import socket
-import struct
 import subprocess
 import tempfile
 import time
+from urllib.parse import urlsplit
 from mcp_smoke import MCP, check_server_contract
 
 
@@ -39,8 +40,8 @@ def run(bin_dir):
             universe = admin('create',"--scratch-policy", 'The Ashen Cycle', '--first-time', '0', '--calendar', 'Ashen days', '--tick-label', 'days')
             agent = admin('enroll')['profile_id']
             uid = universe['universe_id']
-            client = MCP(bin_dir / 'universe-mcp', installation=root, profile=agent)
-            check_server_contract(client.initialization, client.request('tools/list', {})['tools'])
+            client = MCP(bin_dir / 'universe-mcp', installation=root, profile=agent, advanced_tools=True)
+            check_server_contract(client.initialization, client.list_tools())
             client.call('universe_describe', {'universe': 'The Ashen Cycle', 'mode': 'summary'}, error=True)
             admin('grant', agent, uid, '--propose')
             result = client.call('universe_describe', {'universe': 'The Ashen Cycle', 'mode': 'summary'})
@@ -86,13 +87,21 @@ def run(bin_dir):
             # Incompatible and forged hello metadata fail before request dispatch.
             with sqlite3.connect(f"file:{root / 'profiles' / f'{agent}.sqlite'}?mode=ro", uri=True) as credentials:
                 profile = {'credential': credentials.execute('SELECT credential FROM credential WHERE profile_id=?', (agent,)).fetchone()[0]}
+            endpoint = urlsplit(json.loads((root / 'engine-http.json').read_text())['endpoint'])
+            assert endpoint.scheme == 'http' and endpoint.hostname == '127.0.0.1' and endpoint.port
             for extra in [{'protocol_version': '999'}, {'author': True}]:
                 hello = {'protocol_version': '1', 'profile_id': agent, 'credential': profile['credential'], 'client_name': 'author', **extra}
                 payload = json.dumps(hello).encode()
-                with socket.socket(socket.AF_UNIX) as sock:
-                    sock.settimeout(5); sock.connect(str(root / 'engine.sock'))
-                    sock.sendall(struct.pack('>I', len(payload)) + payload)
-                    assert sock.recv(4) == b''
+                connection = http.client.HTTPConnection(endpoint.hostname, endpoint.port, timeout=5)
+                try:
+                    connection.request('POST', '/engine/hello', body=b'', headers={
+                        'Authorization': 'UB ' + base64.b64encode(payload).decode('ascii'),
+                    })
+                    response = connection.getresponse()
+                    assert response.status == 401, response.status
+                    response.read()
+                finally:
+                    connection.close()
             del profile
             admin('revoke', agent)
             assert cli('status', profile=agent, check=False).returncode != 0
@@ -105,13 +114,13 @@ def run(bin_dir):
             restarted = admin('status')
             assert restarted['service_instance'] != instance and restarted['universes'][0]['id'] == uid
             assert admin('doctor')['packages'][0]['storage']['heads'] == storage['heads']
-            print(json.dumps({'status': 'pass', 'sqlite': storage['sqlite_version'], 'checks': ['six concurrent cold starts', 'independent MCP schema validation', 'agent proposal and exact author approval', 'idempotent canon commit', 'pinned query and operation receipt', 'current grants', 'rename aliases', 'adapter disconnect survival', 'incompatible/forged handshake rejection', 'revocation', 'SIGKILL stale-socket recovery', 'durable heads', 'WAL/FULL/FK diagnostics']}, indent=2))
+            print(json.dumps({'status': 'pass', 'sqlite': storage['sqlite_version'], 'checks': ['six concurrent cold starts', 'independent MCP schema validation', 'agent proposal and exact author approval', 'idempotent canon commit', 'pinned query and operation receipt', 'current grants', 'rename aliases', 'adapter disconnect survival', 'incompatible/forged handshake rejection', 'revocation', 'SIGKILL stale-endpoint recovery', 'durable heads', 'WAL/FULL/FK diagnostics']}, indent=2))
         finally:
             if client:
                 client.close()
             cli('shutdown', profile=author, check=False)
             for _ in range(100):
-                if not (root / 'engine.sock').exists():
+                if not (root / 'engine-http.json').exists():
                     break
                 time.sleep(.02)
 

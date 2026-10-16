@@ -13,7 +13,6 @@ members = [
     "crates/universe-cli",
     "crates/universe-engine",
     "apps/desktop",
-    "xtask",
 ]
 
 [workspace.package]

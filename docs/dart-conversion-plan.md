@@ -42,7 +42,7 @@ Use these owners rather than reconstructing behavior from old plans:
 | Installation identity and current grants | [registry](../crates/universe-service/src/registry.rs), [local client](../crates/universe-client/src/installation.rs) |
 | Transfer and conversion | [archives](../crates/universe-store/src/archive.rs), [row transfer](../crates/universe-store/src/transfer.rs) |
 | Current UX proposal | [UX redesign](ux-redesign-plan.md), existing universe-ui editors and workflows |
-| Build and distribution | xtask/, scripts/, packaging/, .github/workflows/, [release runbook](release-runbook.md) |
+| Build and distribution | apps/ub_cli/tool/, tool/, scripts/, packaging/, .github/workflows/, [release runbook](release-runbook.md) |
 
 The current contracts contain 16 tool definitions; default MCP discovery advertises the ordinary subset. Port the actual discovery filtering and request variants, including private author operations. Tool totals in historical prose are not a specification.
 

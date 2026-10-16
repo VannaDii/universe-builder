@@ -48,6 +48,18 @@ class MCP:
             assert response['id'] == self.seq, response
             assert 'error' not in response, response
             return response['result']
+    def list_tools(self):
+        tools, seen = [], set()
+        cursor = None
+        while True:
+            page = self.request('tools/list', {'cursor': cursor} if cursor else {})
+            tools.extend(page['tools'])
+            cursor = page.get('nextCursor')
+            if not cursor:
+                return tools
+            if cursor in seen:
+                raise RuntimeError('MCP discovery repeated a cursor')
+            seen.add(cursor)
     def call(self, name, args, error=False):
         result = self.request('tools/call', {'name': name, 'arguments': args})
         assert bool(result.get('isError', False)) == error, result
@@ -106,7 +118,7 @@ def run(bin_dir):
                 ordinary.close()
             client = MCP(bin_dir / 'universe-mcp', socket, advanced_tools=True)
             try:
-                tools = client.request('tools/list', {})['tools']
+                tools = client.list_tools()
                 check_server_contract(client.initialization, tools)
                 for tool in tools:
                     name = tool['name']

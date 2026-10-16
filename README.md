@@ -2759,10 +2759,14 @@ credential-store and full-workload cases; ordinary test runs skip cases whose
 fixture environment is absent. The macOS package assembly and installed-helper
 commands are also documented there. The CI job does not publish a release.
 
-During source coexistence, the pinned Rust toolchain can still run
-`cargo run --locked -p xtask -- check`. The retained independent Python schema
-and host checks use `jsonschema==4.25.1` and `UNIVERSE_PYTHON` with
-`xtask validate-contracts`, `xtask mcp-smoke` and `xtask installation-smoke`.
+The independent Python contract and host checks use `jsonschema==4.25.1`.
+Run `python scripts/validate_contracts.py`,
+`python scripts/test_source_assessment_contracts.py` and
+`python scripts/test_action_consequence_contracts.py` with that environment.
+For installed host checks, build the Dart headless package and run
+`python scripts/mcp_smoke.py --bin-dir /absolute/package/bin` and
+`python scripts/installation_smoke.py --bin-dir /absolute/package/bin`. These use the
+same Dart engine and MCP commands as the application.
 
 Public tool and assessment schemas are owned by `contracts/source/` and bundled with
 `dart run tool/build_contracts.dart`; the generated Dart MCP metadata comes from
@@ -2782,10 +2786,8 @@ needs no development server, shell PATH or network for fixture operations. The
 package is locally ad-hoc signed; it is **not notarized or a distribution
 release**. Open a universe, inspect records, enter an entity label, review, and
 save a noncanonical proposal. The engine exits when its parent app closes.
-Fixture data is discarded on exit. The former Rust `xtask package-fixture` and
-`package-release` routes are retired and return the replacement command without
-building or replacing a bundle. Existing bundles are left in place; use
-the Flutter bundle path above for current development.
+Fixture data is discarded on exit. Use the Flutter bundle path above for
+current development.
 
 ## MCP over HTTP
 
@@ -2850,8 +2852,7 @@ dart run tool/mcp_config.dart /absolute/path/universe-mcp /absolute/path/fixture
 ```
 
 This command prints JSON without connecting, reading credentials or editing a
-host's settings. The transitional `xtask mcp-config` command delegates to the
-same Dart generator. This configuration uses the lower-level `universe-mcp`
+host's settings. This configuration uses the lower-level `universe-mcp`
 helper; when configuring the public `multiverse-mcp` launcher instead, prepend
 `serve` to its arguments.
 
