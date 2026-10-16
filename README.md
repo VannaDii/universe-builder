@@ -82,12 +82,19 @@ published policy for inspection and normal revision. All overlapping policies
 still apply; this view does not select an override or claim that facts have passed
 their checks.
 
-The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,
+The Flutter app is in `apps/ub_app`, with desktop and compact navigation,
 the approved branding, and System/Light/Dark appearance controls in Settings.
 Its native connection adapter accepts `--installation`, `--profile` and optional
 `--engine` arguments and reads the accessible library and universe summaries
 through authenticated loopback HTTP. CLI and MCP startup also request HTTP-only
 service mode so ordinary long installation paths do not require a Unix socket.
+On iOS and Android, `universe-builder:///library` and the same scheme followed by
+an existing universe, record or editor path open the corresponding location.
+Links use the current authenticated connection; connect first if needed. They
+cannot select a server/profile, contain credentials, approve or publish changes.
+Current access and unfinished-input navigation guards still apply. Shared text
+and document URLs continue through explicit source intake. Browser links keep
+their existing relative paths. Native desktop URL registration remains pending.
 A disposable service regression covers
 owner access and the empty library of a contributor without universe grants.
 The packaged macOS app's **Use this device** action sets up its app-private

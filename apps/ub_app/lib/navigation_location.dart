@@ -28,6 +28,7 @@ final class LibraryLocation {
   final RecordEditAction? recordAction;
   final BigInt? draftVersion;
   final int? operationIndex;
+  static const nativeScheme = 'universe-builder';
   static const editors = {
     'records',
     'entity',
@@ -80,8 +81,18 @@ final class LibraryLocation {
               ? '/universe/${universe!.value}'
               : '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/editor/$editor',
         );
+
+  /// Native links name a location in the current authenticated connection.
+  /// They never choose a host, account or credential.
+  Uri get nativeUri => Uri(scheme: nativeScheme, host: '', path: uri.path);
+
   static LibraryLocation parse(Uri uri) {
-    if (uri.hasScheme || uri.hasAuthority || uri.hasQuery || uri.hasFragment) {
+    final native = uri.scheme == nativeScheme;
+    if ((uri.hasScheme && !native) ||
+        (uri.hasAuthority && (!native || uri.authority.isNotEmpty)) ||
+        (native && !uri.path.startsWith('/')) ||
+        uri.hasQuery ||
+        uri.hasFragment) {
       throw const FormatException('Unsupported application link');
     }
     final parts = uri.pathSegments;

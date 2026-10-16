@@ -110,9 +110,14 @@ class MainActivity : FlutterActivity() {
             }
     }
 
+    // Only application links enter Flutter navigation. Shared content URLs
+    // belong to explicit source intake and must not redirect an open editor.
+    override fun shouldHandleDeeplinking(): Boolean =
+        intent?.action == Intent.ACTION_VIEW && intent?.data?.scheme == "universe-builder"
+
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
         setIntent(intent)
+        super.onNewIntent(intent)
         receiveSharedText(intent)
     }
 
@@ -125,6 +130,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun receiveSharedText(incoming: Intent?) {
+        if (incoming?.action == Intent.ACTION_VIEW && incoming.data?.scheme == "universe-builder") return
         if (incoming?.action != Intent.ACTION_SEND && incoming?.action != Intent.ACTION_VIEW) return
         val uri = if (incoming.action == Intent.ACTION_VIEW) incoming.data else {
             if (Build.VERSION.SDK_INT >= 33) incoming.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)

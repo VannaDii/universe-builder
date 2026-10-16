@@ -136,6 +136,67 @@ void main() {
       throwsFormatException,
     );
   });
+  test('native links retain the existing exact routes without connection authority', () {
+    final universe = UniverseId.generate(),
+        continuity = ContinuityId.generate(),
+        context = RecordId.generate();
+    final locations = [
+      const LibraryLocation(),
+      const LibraryLocation(section: LibrarySection.settings),
+      LibraryLocation(universe: universe),
+      LibraryLocation(
+        universe: universe,
+        continuity: continuity,
+        context: context,
+        editor: 'source',
+      ),
+      LibraryLocation(
+        universe: universe,
+        continuity: continuity,
+        context: context,
+        record: RecordId.generate(),
+        revision: RevisionId.generate(),
+      ),
+      LibraryLocation(
+        universe: universe,
+        continuity: continuity,
+        context: context,
+        draftVersion: BigInt.parse('18446744073709551615'),
+        operationIndex: 3,
+      ),
+    ];
+    for (final location in locations) {
+      expect(
+        location.nativeUri.toString(),
+        'universe-builder://${location.uri}',
+      );
+      expect(location.nativeUri.authority, isEmpty);
+      expect(LibraryLocation.parse(location.nativeUri).uri, location.uri);
+      expect(
+        LibraryLocation.parse(Uri.parse('universe-builder:${location.uri}'))
+            .uri,
+        location.uri,
+      );
+    }
+  });
+  test('native links reject account selection, credentials and executable requests', () {
+    for (final value in [
+      'universe-builder://host/library',
+      'universe-builder://user:secret@/library',
+      'universe-builder:///library?profile=other',
+      'universe-builder:///library?endpoint=https://other',
+      'universe-builder:///library#token',
+      'universe-builder:library',
+      'universe-builder:///publish',
+      'universe-builder:///library/extra',
+      'universe-builder:///universe/not-an-id',
+    ]) {
+      expect(
+        () => LibraryLocation.parse(Uri.parse(value)),
+        throwsA(anyOf(isA<FormatException>(), isA<ArgumentError>())),
+      );
+    }
+  });
   test('unrecognized paths, credentials, queries and invalid identities are rejected', () {
     for (final path in [
       '/universe/not-an-id',
