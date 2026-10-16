@@ -43,6 +43,49 @@ void main() {
       );
     });
   }
+  // These operations were added after the retained Rust fixture corpus.
+  final extensions = CanonicalValue.parseJson('''[
+    {
+      "kind":"create_secret","client_ref":"Hidden inheritance é🌲",
+      "record":{
+        "scope":[{"record":"rec_000000000000000000000001"}],
+        "fictionalKnowers":[{"record":"rec_000000000000000000000002"}],
+        "readerDisclosed":false,"concealment":"Sealed letter",
+        "validity":{"kind":"unspecified"}
+      }
+    },
+    {
+      "kind":"revise_secret",
+      "record":{"record":"rec_000000000000000000000003"},
+      "expected_version":"ver_000000000000000000000004",
+      "replacement":{
+        "scope":[{"record":"rec_000000000000000000000001"}],
+        "fictionalKnowers":[],"readerDisclosed":true,"concealment":null,
+        "validity":{"kind":"unknown"}
+      }
+    }
+  ]''') as CanonicalArray;
+  for (final input in extensions.items.cast<CanonicalObject>()) {
+    final operation = DomainOperation.fromWire(input);
+    covered.add(operation.kind);
+    test('Dart operation extension: ${operation.kind.wireName}', () {
+      expect(operation.toWire().toText(), input.toText());
+      expect(operation.authority, OperationAuthority.ordinary);
+      expect(
+        DomainOperation.fromWire(operation.toWire()).toWire().toText(),
+        input.toText(),
+      );
+      expect(
+        () => DomainOperation.fromWire(
+          CanonicalObject([
+            ...input.fields,
+            const MapEntry('unauthorized_field', CanonicalBool(true)),
+          ]),
+        ),
+        throwsFormatException,
+      );
+    });
+  }
   test('operation fixture coverage includes every current typed variant', () {
     expect(covered, DomainOperationKind.values.toSet());
   });
