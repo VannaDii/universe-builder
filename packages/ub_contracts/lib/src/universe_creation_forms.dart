@@ -56,7 +56,7 @@ final class UniverseCreationForm {
     MapEntry('ticksPerMonth', CanonicalString(ticksPerMonth)),
     MapEntry('calendar', CanonicalString(calendar.name)),
     MapEntry('creationPending', CanonicalBool(creationPending)),
-    if (realWorld) MapEntry('realWorld', CanonicalBool(true)),
+    MapEntry('realWorld', CanonicalBool(realWorld)),
   ]);
 
   factory UniverseCreationForm.fromWire(CanonicalValue value) {
@@ -84,9 +84,7 @@ final class UniverseCreationForm {
       ticksPerMonth: fields.string('ticksPerMonth'),
       calendar: CreationCalendar.values.byName(fields.string('calendar')),
       creationPending: fields.boolean('creationPending'),
-      realWorld: fields.values.containsKey('realWorld')
-          ? fields.boolean('realWorld')
-          : false,
+      realWorld: fields.boolean('realWorld'),
     );
   }
 

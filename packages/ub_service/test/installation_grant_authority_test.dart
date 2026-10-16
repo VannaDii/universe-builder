@@ -12,6 +12,8 @@ import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/src/journal.dart';
 import 'package:ub_store/src/owned_database.dart';
 
+import 'helpers/universe_creation.dart' as creation;
+
 void main() {
   late Directory directory;
   late SqliteInstallationStore store;
@@ -45,6 +47,7 @@ void main() {
       PrincipalId.generate(),
     );
     package.database.execute('COMMIT');
+    creation.addFixtureRoot(package);
     package.close();
     expect(
       authority.registerUniverse(owner, name: 'World', path: path),

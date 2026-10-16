@@ -30,63 +30,6 @@ external int nativePeerMatches(Pointer<Uint8> bytes, int length);
 )
 external int nativeSocketPath(Pointer<Char> path, int action);
 
-@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
-  symbol: 'ub_publish_conversion_directory',
-  assetId: _asset,
-)
-external int nativePublishConversionDirectory(
-  Pointer<Char> source,
-  Pointer<Char> destination,
-  Pointer<Char> directory,
-);
-
-@Native<Pointer<Void> Function(Pointer<Char>, Pointer<Int32>)>(
-  symbol: 'ub_original_open',
-  assetId: _asset,
-)
-external Pointer<Void> nativeOriginalOpen(
-  Pointer<Char> path,
-  Pointer<Int32> error,
-);
-
-@Native<Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>)>(
-  symbol: 'ub_original_read',
-  assetId: _asset,
-)
-external int nativeOriginalRead(
-  Pointer<Void> handle,
-  Pointer<Uint8> bytes,
-  int capacity,
-  Pointer<Int32> length,
-);
-
-@Native<Void Function(Pointer<Void>)>(
-  symbol: 'ub_original_close',
-  assetId: _asset,
-)
-external void nativeOriginalClose(Pointer<Void> handle);
-
-@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
-  symbol: 'ub_publish_conversion',
-  assetId: _asset,
-)
-external int nativePublishConversion(
-  Pointer<Char> source,
-  Pointer<Char> destination,
-  Pointer<Char> directory,
-);
-
-@Native<Int32 Function(Pointer<Char>, Pointer<Uint8>, Int32, Pointer<Int32>)>(
-  symbol: 'ub_read_credential',
-  assetId: _asset,
-)
-external int nativeReadCredential(
-  Pointer<Char> path,
-  Pointer<Uint8> bytes,
-  int capacity,
-  Pointer<Int32> length,
-);
-
 @Native<Int32 Function(Pointer<Char>)>(
   symbol: 'ub_sync_directory',
   assetId: _asset,

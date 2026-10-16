@@ -70,7 +70,6 @@ extension type _CalendarRow._(JSObject _) implements JSObject {
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
 @JS()
@@ -117,9 +116,8 @@ SavedCalendarForm _decodeCalendar(
   _CalendarRow row,
   Iterable<_UnitRow> unitRows,
   Iterable<_LabelRow> labelRows,
-  Iterable<_ConversionRow> conversionRows, {
-  bool legacy = false,
-}) {
+  Iterable<_ConversionRow> conversionRows,
+) {
   return SavedCalendarForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedCalendarForm(
@@ -142,13 +140,7 @@ SavedCalendarForm _decodeCalendar(
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : CalendarRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : CalendarRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       units: unitRows.map(
@@ -222,37 +214,13 @@ final class BrowserCalendarFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            final scan = tx.objectStore(_tables.first).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeCalendar(
-                    _decodeCalendar(
-                      cursor.value as _CalendarRow,
-                      [],
-                      [],
-                      [],
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

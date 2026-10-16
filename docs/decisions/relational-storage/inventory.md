@@ -87,32 +87,10 @@ Source: `registry.rs`, `imports.rs`, `installation.rs` in protocol/client, and r
 | imports/{operation}.jsonl | Read-only legacy input; decode to fresh typed archive staging. Store original checksum, not its bytes as application metadata. Unknown/inconsistent content blocks. |
 | private sockets, engine lock/PID markers, runtime in-flight tasks | OS/in-memory transport coordination; not exported domain data. Recover durable operation/job rows rather than persisting a new task serializer. |
 
-## Backups, exports, auxiliary storage and legacy v0
+## Backups, exports and auxiliary storage
 
-Physical backups copy the complete typed package, including content bytes and workflow/receipts. There is no separate current backup manifest file: kernel backup verifies the SQLite copy itself. Normative archive manifests use fixed ArchiveManifest fields, typed tables and an explicit whole-export checksum; imports retain the original checksum. Logical v1 JSONL families `manifest`, `record`, `continuity`, `commit`, `change`, `reservation`, `text`, `image_chunk`, `checksum` map respectively to typed manifest/header, canonical version rows, kernel history, source_content/media_chunk and export integrity metadata. Old v1 excludes workflow and receipts; never claim their reconstruction from it.
+Physical backups copy the complete typed package, including content bytes and workflow/receipts. There is no separate current backup manifest file: kernel backup verifies the SQLite copy itself. Normative archive manifests use fixed ArchiveManifest fields, typed tables and an explicit whole-export checksum; imports retain the original checksum. Logical archive families `manifest`, `record`, `continuity`, `commit`, `change`, `reservation`, `text`, `image_chunk`, `checksum` map respectively to typed manifest/header, canonical version rows, kernel history, source_content/media_chunk and export integrity metadata. Old v1 excludes workflow and receipts; never claim their reconstruction from it.
 
 The generic `BlobStore` uses digest-named source/media files with filesystem bytes and no JSON metadata; the service kernel embeds its source/media staging in workflow storage today. Retain verified referenced content bytes; do not add a blob payload store for application metadata. Package maintenance/purge summaries are transient responses, not durable document families. Release manifests/contracts/fixtures/build logs are software artifacts and test evidence, not author application data; the decision package's JSON oracles are similarly test inputs/results and are not copied into prototype authority tables.
 
-Schema v0 has these additional/older families. They must be inventoried even though the current converter rejects nonempty ambiguous side tables:
-
-| v0 tables | Typed normative destination and compatibility gate |
-|---|---|
-| schema_meta, universes, record_identities, record_versions | Single-model kernel headers and canonical bodies; unsupported scaffold bodies block conversion. Retain needed original scalar evidence in explicitly mapped provenance fields; retired software format tags are input metadata only. |
-| worlds, world_name_reservations | Typed world canonical rows plus original scalar selector/reservation headers; no unreviewed identity remap. |
-| commits, commit_changes, continuities, head_membership | Original typed historical ledger, including scalar timestamps/actions/legacy IDs; preserve baselines or block if not reconstructable. Do not use the existing legacy converter's generated replacement revision IDs for an identity-preserving conversion. |
-| assertion_index, participant_index, time_index, fts_universes, fts_entities, fts_worlds, fts_sources | Rebuildable indexes only after verifying that no unique authored facts live solely in an index. Otherwise report the missing authority and block. |
-| source_versions, anchors, blob_refs | Source/SourceVersion/Anchor typed canonical structures and preserved scalar legacy row IDs/timestamps/reference/digests; provenance insufficient to identify a canonical source blocks rather than invents it. |
-| changesets, changeset_versions | Recognized proposal headers in the single model (id, universe, continuity, base revision, author, rationale, status, timestamps) + ordered DomainOperation/Assignment bodies; unknown old payload schema blocks. |
-| approvals | Typed historical approval (id, changeset, version, digest, author, scope, granted/expires/revoked) + recognized exact proposal binding; never activates installation authority. |
-| validation_runs, findings, dependencies | Typed validation headers, Finding outcomes/coverage and typed evidence references/derivations; unknown evidence encoding blocks. Preserve original IDs, rule/affected IDs and dependency links. |
-| operation_receipts, idempotency_keys | Recognized receipt header in the single model and recognized result union; preserve principal/kind/key/digest/status/timestamps, nullable result and explicit key tombstone. Unsupported result encoding blocks. No retry key reuse. |
-
-There is no parallel scaffold-era retention schema. These are retired input families mapped into the single normative model when their meaning is known. Unknown bodies or unmatched scalar evidence block conversion; retain originals rather than infer provenance or silently drop data.
-
-## Operator conversion provenance
-
-`import_workflow_digest` binds each recognized original workflow key and digest to
-its normalized workflow digest, including draft operation normalization. It stores
-no serialized body. Ordinary package integrity verifies its target and digest.
-Explicit conversion, supported input layouts, refusals and publication recovery are
-documented in [the operator procedure](../../operator-conversion-procedure.md).
+Only the current unreleased v0 schema is supported. Prerelease input-layout conversion and workflow-normalization provenance are not part of the product.

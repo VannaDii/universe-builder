@@ -62,23 +62,6 @@ void main() {
       eventOperation(form).record.toWire().toText(),
       event.toWire().toText(),
     );
-    final legacy = CanonicalObject(
-      form.toWire().fields.where(
-        (field) => !{
-          'worlds',
-          'region_record',
-          'region_universe',
-          'sequence',
-          'occurrence_id',
-        }.contains(field.key),
-      ),
-    );
-    expect(
-      eventOperation(UnfinishedEventForm.fromWire(legacy)).record
-          .toWire()
-          .toText(),
-      event.toWire().toText(),
-    );
     final cleared = UnfinishedEventForm(
       baseRevision: form.baseRevision,
       representedContext: context,
@@ -149,7 +132,7 @@ void main() {
       ),
     );
     expect(newlyConditional.validity, isA<ConditionalValidity>());
-    final legacyRetained = buildEventEffect(
+    final retainedEffect = buildEventEffect(
       EventEffectInput(
         slot: conditionalInput.slot,
         propositionRecord: conditionalInput.propositionRecord,
@@ -161,7 +144,7 @@ void main() {
         original: conditionalInput.original,
       ),
     );
-    expect(legacyRetained.validity, isA<ConditionalValidity>());
+    expect(retainedEffect.validity, isA<ConditionalValidity>());
     final partial = EventEffectInput(slot: 'incomplete', order: 'not a number');
     expect(
       EventEffectInput.fromWire(partial.toWire()).toWire().toText(),

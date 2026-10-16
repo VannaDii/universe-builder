@@ -38,21 +38,6 @@ final class PostgresCanonicalIntegrity {
     await _journal.lockUniverse();
     final workflow = PostgresWorkflowStorage(_session, universe);
     for (final row in await _rows(
-      'SELECT key,source_digest,normalized_digest FROM $_schema.import_workflow_digest',
-      [],
-    )) {
-      final value = await workflow.evidence(
-        readPostgresAuthoredText(row['key'] as Uint8List),
-      );
-      if (value == null ||
-          canonicalDigest(value) != row['normalized_digest'] ||
-          !_hash(row['source_digest'] as String)) {
-        throw const FormatException(
-          'Converted workflow digest provenance mismatch',
-        );
-      }
-    }
-    for (final row in await _rows(
       'SELECT p.source_digest,p.normalized_digest,v.digest FROM $_schema.import_record_digest p JOIN $_schema.record_versions v ON v.universe_id=p.universe_id AND v.id=p.version_id',
       [],
     )) {

@@ -103,7 +103,6 @@ sealed class EngineRequest {
       'backup' => BackupEngineRequest.fromWire(value),
       'restore' => RestoreEngineRequest.fromWire(value),
       'maintain' => MaintainEngineRequest.fromWire(value),
-      'convert_legacy' => ConvertLegacyEngineRequest.fromWire(value),
       'export_logical' => ExportLogicalEngineRequest.fromWire(value),
       'preview_import' => PreviewImportEngineRequest.fromWire(value),
       'accept_import' => AcceptImportEngineRequest.fromWire(value),
@@ -1195,33 +1194,6 @@ final class MaintainEngineRequest extends EngineRequest {
     MapEntry('method', CanonicalString('maintain')),
     MapEntry('universe', universe.toWire()),
     MapEntry('collect', CanonicalBool(collect)),
-  ]);
-}
-
-final class ConvertLegacyEngineRequest extends EngineRequest {
-  const ConvertLegacyEngineRequest({
-    required this.source,
-    required this.destination,
-  });
-  final String source;
-  final String destination;
-  @override
-  String get method => 'convert_legacy';
-  factory ConvertLegacyEngineRequest.fromWire(CanonicalValue value) {
-    final f = WireFields(value, {'method', 'source', 'destination'});
-    if (f.string('method') != 'convert_legacy') {
-      throw const FormatException('Wrong engine method');
-    }
-    return ConvertLegacyEngineRequest(
-      source: f.string('source'),
-      destination: f.string('destination'),
-    );
-  }
-  @override
-  CanonicalObject toWire() => CanonicalObject([
-    MapEntry('method', CanonicalString('convert_legacy')),
-    MapEntry('source', CanonicalString(source)),
-    MapEntry('destination', CanonicalString(destination)),
   ]);
 }
 

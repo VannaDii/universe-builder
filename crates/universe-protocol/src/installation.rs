@@ -170,10 +170,6 @@ pub enum EngineRequest {
         universe: crate::request::Selector,
         collect: bool,
     },
-    ConvertLegacy {
-        source: std::path::PathBuf,
-        destination: std::path::PathBuf,
-    },
     ExportLogical {
         universe: crate::request::Selector,
         destination: std::path::PathBuf,

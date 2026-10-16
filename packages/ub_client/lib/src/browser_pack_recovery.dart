@@ -55,7 +55,7 @@ extension type _PackRow._(JSObject _) implements JSObject {
     String? expectedRecordVersion,
     JSAny? originalFields,
     bool? realWorldPolicy,
-    bool? activatePolicy,
+    required bool activatePolicy,
     String? expectedRootVersion,
   });
   external String get generation;
@@ -69,9 +69,8 @@ extension type _PackRow._(JSObject _) implements JSObject {
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external bool? get realWorldPolicy;
-  external bool? get activatePolicy;
+  external bool get activatePolicy;
   external String? get expectedRootVersion;
 }
 
@@ -108,9 +107,8 @@ SavedPackForm _decodePack(
   _PackRow row,
   Iterable<_DependencyRow> dependencyRows,
   Iterable<_CapabilityRow> capabilityRows,
-  Iterable<_MemberRow> memberRows, {
-  bool legacy = false,
-}) {
+  Iterable<_MemberRow> memberRows,
+) {
   return SavedPackForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedPackForm(
@@ -121,7 +119,7 @@ SavedPackForm _decodePack(
       version: row.version,
       rationale: row.rationale,
       realWorldPolicy: row.realWorldPolicy,
-      activatePolicy: row.activatePolicy ?? true,
+      activatePolicy: row.activatePolicy,
       expectedRootVersion: row.expectedRootVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRootVersion!),
@@ -136,13 +134,7 @@ SavedPackForm _decodePack(
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : DomainPackRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : DomainPackRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       dependencies: dependencyRows.map(
@@ -210,37 +202,13 @@ final class BrowserPackFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            final scan = tx.objectStore(_tables.first).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodePack(
-                    _decodePack(
-                      cursor.value as _PackRow,
-                      [],
-                      [],
-                      [],
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

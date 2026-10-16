@@ -48,7 +48,7 @@ PropositionRecord prop(
 );
 EpistemicAttitudeRecord attitude({
   KnowledgeAcquisition? receipt,
-  bool legacy = false,
+  bool unqualified = false,
   Validity? validity,
 }) => EpistemicAttitudeRecord(
   holder: f.ref(6),
@@ -56,7 +56,7 @@ EpistemicAttitudeRecord attitude({
   attitude: EpistemicAttitudeKind.knows,
   validity: validity ?? interval('0', '30'),
   basis: const AuthorDecisionBasis('explicit decision'),
-  acquisition: legacy ? null : receipt ?? acquisition(),
+  acquisition: unqualified ? null : receipt ?? acquisition(),
 );
 List<RecordVersion> fixture() => [
   f.row(1, prop(DecimalValue('1.0'))),
@@ -143,12 +143,12 @@ void main() {
     put(rows, 4, attitude(receipt: acquisition(context: f.ref(8))));
     expect(assess(rows), isEmpty);
   });
-  test('unknown time and legacy world scope remain unresolved', () {
+  test('unknown time and unqualified world scope remain unresolved', () {
     final rows = fixture();
     put(rows, 4, attitude(validity: const UnspecifiedValidity()));
     expect(assess(rows).single.outcome, EvidenceOutcome.notEstablished);
     expect(assess(rows).single.coverage, Coverage.unsupported);
-    put(rows, 4, attitude(legacy: true));
+    put(rows, 4, attitude(unqualified: true));
     expect(assess(rows).single.outcome, EvidenceOutcome.notEstablished);
     put(rows, 3, rule(scope: const UniverseApplicability()));
     expect(assess(rows).single.outcome, EvidenceOutcome.refuted);

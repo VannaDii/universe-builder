@@ -7,9 +7,9 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
 
-const _v1Columns =
+const _baseColumns =
     'instance,profile,generation,name,calendar,date,time,offset,calendarName,initialTick,tickLabel,ticksPerMonth,creationPending';
-const _columns = '$_v1Columns,realWorld';
+const _columns = '$_baseColumns,realWorld';
 
 /// Private, instance/profile-scoped creation input; never creates a universe.
 final class UniverseCreationFormRecoveryStore {
@@ -57,10 +57,6 @@ CREATE TABLE universe_creation_form (
 ) STRICT;
 PRAGMA user_version=2;
 ''');
-        } else if (db.select('PRAGMA user_version').single.values.single == 1) {
-          db.execute(
-            'ALTER TABLE universe_creation_form ADD COLUMN "realWorld" INTEGER NOT NULL DEFAULT 0 CHECK("realWorld" IN (0,1)); PRAGMA user_version=2',
-          );
         }
         db.execute('COMMIT');
       } on Object {
@@ -85,14 +81,14 @@ PRAGMA user_version=2;
     );
     if (tables.isEmpty) return false;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (version != 1 && version != 2 ||
+    if (version != 2 ||
         tables.length != 1 ||
         tables.single['name'] != 'universe_creation_form' ||
         db
                 .select('PRAGMA table_info(universe_creation_form)')
                 .map((r) => r['name'])
                 .join(',') !=
-            (version == 1 ? _v1Columns : _columns)) {
+            _columns) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

@@ -131,35 +131,28 @@ extension type _AssociationRow._(JSObject _) implements JSObject {
   external JSAny? get qualifiers;
 }
 
-EntityAssociationForm _decodeAssociation(
-  _AssociationRow a, {
-  bool legacy = false,
-}) => EntityAssociationForm(
-  world: a.world,
-  role: a.role,
-  originalOrdinal: a.originalOrdinal,
-  validity: legacy
-      ? (a.validity == null
-            ? null
-            : Validity.fromWire(CanonicalValue.parseWireJson(a.validity!)))
-      : a.validityFields == null
-      ? null
-      : Validity.fromWire(decodeBrowserInput(a.validityFields!)),
-  temporalValidity: a.temporal == null
-      ? null
-      : TemporalValidityInput.fromWire(decodeBrowserInput(a.temporal!)),
-  qualifiers: a.qualifiers == null
-      ? null
-      : (decodeBrowserInput(a.qualifiers!) as CanonicalArray).items
-            .map(QualifierInput.fromWire)
-            .toList(),
-);
+EntityAssociationForm _decodeAssociation(_AssociationRow a) =>
+    EntityAssociationForm(
+      world: a.world,
+      role: a.role,
+      originalOrdinal: a.originalOrdinal,
+      validity: a.validityFields == null
+          ? null
+          : Validity.fromWire(decodeBrowserInput(a.validityFields!)),
+      temporalValidity: a.temporal == null
+          ? null
+          : TemporalValidityInput.fromWire(decodeBrowserInput(a.temporal!)),
+      qualifiers: a.qualifiers == null
+          ? null
+          : (decodeBrowserInput(a.qualifiers!) as CanonicalArray).items
+                .map(QualifierInput.fromWire)
+                .toList(),
+    );
 SavedEntityForm _decodeEntity(
   _EntityRow row,
   Iterable<_WorldRow> worlds,
-  Iterable<_AssociationRow> associationRows, {
-  bool legacy = false,
-}) {
+  Iterable<_AssociationRow> associationRows,
+) {
   return SavedEntityForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedEntityForm(
@@ -182,13 +175,7 @@ SavedEntityForm _decodeEntity(
               language: row.language,
               community: row.community,
               role: row.role,
-              validity: legacy
-                  ? (row.validity == null
-                        ? null
-                        : Validity.fromWire(
-                            CanonicalValue.parseWireJson(row.validity!),
-                          ))
-                  : row.validityFields == null
+              validity: row.validityFields == null
                   ? null
                   : Validity.fromWire(decodeBrowserInput(row.validityFields!)),
               temporalValidity: row.temporal == null
@@ -200,7 +187,7 @@ SavedEntityForm _decodeEntity(
       worlds: worlds.map((world) => WorldId.parse(world.value)),
       associations: !row.associationsPresent
           ? null
-          : associationRows.map((a) => _decodeAssociation(a, legacy: legacy)),
+          : associationRows.map((a) => _decodeAssociation(a)),
     ),
   );
 }
@@ -279,43 +266,13 @@ final class BrowserEntityFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            void migrate(String table, JSAny Function(JSAny) convert) {
-              final scan = tx.objectStore(table).openCursor();
-              scan.onsuccess = ((web.Event _) {
-                try {
-                  if (scan.result == null || scan.result.isUndefined) return;
-                  final cursor = scan.result as web.IDBCursorWithValue;
-                  cursor.update(convert(cursor.value!));
-                  cursor.continue_();
-                } catch (_) {
-                  tx.abort();
-                }
-              }).toJS;
-            }
-
-            migrate(
-              _tables[0],
-              (value) => _encodeEntity(
-                _decodeEntity(value as _EntityRow, [], [], legacy: true),
-              ),
-            );
-            migrate(_tables[2], (value) {
-              final row = value as _AssociationRow;
-              return _encodeAssociation(
-                row.ordinal,
-                _decodeAssociation(row, legacy: true),
-              );
-            });
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

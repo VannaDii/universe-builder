@@ -163,7 +163,6 @@ pub enum SubmittedInput {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AssessmentState {
     Absent {},
-    UnavailableLegacy {},
     Unavailable {
         reason: UnavailableReason,
     },
@@ -301,7 +300,7 @@ mod tests {
         }
     }
     #[test]
-    fn legacy_wire_shape_is_not_silently_upgraded() {
+    fn incomplete_wire_shape_is_rejected() {
         assert!(serde_json::from_value::<ValidationV3>(json!({"run_id":"run_000000000000000000000001","coverage":"complete","findings":[],"unsupported_capabilities":[],"input_digest":"private","evaluator_version":"v2"})).is_err());
     }
     #[test]

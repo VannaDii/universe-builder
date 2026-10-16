@@ -48,7 +48,7 @@ protocol.EvidenceOutcome _outcome(rules.EvidenceOutcome outcome) =>
 /// Evaluates an already-previewed complete candidate against its pinned base.
 /// Author origin and installation author must come from trusted workflow state,
 /// never from caller-supplied permission claims or an ordinary approval.
-/// Publication requires a root; standalone historical analysis can remain rootless.
+/// Every universe candidate must retain a valid selected root policy.
 CandidateValidationResult evaluateCandidate({
   required List<RecordVersion> candidate,
   required List<RecordVersion> base,
@@ -60,7 +60,6 @@ CandidateValidationResult evaluateCandidate({
   required ProfileId approvalAuthor,
   protocol.AssessmentReview? selectedAssessment,
   List<RecordVersion> evidenceCategories = const [],
-  bool requireRootPolicy = false,
   void Function()? checkCancelled,
 }) {
   final definitions = DefinitionRegistry();
@@ -69,51 +68,44 @@ CandidateValidationResult evaluateCandidate({
     definitions.add(r);
   }
   definitions.validate();
-  // Historical rootless snapshots remain readable. Once a root is declared,
-  // publication cannot remove or break the universe's selection.
-  Set<RecordId> excludedRules = const {};
+  late final Set<RecordId> excludedRules;
   final activatedRules = <RecordId>{};
-  if (requireRootPolicy ||
-      base.any(isUniversePolicyRecord) ||
-      candidate.any(isUniversePolicyRecord)) {
-    try {
-      final policy = UniversePolicySelection.fromRecords(
-        frame.universe,
-        candidate,
-      );
-      excludedRules = policy.inactiveRuleIds;
-      final priorPolicy = base.any(isUniversePolicyRecord)
-          ? UniversePolicySelection.fromRecords(frame.universe, base)
-          : null;
-      final previous =
-          priorPolicy?.rules.map((r) => r.identity.recordId).toSet() ??
-          <RecordId>{};
-      final managed = {
-        ...policy.inactiveRuleIds,
-        ...policy.rules.map((r) => r.identity.recordId),
-      };
-      final detached = {
-        ...?priorPolicy?.inactiveRuleIds,
-        ...previous,
-      }.difference(managed);
-      if (detached.isNotEmpty &&
-          candidate.any((row) => detached.contains(row.identity.recordId))) {
-        throw const FormatException(
-          'A policy rule cannot become independent by removing its membership; '
-          'keep it in a defined policy or retire the rule with its definition',
-        );
-      }
-      activatedRules.addAll(
-        policy.rules
-            .map((r) => r.identity.recordId)
-            .where((id) => !previous.contains(id)),
-      );
-    } on FormatException catch (error) {
-      throw protocol.InvalidArgumentError(
-        field: 'operations',
-        message: error.message,
+  try {
+    final policy = UniversePolicySelection.fromRecords(
+      frame.universe,
+      candidate,
+    );
+    excludedRules = policy.inactiveRuleIds;
+    final priorPolicy = UniversePolicySelection.fromRecords(
+      frame.universe,
+      base,
+    );
+    final previous = priorPolicy.rules.map((r) => r.identity.recordId).toSet();
+    final managed = {
+      ...policy.inactiveRuleIds,
+      ...policy.rules.map((r) => r.identity.recordId),
+    };
+    final detached = {
+      ...priorPolicy.inactiveRuleIds,
+      ...previous,
+    }.difference(managed);
+    if (detached.isNotEmpty &&
+        candidate.any((row) => detached.contains(row.identity.recordId))) {
+      throw const FormatException(
+        'A policy rule cannot become independent by removing its membership; '
+        'keep it in a defined policy or retire the rule with its definition',
       );
     }
+    activatedRules.addAll(
+      policy.rules
+          .map((r) => r.identity.recordId)
+          .where((id) => !previous.contains(id)),
+    );
+  } on FormatException catch (error) {
+    throw protocol.InvalidArgumentError(
+      field: 'operations',
+      message: error.message,
+    );
   }
   validateStructuralCandidate(
     candidate,

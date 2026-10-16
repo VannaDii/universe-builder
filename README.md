@@ -305,7 +305,7 @@ endpoint in a browser, paste `enrollment_token` into Connection code, and choose
 Connect or resume. After refresh, leave the code blank to resume the same tab's
 unexpired session. Sign out revokes that session. The command prints the connection
 information; it does not launch a browser. Browser commands cannot name server
-filesystem paths for backup, restore, legacy conversion, logical export/import,
+filesystem paths for backup, restore, logical export/import,
 package registration or image staging. Those path-based operator commands remain
 available through the native interface. Browser transfers use bounded content
 operations and keep import review separate from admission. The selected-file
@@ -1164,61 +1164,11 @@ a record filter, and all exports refuse an existing destination.
 Native logical archive byte limits now use the existing 8 GiB package bound,
 including PostgreSQL export and retained import chunks. The 2,000,000-row budget,
 per-record/content bounds, trusted-schema copying and typed-row checksums remain
-in force. Legacy source conversion retains its separate 512 MiB input bound.
-Author transport/CLI integration remains pending.
-The native author service now supports explicit bounded v0.3 `convert_legacy`.
-It reads the original without modification and emits a verified canon-only
-archive for separate import review. Record/version IDs remain intact; old
-continuity/revision IDs have explicit deterministic mappings. Create, replace
-and tombstone history is retained. Unsupported source/workflow side tables,
-digest/identity mismatches, inherited baselines and broken history are refused.
-This limited command is separate from the identity-preserving offline operator
-conversion procedure.
-The protected credential store now exposes offline `convertCredential` for
-legacy version-1 profile JSON. It preserves the exact profile identity and secret,
-verifies the complete converted credential and unchanged source hash, and publishes
-through an exclusive atomic rename. Input reads use an owned private read-only
-descriptor with the existing 4096-byte bound; failures do not expose parser/driver
-credential values. Conversion creates no enrollment, grant or installation.
-Credential storage, authentication and both serialized/relational conversion
-retain leading and inline U+FEFF characters as part of the exact secret, together
-with Unicode, NUL and line endings. A BOM before the JSON credential document is
-rejected as invalid syntax rather than silently consumed. Focused checks use
-disposable credentials and leave recovery originals unchanged.
-The SQLite store also exposes offline `convertPackage` for maintained serialized
-v1/v2 and relational package layouts. It retains IDs, history, pinned branches,
-ordered classification ambiguity, exact workflow authority and receipts. It
-checks source digests, retained rows, snapshots and historical ancestry in a
-private target, then revalidates the read-only original before exclusive durable
-publication. Unknown schemas, journal sidecars, changed sources and existing
-destinations are refused. It creates no installation or catalog registration.
-The installation store exposes offline `convertInstallation` for the maintained
-serialized and relational authority layouts. Relational input requires an exact
-normative schema match and all authority tables are copied and compared. It
-preserves enrolled/revoked profiles, exact
-credentials (including unenrolled files), catalog paths, aliases, audit entries
-and ordered grant scopes/limits. Pending purges, retained import previews,
-unknown tables, orphan limits and missing/mismatched credentials block publication.
-It compares the converted grants through the ordinary installation reader and
-rechecks the original database and credential inventory before exclusively
-publishing the complete private directory. Existing installation identity is
-preserved; explicit conversion establishes one when absent for the Dart handshake.
-Offline SQLite originals use immutable read-only access after journal-sidecar
-refusal, including clean databases retaining a WAL-format header. This avoids
-creating journal files in the source directory; final hashes and credential
-inventory are rechecked before publication. This mode is never used for live
-runtime connections.
-Conversion does not move or convert catalog packages or switch a live engine.
-The Dart operator CLI now exposes `convert-package`, `convert-installation` and
-`convert-credential` with the maintained `--installation` and optional `--profile`
-syntax. These commands stay offline: they do not start an engine, resolve backend
-settings, authenticate a profile or register a target. Success writes one JSON
-conversion report to standard output; failures return nonzero status with redacted
-diagnostics. The same Dart executable now exposes the maintained author commands:
+in force.
+The Dart executable exposes the author commands:
 initialization, status/doctor, universe creation/registration/renaming, profile
 enrollment/grants/revocation, public tool files, library/review/exact approval,
-private author-writing stdin, source staging, backup/restore/maintenance, legacy
-conversion and logical export/import. Service commands require the selected
+private author-writing stdin, source staging, backup/restore/maintenance and logical export/import. Service commands require the selected
 profile and use the authenticated local engine; initialization invokes its
 installed sibling explicitly. Approval does not publish. Private stdin is bounded
 at 1,000,000 bytes; tool/source files and encoded requests respect the 1 MiB frame
@@ -1261,11 +1211,11 @@ behavior and compare the embedded catalog against its owning contracts. Portable
 MCP protocol types now retain string/signed-i64 correlation IDs separately from
 engine u64 IDs, map discovery schemas to MCP keys, and construct structured
 success/error and cancellation responses. Initialization result construction
-preserves known legacy version negotiation with a `2025-11-25` fallback, including
+preserves supported MCP protocol negotiation with a `2025-11-25` fallback, including
 when a client requests a stateless version. These helpers do not provide a byte
 transport or executable.
 
-The `ub_mcp` package now implements the legacy session lifecycle and public-tool
+The `ub_mcp` package now implements the MCP session lifecycle and public-tool
 dispatch against a supplied backend: pre-initialization ping, version negotiation,
 ordinary/advanced discovery, strict application request admission, structured
 service failures and responsive cancellation. Disconnect signals backend cleanup
@@ -1634,103 +1584,7 @@ namespace. It verifies and rebuilds that namespace in place before atomic catalo
 admission, preserving history and active workflow evidence. Identity and retained
 name conflicts are rejected; failed admission rolls back recovery and visibility
 without dropping the original namespace. SQLite file locators use reviewed import
-or restore instead. Private legacy conversion uses the existing canon-only archive
-converter, preserves the original source and requires separate reviewed admission;
-it never registers its output automatically or overwrites an existing destination.
-Native PostgreSQL runtime checks now use a compiled second OS process to verify
-that connected writers observe grant withdrawal and revocation without restart,
-competing author draft saves retain one winner with an exact version conflict,
-and separate universe drafts recover byte-for-byte after process restart. Retrying
-the winning save returns the same retained draft without another version.
-PostgreSQL validation recovery also checks termination of a compiled preparation
-peer after its running marker commits. Resumption retains the exact selection
-capture, completes through the native isolate scheduler and preserves the terminal
-result after reopening the store, without advancing canon or creating approval.
-PostgreSQL scheduled validation now holds a connection-owned advisory guard per
-installation/universe/operation across frozen evaluation. Another process reads
-live ownership from the database and skips duplicate scheduling; disconnect
-releases ownership so the original operation can resume. Completion, cancellation
-and failed preparation release the guard without granting publication authority.
-The cross-process regression checks live ownership, skipped competing evaluation,
-termination/resumption and guard cleanup. No heartbeat or authorization cache is
-introduced. See PostgreSQL's [advisory lock semantics](https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS).
-SQLite and PostgreSQL have an author-only durable source
-quiescence primitive. It binds one universe and move operation to another
-installation identity, suspends ordinary source access across connected service
-workers and restart, and retains the source catalog, aliases, grants and universe
-data. Exact retries retain one audit event; changed bindings and self-targets are
-refused. This metadata lives in SQLite's installation database or PostgreSQL
-control schema version 5 and never enters universe exports. Opening older or
-incomplete control layouts refuses them unchanged. Explicit SQLite installation
-conversion adds the move table to the prior normative layout and retains existing
-move bindings and any complete retained move archives; PostgreSQL control
-conversion is still required. The trusted SQLite runtime can stage a complete
-source archive under its exact move operation. Restart revalidates and reuses
-that protected archive without replacing it; failures retain the source guard
-and original data. Functional checks cover SQLite and PostgreSQL target review,
-restart before admission and exact receipt recovery after admission. The trusted
-PostgreSQL runtime commits complete source archives in installation-owned chunks
-of at most 256 KiB, then publishes a verified protected transport copy. Restart
-reuses those exact chunks; failed file publication retains them, and a failed
-stage transaction leaves no partial archive. Missing or changed chunks refuse
-recovery without regenerating the original. Checks cover PostgreSQL-to-SQLite
-admission, retained revision/draft evidence and independent source/target restart.
-The trusted SQLite and PostgreSQL source coordinators retain the exact target
-review and its `reviewed`, `admitting` or `admitted` state. They record the
-admission attempt before calling the target. Restart retains that binding, and
-explicit SQLite installation conversion preserves it for an exact target retry.
-The client receives the operation receipt from
-the authenticated target; the source accepts only an exact match to its retained
-review. Changed reviews and receipts refuse, retries retain one audit
-event per transition, and failed source writes preserve the previous state.
-The original stays suspended and retained after admission. The private author-only
-`stage_move` command takes universe, operation and target-instance IDs, suspends
-the source and retains its complete archive. It returns the verified digest,
-manifest and byte count without accepting a caller filesystem path or returning
-host paths or credentials. Exact retries after restart reuse the retained archive.
-Staging failure leaves the source suspended for recovery with the same binding.
-The author-only `read_move_chunk` command reads retained archive bytes in chunks
-of at most 256 KiB, using that exact universe/operation/target binding and a
-zero-based ordinal. It refuses missing chunks, out-of-range ordinals and changed
-bindings. Reconnects can request the same ordinal; reads never restage the source.
-Clients use the staging byte count to bound reconstruction and verify the complete
-archive digest before target import review. Socket and PostgreSQL regressions
-cover multiple chunks, exact Unicode/source bytes and reconstruction after restart.
-The target's author-only `begin_archive_upload` command binds an upload ID to
-the expected archive digest and byte count (up to 8 GiB). Its progress reports
-allow reconnects to resume at the next ordinal. `write_archive_chunk` retains
-fixed 256 KiB chunks, with the exact remaining length for the final chunk;
-identical retries reuse bytes, while changed metadata/bytes and out-of-order
-writes refuse. Uploads belong to the current author and survive service restart.
-`review_archive_upload` reconstructs the private archive, verifies its expected
-digest and prepares the existing restore/clone review without caller server
-paths. The upload ID becomes the retained preview ID; identical review retries
-preserve the target identity and review digest, and changed names/modes refuse.
-Ordinary `accept_import` still requires that exact review digest before admission.
-Received upload bytes are not an admitted universe. SQLite explicit installation
-conversion preserves partial uploads; ordinary opening refuses older upload-free
-layouts unchanged. PostgreSQL control layout version 6 includes durable uploads;
-older control layouts require explicit conversion rather than startup repair.
-Explicit conversion of older PostgreSQL control layouts remains pending.
-The shared client's `prepareMoveTransfer` uses caller-supplied authenticated
-source and target connections to check target identity/name conflicts, stage,
-stream or resume an upload, and return the target review after recording it at
-the source. Retain its source operation and target upload IDs for an
-explicit retry after reconnecting. It stops before approval; the target still
-requires the existing exact `accept_import` request. Connections need not be
-owned by a service coordinator. `admitMoveTransfer` takes the author's exact
-`accept_import` approval, checks it against the retained source review, records
-the pending attempt, calls the target and records its returned receipt at the
-source. Explicit retries recover an unknown outcome with the same approval;
-completed retries return the retained receipt. Private author commands
-`get_import`, `review_move`, `begin_move_admission` and `record_move_admission`
-expose these existing operations through SQLite and PostgreSQL services.
-The Dart CLI exposes `prepare-move`, `accept-move`, `moves` and `move-status`.
-Preparation authenticates both local installations, checks for universe, name
-and retained-alias conflicts before suspending the source, and returns the exact
-review without admitting it. Use fresh operation/upload IDs for a new move and
-reuse them for recovery. `status` includes the stable `instance_id`; the CLI
-checks the selected target against the source's retained binding before approval.
+or restore instead.
 
 ```text
 universe --installation SOURCE --profile SOURCE_AUTHOR prepare-move UNIVERSE_ID OPERATION_ID UPLOAD_ID 'Target name' --target-installation TARGET --target-profile TARGET_AUTHOR
@@ -1869,7 +1723,7 @@ macOS, including processes, isolates, crash release and a bundled AOT executable
 Windows ownership is not implemented and fails explicitly; Linux and mobile
 platform verification remains pending. Typed workflow storage and atomic compared
 append preserve exact retries and inactive imported authority. Owned package
-recovery verifies retained canonical bodies, source/media bytes, conversion
+recovery verifies retained canonical bodies, source/media bytes,
 provenance and initialization receipts before rebuilding projections. Source and
 media staging metadata remains separate from content-link admission. Service
 authorization still needs its port before an author-facing publication
@@ -2159,7 +2013,7 @@ an execution. Snapshot preview, immutable source/import verification, validation
 storage, exact approval and publication still require the service workflow.
 Exact validation bindings now capture assessment selection/state, submitted
 scope, head, latest proposal key and installation authority. Completed reports
-bind the full execution result; unfinished and legacy reports cannot manufacture
+bind the full execution result; unfinished and incomplete reports cannot manufacture
 a publication binding. Head, proposal, assessment and authority changes make the
 capture stale, while publication re-resolves and compares the exact report.
 Authority sequences retain signed 64-bit precision on native and web targets.
@@ -2243,7 +2097,7 @@ live scheduler reports no active job; committed receipts remain successful after
 a lost response even when a cancellation marker exists. Public status now
 preserves completed retained reports and renders captured pending checks without
 a final binding. Failed/cancelled/interrupted fallback reports mark assessment
-unavailable and use record input; legacy reports cannot manufacture completion.
+unavailable and use record input; incomplete reports cannot manufacture completion.
 Scoped validation responses avoid complete evidence reads and hide failure and
 proposal contents. These responses also work after owned package reopen.
 Native queued validation now retains the principal-bound request and operation
@@ -2616,7 +2470,7 @@ Blocking OS calls run in worker isolates. The fixed service namespace and random
 account references avoid overwriting existing keys; missing keys never regenerate
 on read, and diagnostics expose no key/reference values. The current macOS bridge
 uses the file-based Keychain for unsigned local development, with synchronization
-disabled. It serializes calls while temporarily disabling legacy Keychain
+disabled. It serializes calls while temporarily disabling Keychain
 authentication UI, then restores the prior process setting. Those interaction
 APIs are deprecated by Apple; signed application/helper access still requires
 packaging qualification. Disposable native tests cover settings restart, key
@@ -2703,8 +2557,7 @@ tool. These files are separate from encrypted PostgreSQL settings and universe
 canon. `ub_store/installation.dart` now provides the separate protected SQLite
 installation registry using the normative installation DDL, with current profile
 rows and transactional enrollment/revocation audit entries. New installations
-persist a stable instance identity and retain it across restart; opening a legacy
-registry without that identity refuses it unchanged pending controlled cutover.
+persist a stable instance identity and retain it across restart; opening a registry without that identity refuses it unchanged as incompatible with the current schema.
 `ub_service/local_profiles.dart` supplies author bootstrap, author-controlled profile
 enrollment, exact UTF-8 SHA-256 credential authentication and revocation. Author
 operations recheck current registry authority, and authenticated principals bind
@@ -2902,7 +2755,7 @@ release**. Open a universe, inspect records, enter an entity label, review, and
 save a noncanonical proposal. The engine exits when its parent app closes.
 Fixture data is discarded on exit. The former Rust `xtask package-fixture` and
 `package-release` routes are retired and return the replacement command without
-building or replacing a bundle. Existing legacy bundles are left in place; use
+building or replacing a bundle. Existing bundles are left in place; use
 the Flutter bundle path above for current development.
 
 ## MCP over HTTP
@@ -3075,7 +2928,7 @@ universe --installation /path/to/other-installation --profile OTHER_AUTHOR_PROFI
 
 Machine integrations use closed public tool requests. Approval is a private author command, never an agent-supplied approval field. Commit uses `universe_commit` with the exact proposal reference, base revision, validation run and idempotency key. A revised proposal needs new validation and approval. An expired context must be explicitly reopened.
 
-Source staging returns proposal operations and does not admit source records. UTF-8 bytes are preserved without normalization. Whole-universe backups include source text, immutable history and workflow receipts; installation credentials are excluded. Restore validates a private copy, preserves IDs and refuses an existing destination rather than overwriting it. The native recovery panel and CLI also provide checksummed logical exports, staged restore/clone imports, dependency-closed filtered exports and bounded v0.3 conversion. Retention-safe compaction preserves all immutable history, source assets and workflow receipts; only rebuildable data is collected.
+Source staging returns proposal operations and does not admit source records. UTF-8 bytes are preserved without normalization. Whole-universe backups include source text, immutable history and workflow receipts; installation credentials are excluded. Restore validates a private copy, preserves IDs and refuses an existing destination rather than overwriting it. The native recovery panel and CLI also provide checksummed logical exports, staged restore/clone imports, dependency-closed filtered exports. Retention-safe compaction preserves all immutable history, source assets and workflow receipts; only rebuildable data is collected.
 
 ## Milestone 7–8 development checks
 

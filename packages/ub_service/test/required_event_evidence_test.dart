@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' as p;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart' as rules;
 import 'package:ub_service/candidate_validation.dart';
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'package:ub_service/proposal_authorization.dart';
 import 'package:ub_service/operation_compilation.dart';
 import 'package:ub_service/src/required_evidence_checks.dart';
@@ -277,7 +278,10 @@ List<p.Finding> assess(
 );
 void main() {
   test('record-event compilation preserves the source and admits its exact generated effects', () {
-    final rows = fixture(effect: true);
+    final rows = [
+      ...fixture(effect: true),
+      ...initialUniversePolicyRecords(f.universe, false),
+    ];
     final record =
         rows.singleWhere((r) => r.identity.recordId == f.id(30)).payload
             as EventRecord;
@@ -428,7 +432,10 @@ void main() {
     );
   });
   test('broad policies reach the shared evaluator for occurred events and exact effects', () {
-    final rows = fixture(effect: true);
+    final rows = [
+      ...fixture(effect: true),
+      ...initialUniversePolicyRecords(f.universe, false),
+    ];
     final result = evaluateCandidate(
       candidate: rows,
       base: rows,

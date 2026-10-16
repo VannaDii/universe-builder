@@ -13172,8 +13172,7 @@
         "AssessmentState_v0",
         "AssessmentState_v1",
         "AssessmentState_v2",
-        "AssessmentState_v3",
-        "AssessmentState_v4"
+        "AssessmentState_v3"
       ]
     },
     "AssessmentState_v0": {
@@ -13195,27 +13194,12 @@
       "table": "r_assessment_state_v1",
       "kind": "object",
       "fields": {
-        "kind": {
-          "model": "AssessmentState_v1_kind",
-          "required": true
-        }
-      }
-    },
-    "AssessmentState_v1_kind": {
-      "table": "r_assessment_state_v1_kind",
-      "kind": "string",
-      "const": "unavailable_legacy"
-    },
-    "AssessmentState_v2": {
-      "table": "r_assessment_state_v2",
-      "kind": "object",
-      "fields": {
         "reason": {
           "model": "UnavailableReason",
           "required": true
         },
         "kind": {
-          "model": "AssessmentState_v2_kind",
+          "model": "AssessmentState_v1_kind",
           "required": true
         }
       }
@@ -13229,13 +13213,13 @@
         "failed_or_cancelled_check"
       ]
     },
-    "AssessmentState_v2_kind": {
-      "table": "r_assessment_state_v2_kind",
+    "AssessmentState_v1_kind": {
+      "table": "r_assessment_state_v1_kind",
       "kind": "string",
       "const": "unavailable"
     },
-    "AssessmentState_v3": {
-      "table": "r_assessment_state_v3",
+    "AssessmentState_v2": {
+      "table": "r_assessment_state_v2",
       "kind": "object",
       "fields": {
         "assessment_reference": {
@@ -13243,11 +13227,11 @@
           "required": true
         },
         "reasons": {
-          "model": "AssessmentState_v3_reasons",
+          "model": "AssessmentState_v2_reasons",
           "required": true
         },
         "kind": {
-          "model": "AssessmentState_v3_kind",
+          "model": "AssessmentState_v2_kind",
           "required": true
         }
       }
@@ -13271,8 +13255,8 @@
       "kind": "string",
       "pattern": "^asm_[0-9a-f]{24}$"
     },
-    "AssessmentState_v3_reasons": {
-      "table": "r_assessment_state_v3_reasons",
+    "AssessmentState_v2_reasons": {
+      "table": "r_assessment_state_v2_reasons",
       "kind": "array",
       "item": "StaleReason"
     },
@@ -13288,13 +13272,13 @@
         "evaluator_changed"
       ]
     },
-    "AssessmentState_v3_kind": {
-      "table": "r_assessment_state_v3_kind",
+    "AssessmentState_v2_kind": {
+      "table": "r_assessment_state_v2_kind",
       "kind": "string",
       "const": "stale"
     },
-    "AssessmentState_v4": {
-      "table": "r_assessment_state_v4",
+    "AssessmentState_v3": {
+      "table": "r_assessment_state_v3",
       "kind": "object",
       "fields": {
         "assessment_reference": {
@@ -13302,7 +13286,7 @@
           "required": true
         },
         "selection_generation": {
-          "model": "AssessmentState_v4_selection_generation",
+          "model": "AssessmentState_v3_selection_generation",
           "required": true
         },
         "byte_verification": {
@@ -13314,15 +13298,15 @@
           "required": true
         },
         "inventory_count": {
-          "model": "AssessmentState_v4_inventory_count",
+          "model": "AssessmentState_v3_inventory_count",
           "required": true
         },
         "mapping_count": {
-          "model": "AssessmentState_v4_mapping_count",
+          "model": "AssessmentState_v3_mapping_count",
           "required": true
         },
         "unresolved_count": {
-          "model": "AssessmentState_v4_unresolved_count",
+          "model": "AssessmentState_v3_unresolved_count",
           "required": true
         },
         "inventory_digest": {
@@ -13330,13 +13314,13 @@
           "required": true
         },
         "kind": {
-          "model": "AssessmentState_v4_kind",
+          "model": "AssessmentState_v3_kind",
           "required": true
         }
       }
     },
-    "AssessmentState_v4_selection_generation": {
-      "table": "r_assessment_state_v4_selection_generation",
+    "AssessmentState_v3_selection_generation": {
+      "table": "r_assessment_state_v3_selection_generation",
       "kind": "integer",
       "minimum": 0
     },
@@ -13356,23 +13340,23 @@
         "unresolved"
       ]
     },
-    "AssessmentState_v4_inventory_count": {
-      "table": "r_assessment_state_v4_inventory_count",
+    "AssessmentState_v3_inventory_count": {
+      "table": "r_assessment_state_v3_inventory_count",
       "kind": "integer",
       "minimum": 0
     },
-    "AssessmentState_v4_mapping_count": {
-      "table": "r_assessment_state_v4_mapping_count",
+    "AssessmentState_v3_mapping_count": {
+      "table": "r_assessment_state_v3_mapping_count",
       "kind": "integer",
       "minimum": 0
     },
-    "AssessmentState_v4_unresolved_count": {
-      "table": "r_assessment_state_v4_unresolved_count",
+    "AssessmentState_v3_unresolved_count": {
+      "table": "r_assessment_state_v3_unresolved_count",
       "kind": "integer",
       "minimum": 0
     },
-    "AssessmentState_v4_kind": {
-      "table": "r_assessment_state_v4_kind",
+    "AssessmentState_v3_kind": {
+      "table": "r_assessment_state_v3_kind",
       "kind": "string",
       "const": "bound"
     },

@@ -73,14 +73,13 @@ extension type _WorkRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external JSAny? get associationTarget;
   external String? get expectedRecordVersion;
   external JSAny? get associationOriginalFields;
   external String? get associationOriginal;
 }
 
-SavedWorkForm _decodeWork(_WorkRow row, {bool legacy = false}) {
+SavedWorkForm _decodeWork(_WorkRow row) {
   return SavedWorkForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedWorkForm(
@@ -99,13 +98,7 @@ SavedWorkForm _decodeWork(_WorkRow row, {bool legacy = false}) {
       associations: (decodeBrowserInput(row.associations) as CanonicalArray)
           .items
           .map(WorkAssociationInput.fromWire),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : WorkRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : WorkRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       associationTarget: row.associationTarget == null
@@ -116,13 +109,7 @@ SavedWorkForm _decodeWork(_WorkRow row, {bool legacy = false}) {
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      associationOriginal: legacy
-          ? (row.associationOriginal == null
-                ? null
-                : WorldAssociation.fromWire(
-                    CanonicalValue.parseWireJson(row.associationOriginal!),
-                  ))
-          : row.associationOriginalFields == null
+      associationOriginal: row.associationOriginalFields == null
           ? null
           : WorldAssociation.fromWire(
               decodeBrowserInput(row.associationOriginalFields!),
@@ -193,29 +180,13 @@ final class BrowserWorkFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeWork(
-                    _decodeWork(cursor.value as _WorkRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

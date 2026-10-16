@@ -737,14 +737,6 @@ impl Runtime {
                     Ok(kernel.maintain(collect)?)
                 })?
             }
-            EngineRequest::ConvertLegacy {
-                source,
-                destination,
-            } => {
-                Registry::require_author(&p)?;
-                let root = self.registry.lock().unwrap().root.join("packages");
-                universe_store::kernel::convert_legacy(&source, &destination, &root)?
-            }
             EngineRequest::ExportLogical {
                 universe,
                 destination,

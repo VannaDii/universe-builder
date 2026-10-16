@@ -36,7 +36,7 @@ Use these owners rather than reconstructing behavior from old plans:
 | Typed relational persistence | [schema assembly](../crates/universe-store/src/schema.rs), [codec](../crates/universe-store/src/relational.rs), [normative mapping](decisions/relational-storage/README.md) |
 | Atomic publication and historical reads | [kernel](../crates/universe-store/src/kernel.rs), [workflow storage](../crates/universe-store/src/workflow_storage.rs) |
 | Installation identity and current grants | [registry](../crates/universe-service/src/registry.rs), [local client](../crates/universe-client/src/installation.rs) |
-| Transfer and conversion | [archives](../crates/universe-store/src/archive.rs), [row transfer](../crates/universe-store/src/transfer.rs), [operator procedure](operator-conversion-procedure.md) |
+| Transfer and conversion | [archives](../crates/universe-store/src/archive.rs), [row transfer](../crates/universe-store/src/transfer.rs) |
 | Current UX proposal | [UX redesign](ux-redesign-plan.md), existing universe-ui editors and workflows |
 | Build and distribution | xtask/, scripts/, packaging/, .github/workflows/, [release runbook](release-runbook.md) |
 
@@ -131,43 +131,24 @@ review-method list is empty; scoped policies may require interpretation review
 later. The author explicitly selects qualifying source membership and reviews
 the resulting policy revision before those sources can satisfy new claims.
 Scratch creation publishes an empty custom definition and its selection. Creation
-input recovery retains the choice; older unfinished input retains its previous
-scratch choice without replaying a request.
+input recovery retains the choice. Every universe has a selected root policy;
+every world belongs to a universe and inherits that policy unless an explicit
+scoped deviation applies. A root can be replaced by another defined policy.
+Definitions may start from scratch or clone the built-in Real World policy.
 
-Previously retained rootless snapshots keep their original bodies and digests;
-reading history does not fabricate a past policy selection. Existing-universe
-adoption must publish an explicit root before treating that universe as converted
-to this policy model. New creation and later publications must never leave a
-declared root missing or broken. The typed `define_universe_policy` operation
-now prepares an empty scratch definition or an independent Real World clone,
-optionally selecting it atomically through ordinary reviewed publication. Clone
-source-category versions are allocated privately during preparation and retained
-in the compiled proposal. Selecting a replacement compares the prior root's
-exact version; merely defining an alternative leaves it inactive. The existing
-pack-upgrade operation can select an already defined policy. The shared Flutter
-UI now exposes **Universe policies** per continuity: define scratch or Real World
-replacements, keep them available or select them through Changes, inspect their
-rules in pages, and open the existing rule editor. Unfinished policy input uses
-the existing pack recovery store with explicit policy fields and a separate editor
-slot; older native pack input upgrades without changing its entered values.
-Editing the selected definition updates the root's exact dependency in the same
-compiled proposal. Import, restore, registration and conversion preserve existing
-heads and historical records. Continuity discovery reports `root_policy_defined`
-when unrestricted access can establish it; the library offers **Finish policy
-setup** for a missing root. Synchronous and queued publication validation requires
-the root in the candidate. An author adopts it through the existing Changes flow,
-creating a new revision while earlier snapshots keep their exact records. A
-missing or scoped-out discovery field does not establish policy readiness.
-An empty legacy archive has no represented context with which to open a Changes
-frame. Reusing creation as an explicit initialization action for that case is a
-pending design decision; do not silently create a context or root during import.
+The typed `define_universe_policy` operation prepares a fresh scratch definition
+or independent Real World clone against the current root. It can make the new
+policy available or select it atomically through reviewed Changes. Root replacement
+compares the exact prior selection version. Editing the selected definition updates
+the root dependency in the same proposal. The Flutter Universe policies view exposes
+definition, inspection and replacement. Real World definitions can select existing
+source versions for their initial qualifying-source category; membership does not
+replace anchored evidence or reviews required by the scoped policy.
 
-The policy-definition form can select existing source versions for a Real World
-clone's initial qualifying-source category. The service binds the exact generated
-category version before review. This supports first adoption over already sourced
-claims without creating a temporary scratch root or rewriting their history.
-Selections recover with unfinished form input; scratch definitions do not apply
-them. Membership alone does not satisfy the separate anchored-evidence checks.
+This is unreleased v0 software. The current data shapes are authoritative. There
+are no previous-format converters, schema upgrade paths, rootless adoption flows
+or compatibility exceptions. Current-format backup, restore, import/export and
+backend transfer retain their normal product behavior.
 
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 
@@ -449,7 +430,7 @@ Keep the typed canonical/semantic/workflow model and one domain codec contract. 
 
 The store contract exposes complete semantic transactions: exact historical reads, expected-generation draft save, immutable proposal/validation evidence, exact compared publication, source/media staging, operation recovery, continuity fork/adoption and archive transfer. It does not export a database Connection to application logic.
 
-Port direct SQLite usage in Registry, import preview storage, conversion, credentials and kernel paths. Replacing universe-store alone would leave significant SQLite coupling in the service.
+Port direct SQLite usage in Registry, import preview storage, credentials and kernel paths. Replacing universe-store alone would leave significant SQLite coupling in the service.
 
 Retain one mapping catalog as software metadata. Use it to generate SQLite/PostgreSQL DDL and codec metadata. Ordered children, absent/null/present states, maps, tuples and closed variants must reconstruct the same domain value. Generated row pointers are storage details and never enter domain digests.
 
@@ -461,7 +442,7 @@ Preserve one universe per package, a separate installation catalog and protected
 
 Preserve exclusive writer ownership, safe cold start, owned regular paths, symlink/hardlink refusal where supported, and consistent backup. Adapt permissions/locking to Windows and mobile sandboxes without pretending POSIX modes exist everywhere. No live package on a file-sync/network share becomes supported merely because Flutter can pick its path.
 
-Do not automatically convert old layouts on startup. An incompatible existing installation is preserved and receives an actionable conversion/recovery path.
+Create or open only the current v0 schema. Refuse incompatible storage without rewriting it; do not provide prerelease schema conversion or upgrade paths.
 
 ### 7.3 PostgreSQL within one configured database
 
@@ -571,7 +552,7 @@ Workflow coverage also includes:
 - Authored clock creation/advance/time travel; event corrections/endings; instance initialization; definition refinement; relationship transfers; knowledge establishment.
 - Continuity fork, compare and selected adoption; protected-rule change and invalidation.
 - Registration/rename, retained aliases, grants and limits/expiry, revocation, purge preview and execution, maintenance and shutdown.
-- Source/image staging and retrieval, logical/physical backups, restore, clone, filtered dependency-closed export, import preview/admission and explicit legacy conversion.
+- Source/image staging and retrieval, logical/physical backups, restore, clone, filtered dependency-closed export, import preview/admission.
 
 Keep required product receipts/evidence and functional fixtures. The prohibition on substantiating artifacts does not remove domain evidence used by the application.
 
@@ -656,9 +637,9 @@ SQLite and PostgreSQL are alternative authoritative backends. Initial transfer i
 6. Publish catalog visibility atomically where possible and switch the user's connection explicitly.
 7. Retain the original for recovery. If catalog/target publication fails across instances, preserve the staged complete target and report the recoverable outcome.
 
-If no layout change is necessary, opening an existing normative SQLite package with Dart is an engine replacement, not a fabricated migration. Legacy conversion remains explicit and read-only on the source.
+If no layout change is necessary, opening an existing normative SQLite package with Dart is an engine replacement, not a fabricated migration.
 
-Do not rewrite canonical historical bodies merely to add Real World defaults. Separate authored policy records preserve historical payloads; actual required normalization keeps original digest provenance under the existing conversion rules.
+Do not rewrite canonical historical bodies merely to add Real World defaults. Separate authored policy records preserve historical payloads.
 
 Preserve complete-history export and explicit incomplete/dependency-filtered export behavior. Credentials/installation authority remain outside universe archives. Restore must refuse overwrite, validate a private target and distinguish restoring a backup in the same authority environment from importing historical workflow into a new one.
 
@@ -666,7 +647,7 @@ Current 512 MiB logical archive bounds can obstruct the requested large-data Pos
 
 A large PostgreSQL installation still needs explicit limits, indexed historical access, paging, batch codec reads and bounded validation. The current recursive codec can issue a query per body node; measure representative deep records and historical reads before optimizing. Avoid an assumed universal speedup.
 
-Reuse the standard workload intent: 10,000 entities, 200,000 assertions, 2,000 rules and multiple continuities, along with the relevant real workflows. Its current ignored test includes legacy archive construction, so first reconcile its input with the normative archive before relying on it. Do not count the presence of that test as a current passing result.
+Reuse the standard workload intent: 10,000 entities, 200,000 assertions, 2,000 rules and multiple continuities, along with the relevant real workflows. Its current ignored test includes previous-format archive construction, so first reconcile its input with the normative archive before relying on it. Do not count the presence of that test as a current passing result.
 
 Measure startup, universe provisioning, pinned dossier reads, search/pagination, source staging, validation, publication, restart, backup/export/restore and memory. Track many-universe PostgreSQL catalog/migration overhead and network latency. Select practical target budgets after a representative slice; retain explicit partial output and admission errors.
 
@@ -724,7 +705,7 @@ These are work packages, not time-boxed goals or completion claims. Split large 
 | P05 — Rules and effective objects | P02–P03 | Port supported rule/evidence evaluation, ancestry/applicability, definition/instance distinction, initial values, units and chronology. Reuse Cedar/Pistol/ancestor/exact resource tests. |
 | P06 — Full authoring and recovery workflows | P03–P05 | Drafts, proposals, validation/approval/delegation, effects/knowledge/cardinality, assessments and operation recovery across all record groups. Test stale bindings, competing drafts, cancellation and interrupted responses. |
 | P07 — PostgreSQL complete store | P02–P06 | Control/universe schemas, SQL codec, search, locks, authority coordination and backend capabilities. Run the same meaningful store/service cases against both backends; test two processes, cross-universe isolation and pooled namespace reset. |
-| P08 — Logical transfer and large-data paths | P03, P06–P07 | Streaming SQLite ↔ PostgreSQL transfer, legacy conversion, content/history preservation, backups/restores, schema provisioning/scale checks. Test an interrupted move and retained original/uncertain target recovery. |
+| P08 — Logical transfer and large-data paths | P03, P06–P07 | Streaming SQLite ↔ PostgreSQL transfer, content/history preservation, backups/restores, schema provisioning/scale checks. Test an interrupted move and retained original/uncertain target recovery. |
 | P09 — Service transports, MCP and CLI | P04, P06–P08 | Loopback/HTTPS private commands, stdio/Streamable HTTP MCP, bounded IO, public launcher/operator commands and host config. Test real transport contracts, current rights and lost publication recovery. |
 | P10 — Flutter shell and desktop ordinary journey | P02, P04, P06, P09 | Themes/logo/navigation/connections, minimal record edit, typed unfinished-form recovery and exact Changes flow. Validate keyboard/focus/accessibility and interruption behavior in the changed journey. |
 | P11 — Complete desktop feature UX | P10 | Dossiers, graph/list, chronology, all typed editors, source/image views, continuity/adoption, grants and recovery/maintenance placement. Reuse functional editor semantics; every current capability remains reachable. |

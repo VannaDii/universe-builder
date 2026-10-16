@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' as protocol;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart' as rules;
 import 'package:ub_service/candidate_validation.dart';
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'package:ub_service/proposal_authorization.dart';
 import 'package:ub_service/resource_checks.dart';
 import 'package:ub_store/ub_store.dart' show Assignment;
@@ -24,6 +25,9 @@ List<RecordVersion> fixture() => [
   ...boundaries.fixture().take(4),
   structure.context(99),
 ];
+final _fixtureRoot = initialUniversePolicyRecords(f.frame().universe, false);
+List<RecordVersion> rootedFixture(List<RecordVersion> rows) =>
+    rows.any(isUniversePolicyRecord) ? rows : [...rows, ..._fixtureRoot];
 CandidateValidationResult check(
   List<RecordVersion> rows, {
   List<RecordVersion>? base,
@@ -31,13 +35,11 @@ CandidateValidationResult check(
   Frame? frame,
   WriteFootprint? footprint,
   bool authorOrigin = true,
-  bool requireRootPolicy = false,
   ProfileId? approvalAuthor,
   void Function()? cancelled,
 }) => evaluateCandidate(
-  candidate: rows,
-  requireRootPolicy: requireRootPolicy,
-  base: base ?? rows,
+  candidate: rootedFixture(rows),
+  base: rootedFixture(base ?? rows),
   changes: changes,
   frame: frame ?? f.frame(),
   digest: digest,
@@ -437,7 +439,7 @@ void main() {
   test(
     'cancellation propagates at each phase without returning an execution',
     () {
-      final rows = fixture();
+      final rows = rootedFixture(fixture());
       final stopped = StateError('cancelled');
       for (final stopAt in [
         1,

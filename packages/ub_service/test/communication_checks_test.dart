@@ -61,7 +61,7 @@ List<Finding> assess(CommunicationRecord c, {RuleRecord? rule}) =>
     ]);
 
 void main() {
-  test('legacy messages have no implied channel policy', () {
+  test('unqualified messages have no implied channel policy', () {
     expect(
       assessCommunicationChronology([fixtures.row(5, message())]),
       isEmpty,

@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/installation.dart' show protectedFile;
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -102,24 +101,6 @@ UnfinishedRelationForm cleared(UnfinishedRelationForm form) =>
           ),
       ]),
     );
-void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
-  protectedFile(path, createNew: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE relation_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, g, text) in entries) {
-      db.execute('INSERT INTO relation_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        g.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
 
 void main() {
   test('typed relation recovery retains ordered incomplete roles, participant lists and original definitions after restart', () {
@@ -163,118 +144,6 @@ void main() {
       }
     } finally {
       store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('relation conversion preserves profiles, optional states and generations while removing replaced input rows', () {
-    final root = Directory('/tmp').createTempSync('ub-relation-conversion-');
-    final path = '${root.path}/forms.sqlite', s = scope(), second = scope();
-    final form = input(s), other = input(second, editing: false);
-    legacy(path, [
-      (s, BigInt.from(19), form.toWire().toText()),
-      (second, maxU64, other.toWire().toText()),
-    ]);
-    var store = RelationFormRecoveryStore.open(path);
-    final competing = RelationFormRecoveryStore.open(path);
-    try {
-      expect(store.load(s)!.form.toWire().toText(), form.toWire().toText());
-      expect(
-        store.load(second)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      final changed = cleared(form);
-      expect(
-        store.save(s, changed, BigInt.from(19)).generation,
-        BigInt.from(20),
-      );
-      expect(
-        store.save(s, changed, BigInt.from(19)).generation,
-        BigInt.from(20),
-      );
-      expect(
-        () => competing.save(s, form, BigInt.from(19)),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.conflict,
-          ),
-        ),
-      );
-      expect(
-        () => store.save(second, other, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-      store.close();
-      store = RelationFormRecoveryStore.open(path);
-      expect(store.load(s)!.form.toWire().toText(), changed.toWire().toText());
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 2);
-        for (final table in ['label', 'role', 'participant']) {
-          expect(
-            db.select(
-              "SELECT count(*) AS n FROM relation_$table WHERE profile=? AND list_kind='input'",
-              [s.profile.value],
-            ).single['n'],
-            0,
-          );
-        }
-        expect(
-          db.select(
-            "SELECT count(*) AS n FROM relation_role WHERE profile=? AND list_kind='original'",
-            [s.profile.value],
-          ).single['n'],
-          form.original!.roles.length,
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
-      competing.close();
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('failed relation conversion rolls back every typed child and retains original unfinished input', () {
-    final root = Directory('/tmp').createTempSync('ub-relation-rollback-');
-    final path = '${root.path}/forms.sqlite',
-        s = scope(),
-        second = scope(),
-        text = input(s).toWire().toText();
-    legacy(path, [(s, BigInt.one, text), (second, BigInt.two, '{unfinished')]);
-    try {
-      expect(
-        () => RelationFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 1);
-        expect(
-          db
-              .select(
-                'SELECT form_input FROM relation_form ORDER BY generation',
-              )
-              .map((r) => r['form_input']),
-          [text, '{unfinished'],
-        );
-        expect(
-          db
-              .select("SELECT name FROM sqlite_master WHERE type='table'")
-              .map((r) => r['name']),
-          ['relation_form'],
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
       root.deleteSync(recursive: true);
     }
   });

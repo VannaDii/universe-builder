@@ -133,8 +133,7 @@ final class CanonicalObject extends CanonicalValue {
   }
 }
 
-/// Normative digest discriminator is the record kind. Legacy import prefixes
-/// are explicit inputs only when reconstructing retained historical digests.
+/// Canonical payload hash with an explicit domain discriminator.
 String payloadDigest(String discriminator, CanonicalValue value) => sha256
     .convert([...utf8.encode('$discriminator:'), ...value.toBytes()])
     .toString();

@@ -33,7 +33,7 @@ extension type _CreationRow._(JSObject _) implements JSObject {
   external String get tickLabel;
   external String get ticksPerMonth;
   external bool get creationPending;
-  external bool? get realWorld;
+  external bool get realWorld;
 }
 
 /// Named fields retain unfinished universe creation, including an unknown attempt.
@@ -114,7 +114,7 @@ final class BrowserUniverseCreationFormRecoveryStore {
         tickLabel: row.tickLabel,
         ticksPerMonth: row.ticksPerMonth,
         creationPending: row.creationPending,
-        realWorld: row.realWorld ?? false,
+        realWorld: row.realWorld,
       ),
     );
   }

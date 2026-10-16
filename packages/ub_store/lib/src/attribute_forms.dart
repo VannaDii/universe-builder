@@ -12,10 +12,6 @@ import 'recovery_domain_rows.dart';
 import 'recovery_value_inputs.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _v1Columns = '$_keys,generation,base_revision,draft_version,value_input';
-const _v2Columns = '$_v1Columns,evidence_input';
-const _v3Columns = '$_v2Columns,creation_input';
-const _v4Columns = '$_v3Columns,roles_input';
 const _fields =
     'generation,base_revision,draft_version,value_root,roles_present,creation_operation,creation_property_record,creation_property_universe,creation_subject_record,creation_subject_version,creation_subject_universe,creation_relationship';
 const _evidenceFields =
@@ -99,73 +95,6 @@ final class AttributeFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version < 5) {
-          if (version == 1) {
-            db.execute(
-              'ALTER TABLE attribute_form ADD COLUMN evidence_input TEXT',
-            );
-          }
-          if (version < 3) {
-            db.execute(
-              'ALTER TABLE attribute_form ADD COLUMN creation_input TEXT',
-            );
-          }
-          if (version < 4) {
-            db.execute(
-              'ALTER TABLE attribute_form ADD COLUMN roles_input TEXT',
-            );
-          }
-          db.execute(
-            'ALTER TABLE attribute_form RENAME TO legacy_attribute_form',
-          );
-          db.execute(_schema);
-          final store = AttributeFormRecoveryStore._(db);
-          for (final r in db.select(
-            'SELECT ${_projection(_v4Columns)} FROM legacy_attribute_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(r, 'instance')),
-              profile: ProfileId.parse(_text(r, 'profile')),
-              universe: UniverseId.parse(_text(r, 'universe')),
-              continuity: ContinuityId.parse(_text(r, 'continuity')),
-              representedContext: RecordId.parse(_text(r, 'context')),
-              attributeClientRef: _text(r, 'editor_key'),
-            );
-            final form = UnfinishedAttributeForm(
-              baseRevision: RevisionId.parse(_text(r, 'base_revision')),
-              representedContext: scope.representedContext!,
-              clientRef: scope.attributeClientRef!,
-              draftVersion: BigInt.parse(_text(r, 'draft_version')),
-              value: QualifierInput.fromWire(
-                CanonicalValue.parseWireJson(_text(r, 'value_input')),
-              ),
-              evidenceInput: r['evidence_input'] == null
-                  ? null
-                  : AttributeEvidenceInput.fromWire(
-                      CanonicalValue.parseWireJson(_text(r, 'evidence_input')),
-                    ),
-              creationInput: r['creation_input'] == null
-                  ? null
-                  : AttributeCreationInput.fromWire(
-                      CanonicalValue.parseWireJson(_text(r, 'creation_input')),
-                    ),
-              roles: r['roles_input'] == null
-                  ? null
-                  : (CanonicalValue.parseWireJson(_text(r, 'roles_input'))
-                            as CanonicalArray)
-                        .items
-                        .map(PropositionRoleInput.fromWire),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedAttributeForm(
-                generation: BigInt.parse(_text(r, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_attribute_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -195,17 +124,6 @@ final class AttributeFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacyColumns = switch (version) {
-      1 => _v1Columns,
-      2 => _v2Columns,
-      3 => _v3Columns,
-      4 => _v4Columns,
-      _ => null,
-    };
-    final legacy =
-        legacyColumns != null &&
-        tables.length == 1 &&
-        columns('attribute_form') == legacyColumns;
     final expected = {
       'attribute_form': '$_keys,$_fields',
       'attribute_evidence': '$_keys,$_evidenceFields',
@@ -219,7 +137,7 @@ final class AttributeFormRecoveryStore {
         tables.length == expected.length + _domains.statements.length &&
         expected.entries.every((e) => columns(e.key) == e.value) &&
         _domains.matches(db);
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

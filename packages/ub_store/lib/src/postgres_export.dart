@@ -194,7 +194,6 @@ final class PostgresLogicalExport {
           budget();
         }
         await copy('historical_workflow');
-        await copy('import_workflow_digest');
         db.execute('COMMIT');
       } on Object {
         if (!db.autocommit) db.execute('ROLLBACK');

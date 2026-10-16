@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/src/ownership.dart';
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -201,25 +200,6 @@ UnfinishedEventForm input(EditorFormScope s) {
   );
 }
 
-void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
-  protectedFile(path, create: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE event_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, g, text) in entries) {
-      db.execute('INSERT INTO event_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        g.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
-
 void main() {
   test('typed event recovery preserves incomplete effects, recursive preconditions, original operands and exact record metadata', () {
     final root = Directory('/tmp').createTempSync('ub-typed-event-'),
@@ -295,98 +275,6 @@ void main() {
       }
     } finally {
       store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('event conversion preserves isolated forms and generations with conflicting save and exhaustion handling', () {
-    final root = Directory('/tmp').createTempSync('ub-event-conversion-'),
-        s = scope(),
-        second = scope();
-    final path = '${root.path}/forms.sqlite',
-        form = input(s),
-        other = input(second);
-    legacy(path, [
-      (s, BigInt.from(19), form.toWire().toText()),
-      (second, maxU64, other.toWire().toText()),
-    ]);
-    final store = EventFormRecoveryStore.open(path),
-        competing = EventFormRecoveryStore.open(path);
-    try {
-      expect(store.load(s)!.form.toWire().toText(), form.toWire().toText());
-      expect(
-        store.load(second)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      final changed = UnfinishedEventForm.fromWire(
-        CanonicalObject(
-          form.toWire().fields.map(
-            (e) => MapEntry(
-              e.key,
-              e.key == 'rationale' ? CanonicalString('changed') : e.value,
-            ),
-          ),
-        ),
-      );
-      expect(
-        store.save(s, changed, BigInt.from(19)).generation,
-        BigInt.from(20),
-      );
-      expect(
-        () => competing.save(s, form, BigInt.from(19)),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.conflict,
-          ),
-        ),
-      );
-      expect(
-        () => store.save(second, other, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-    } finally {
-      competing.close();
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('failed event conversion rolls back all typed inputs and retains legacy forms', () {
-    final root = Directory('/tmp').createTempSync('ub-event-rollback-'),
-        s = scope(),
-        second = scope();
-    final path = '${root.path}/forms.sqlite', text = input(s).toWire().toText();
-    legacy(path, [(s, BigInt.one, text), (second, BigInt.two, '{unfinished')]);
-    try {
-      expect(
-        () => EventFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 1);
-        expect(
-          db
-              .select('SELECT form_input FROM event_form ORDER BY generation')
-              .map((r) => r['form_input']),
-          [text, '{unfinished'],
-        );
-        expect(
-          db
-              .select("SELECT name FROM sqlite_master WHERE type='table'")
-              .map((r) => r['name']),
-          ['event_form'],
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
       root.deleteSync(recursive: true);
     }
   });

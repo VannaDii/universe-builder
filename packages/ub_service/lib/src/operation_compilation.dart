@@ -740,9 +740,7 @@ List<Assignment> compileAllocatedOperations({
       }
       final chronology = old.chronology;
       if (chronology == null) {
-        throw _invalid(
-          'this legacy context needs an authored starting chronology',
-        );
+        throw _invalid('this context needs an authored starting chronology');
       }
       Chronology next;
       try {

@@ -549,22 +549,16 @@ impl Workflow<'_> {
     fn report(
         p: &StoredProposal,
         execution: Validation,
-        legacy: bool,
         finished: bool,
     ) -> ValidationV3 {
         if execution.coverage == Coverage::Restricted {
             return ValidationV3::restricted();
         }
-        // Compatibility for legacy/pending evidence and the existing unselected
-        // record evidence. Completed validation uses its captured selection.
+        // Pending record evidence has no captured source assessment.
         let proposal = validation_binding::proposal_reference(p);
         let submitted_input = validation_binding::record_input(p);
-        let assessment = if legacy {
-            AssessmentState::UnavailableLegacy {}
-        } else {
-            AssessmentState::Absent {}
-        };
-        let final_binding_digest = if finished && !legacy {
+        let assessment = AssessmentState::Absent {};
+        let final_binding_digest = if finished {
             use universe_protocol::assessment::*;
             Some(
                 SourceValidationBindingV1 {
@@ -624,7 +618,6 @@ impl Workflow<'_> {
                         None => Self::report(
                             &p,
                             *execution.clone(),
-                            execution.evaluator_version != EVALUATOR,
                             false,
                         ),
                     };

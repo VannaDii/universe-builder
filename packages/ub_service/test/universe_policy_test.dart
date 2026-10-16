@@ -59,68 +59,77 @@ RecordVersion selectPolicy(RecordVersion selection, RecordVersion definition) {
   );
 }
 
+List<RecordVersion> applyChanges(
+  List<RecordVersion> base,
+  List<Assignment> changes,
+) {
+  final replaced = changes.map((c) => c.recordId).toSet();
+  return [
+    for (final row in base)
+      if (!replaced.contains(row.identity.recordId)) row,
+    ...changes.map(operations.decode),
+  ];
+}
+
 void main() {
   final universe = candidate.fixture().first.identity.universeId;
-  test('first Real World adoption uses explicit sources without rewriting historical claims', () {
-    final legacy = evidence.fixture();
-    List<Assignment> define(List<RecordId> members) =>
-        operations.compile(legacy, [
-          DefineUniversePolicyOperation(
-            clientRef: RecordId.generate().value,
-            key: 'Memoir root',
-            realWorld: true,
-            activate: true,
-            sourceCategoryMembers: members,
-          ),
-        ]);
-    final empty = define([]);
-    expect(
-      candidate
-          .check(
-            [...legacy, ...empty.map(operations.decode)],
-            base: legacy,
-            changes: empty,
-            requireRootPolicy: true,
-          )
-          .admissible,
-      isFalse,
-    );
-    final chosen = define([f.id(12)]);
-    final adopted = [...legacy, ...chosen.map(operations.decode)];
-    final policy = UniversePolicySelection.fromRecords(universe, adopted);
-    final requirement =
-        (policy.rules.single.payload as RuleRecord).requiredEvidence!;
-    expect(requirement.reviewMethods, isEmpty);
-    final pin = requirement.sourceCategories.single;
-    final category = adopted.singleWhere(
-      (r) => r.recordVersionId == pin.version,
-    );
-    expect((category.payload as DomainPackRecord).records, [f.id(12)]);
-    expect(
-      candidate
-          .check(
-            adopted,
-            base: legacy,
-            changes: chosen,
-            requireRootPolicy: true,
-          )
-          .admissible,
-      isTrue,
-    );
-    expect(
-      adopted.take(legacy.length).map((r) => r.toWire().toText()),
-      legacy.map((r) => r.toWire().toText()),
-    );
-  });
+  test(
+    'Real World replacement uses explicit sources without rewriting claims',
+    () {
+      final base = [
+        ...evidence.fixture(),
+        ...initialUniversePolicyRecords(universe, false),
+      ];
+      List<Assignment> define(List<RecordId> members) =>
+          operations.compile(base, [
+            DefineUniversePolicyOperation(
+              clientRef: RecordId.generate().value,
+              key: 'Memoir root',
+              realWorld: true,
+              activate: true,
+              expectedRootVersion: UniversePolicySelection.fromRecords(
+                universe,
+                base,
+              ).selection.recordVersionId,
+              sourceCategoryMembers: members,
+            ),
+          ]);
+      final empty = define([]);
+      expect(
+        candidate
+            .check(applyChanges(base, empty), base: base, changes: empty)
+            .admissible,
+        isFalse,
+      );
+      final chosen = define([f.id(12)]);
+      final adopted = applyChanges(base, chosen);
+      final policy = UniversePolicySelection.fromRecords(universe, adopted);
+      final requirement =
+          (policy.rules.single.payload as RuleRecord).requiredEvidence!;
+      expect(requirement.reviewMethods, isEmpty);
+      final pin = requirement.sourceCategories.single;
+      final category = adopted.singleWhere(
+        (r) => r.recordVersionId == pin.version,
+      );
+      expect((category.payload as DomainPackRecord).records, [f.id(12)]);
+      expect(
+        candidate.check(adopted, base: base, changes: chosen).admissible,
+        isTrue,
+      );
+    },
+  );
   test('policy source selection rejects missing, non-source, duplicate and scratch members', () {
-    final legacy = evidence.fixture();
+    final base = [
+      ...evidence.fixture(),
+      ...initialUniversePolicyRecords(universe, false),
+    ];
     for (final members in [
       [f.id(1)],
       [RecordId.generate()],
       [f.id(12), f.id(12)],
     ]) {
       expect(
-        () => operations.compile(legacy, [
+        () => operations.compile(base, [
           DefineUniversePolicyOperation(
             clientRef: RecordId.generate().value,
             key: 'Real World',
@@ -133,7 +142,7 @@ void main() {
       );
     }
     expect(
-      () => operations.compile(legacy, [
+      () => operations.compile(base, [
         DefineUniversePolicyOperation(
           clientRef: RecordId.generate().value,
           key: 'Scratch',
@@ -143,38 +152,6 @@ void main() {
         ),
       ]),
       throwsA(isA<protocol.InvalidArgumentError>()),
-    );
-  });
-  test('legacy analysis stays readable but publication requires explicit root adoption', () {
-    final legacy = candidate.fixture();
-    expect(candidate.check(legacy).admissible, isTrue);
-    expect(
-      () => candidate.check(legacy, requireRootPolicy: true),
-      throwsA(isA<protocol.InvalidArgumentError>()),
-    );
-    final changes = operations.compile(legacy, [
-      DefineUniversePolicyOperation(
-        clientRef: RecordId.generate().value,
-        key: 'Adopted policy',
-        realWorld: false,
-        activate: true,
-      ),
-    ]);
-    final adopted = [...legacy, ...changes.map(operations.decode)];
-    expect(
-      candidate
-          .check(
-            adopted,
-            base: legacy,
-            changes: changes,
-            requireRootPolicy: true,
-          )
-          .admissible,
-      isTrue,
-    );
-    expect(
-      adopted.take(legacy.length).map((r) => r.toWire().toText()),
-      legacy.map((r) => r.toWire().toText()),
     );
   });
   for (final realWorld in [false, true]) {
@@ -211,8 +188,8 @@ void main() {
     final base = [...candidate.fixture(), ...root];
     expect(candidate.check(base).admissible, isTrue);
     expect(
-      () => candidate.check(candidate.fixture(), base: base),
-      throwsA(isA<protocol.InvalidArgumentError>()),
+      () => UniversePolicySelection.fromRecords(universe, candidate.fixture()),
+      throwsFormatException,
     );
   });
 
@@ -299,9 +276,11 @@ void main() {
     expect(refs, hasLength(2));
   });
 
-  test('root definition rejects stale selection, duplicate names and rootless availability', () {
-    final legacy = candidate.fixture();
-    final base = [...legacy, ...initialUniversePolicyRecords(universe, false)];
+  test('root definition rejects stale selection and duplicate names', () {
+    final base = [
+      ...candidate.fixture(),
+      ...initialUniversePolicyRecords(universe, false),
+    ];
     DefineUniversePolicyOperation define(String key, {bool activate = true}) =>
         DefineUniversePolicyOperation(
           clientRef: RecordId.generate().value,
@@ -316,18 +295,6 @@ void main() {
     expect(
       () => operations.compile(base, [define('custom', activate: false)]),
       throwsA(isA<protocol.InvalidArgumentError>()),
-    );
-    expect(
-      () => operations.compile(legacy, [define('first', activate: false)]),
-      throwsA(isA<protocol.InvalidArgumentError>()),
-    );
-    final adopted = operations.compile(legacy, [define('first')]);
-    expect(
-      UniversePolicySelection.fromRecords(universe, [
-        ...legacy,
-        ...adopted.map(operations.decode),
-      ]).rules,
-      isEmpty,
     );
   });
 

@@ -75,7 +75,6 @@ extension type _ContextRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external _OriginalContextFields? get originalFields;
-  external String? get original;
 }
 
 @JS()
@@ -133,10 +132,7 @@ RepresentedContextRecord? _decodeOriginal(_OriginalContextFields? value) =>
         ),
       );
 
-SavedRepresentedContextForm _decodeContext(
-  _ContextRow row, {
-  bool legacy = false,
-}) {
+SavedRepresentedContextForm _decodeContext(_ContextRow row) {
   return SavedRepresentedContextForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedRepresentedContextForm(
@@ -155,13 +151,7 @@ SavedRepresentedContextForm _decodeContext(
       labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
         PropertyLabelInput.fromWire,
       ),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : RepresentedContextRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : _decodeOriginal(row.originalFields),
+      original: _decodeOriginal(row.originalFields),
       rationale: row.rationale,
       draftVersion: row.draftVersion == null
           ? null
@@ -217,29 +207,13 @@ final class BrowserRepresentedContextFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeContext(
-                    _decodeContext(cursor.value as _ContextRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

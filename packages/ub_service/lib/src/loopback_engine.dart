@@ -781,7 +781,6 @@ final class LoopbackEngineServer {
           if (browser &&
               (call.request is BackupEngineRequest ||
                   call.request is RestoreEngineRequest ||
-                  call.request is ConvertLegacyEngineRequest ||
                   call.request is ExportLogicalEngineRequest ||
                   call.request is PreviewImportEngineRequest ||
                   call.request is RegisterUniverseEngineRequest ||

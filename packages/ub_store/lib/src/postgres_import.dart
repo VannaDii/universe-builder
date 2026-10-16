@@ -199,6 +199,5 @@ final class PostgresLogicalImport {
       keys.close();
     }
     await copyTable('historical_workflow');
-    await copyTable('import_workflow_digest');
   }
 }

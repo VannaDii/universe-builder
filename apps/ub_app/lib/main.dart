@@ -1687,13 +1687,6 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                             if (id != null) _chooseContext(continuity, id);
                           },
                   ),
-                if (continuity.rootPolicyDefined == false) ...[
-                  const Text('Finish policy setup: this older continuity has no root policy. Its history remains readable; publication requires an explicitly defined and selected root.'),
-                  if (_session!.author && _contexts.containsKey(continuity.id))
-                    TextButton(onPressed: _busy ? null
-                      : () => _openStarterEditor(context, continuity, 'policies'),
-                      child: const Text('Define and select root policy')),
-                ],
                 if (_contexts.containsKey(continuity.id))
                   GettingStartedGuide(
                     key: ValueKey('start:${continuity.id.value}:${_contexts[continuity.id]?.value}'),

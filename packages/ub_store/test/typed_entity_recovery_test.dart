@@ -9,8 +9,6 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
 
-import 'entity_legacy_fixture.dart';
-
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope({
   String? client,
@@ -139,111 +137,5 @@ void main() {
       root.deleteSync(recursive: true);
     }
   });
-  test('version eight preserves creation, draft, name, classification and operation edit slots', () {
-    final root = Directory('/tmp').createTempSync('ub-entity-slots-');
-    final path = '${root.path}/entity.sqlite';
-    final scopes = [
-      scope(),
-      scope(client: 'name:rec_literal'),
-      scope(name: RecordId.generate()),
-      scope(classification: RecordId.generate(), index: 0),
-      scope(name: RecordId.generate(), index: 12),
-    ];
-    final entries = [for (final s in scopes) (s, input(s), maxU64)];
-    writeLegacyEntityForms(path, 8, entries);
-    final store = EntityFormRecoveryStore.open(path);
-    try {
-      for (final (s, f, g) in entries) {
-        expect(store.load(s)!.generation, g);
-        expect(store.load(s)!.form.toWire().toText(), f.toWire().toText());
-        expect(
-          () => store.save(s, f, g),
-          throwsA(
-            isA<EditorRecoveryException>().having(
-              (e) => e.failure,
-              'failure',
-              EditorRecoveryFailure.generationExhausted,
-            ),
-          ),
-        );
-      }
-    } finally {
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  for (var version = 1; version <= 8; version++) {
-    test(
-      'version $version rolls back all migrated rows on invalid generation',
-      () {
-        final root = Directory('/tmp').createTempSync('ub-entity-rollback-');
-        final path = '${root.path}/entity.sqlite', a = scope(), b = scope();
-        writeLegacyEntityForms(path, version, [
-          (a, input(a), BigInt.one),
-          (b, input(b), maxU64 + BigInt.one),
-        ]);
-        try {
-          expect(
-            () => EntityFormRecoveryStore.open(path),
-            throwsA(isA<EditorRecoveryException>()),
-          );
-          final db = sqlite3.open(path, mode: OpenMode.readOnly);
-          try {
-            expect(
-              db.select('PRAGMA user_version').single.values.single,
-              version,
-            );
-            expect(
-              db.select('SELECT count(*) n FROM entity_form').single['n'],
-              2,
-            );
-            expect(
-              db
-                  .select("SELECT name FROM sqlite_master WHERE type='table'")
-                  .length,
-              version >= 3 ? 3 : 2,
-            );
-            if (version >= 7) {
-              expect(
-                db
-                    .select('SELECT name_input FROM entity_form')
-                    .first['name_input'],
-                isNotNull,
-              );
-            }
-          } finally {
-            db.close();
-          }
-        } finally {
-          root.deleteSync(recursive: true);
-        }
-      },
-    );
-  }
-  test('malformed legacy name input leaves version eight intact', () {
-    final root = Directory('/tmp').createTempSync('ub-entity-malformed-');
-    final path = '${root.path}/entity.sqlite', s = scope();
-    writeLegacyEntityForms(path, 8, [(s, input(s), BigInt.one)]);
-    final db = sqlite3.open(path);
-    db.execute("UPDATE entity_form SET name_input='{unfinished'");
-    db.close();
-    try {
-      expect(
-        () => EntityFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final old = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(old.select('PRAGMA user_version').single.values.single, 8);
-        expect(
-          old.select('SELECT name_input FROM entity_form').single['name_input'],
-          '{unfinished',
-        );
-      } finally {
-        old.close();
-      }
-    } finally {
-      root.deleteSync(recursive: true);
-    }
-  });
+  for (var version = 1; version <= 8; version++) {}
 }

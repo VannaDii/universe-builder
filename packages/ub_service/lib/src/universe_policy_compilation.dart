@@ -48,14 +48,9 @@ List<Assignment> compileUniversePolicy({
   )) {
     throw invalid('A policy with this name already exists');
   }
-  final previous = base.any(isUniversePolicyRecord)
-      ? UniversePolicySelection.fromRecords(universe, base)
-      : null;
-  if (!operation.activate && previous == null) {
-    throw invalid('The first defined policy must be selected as the root');
-  }
+  final previous = UniversePolicySelection.fromRecords(universe, base);
   if ((operation.activate &&
-          previous?.selection.recordVersionId !=
+          previous.selection.recordVersionId !=
               operation.expectedRootVersion) ||
       (!operation.activate && operation.expectedRootVersion != null)) {
     throw invalid('Root policy version changed; reopen the current root');
@@ -84,7 +79,7 @@ List<Assignment> compileUniversePolicy({
     changes.add(Assignment(recordId: row.identity.recordId, next: stored(row)));
   }
   if (operation.activate) {
-    final root = previous?.selection ?? defined.selection;
+    final root = previous.selection;
     final selectionVersion = RecordVersionId.generate();
     final selection = RecordVersion.build(
       recordVersionId: selectionVersion,
@@ -100,7 +95,7 @@ List<Assignment> compileUniversePolicy({
     changes.add(
       Assignment(
         recordId: root.identity.recordId,
-        expected: previous?.selection.recordVersionId,
+        expected: previous.selection.recordVersionId,
         next: stored(selection),
       ),
     );
@@ -116,15 +111,14 @@ void synchronizeUniversePolicySelection({
   required List<Assignment> changes,
 }) {
   if (!changes.any((change) {
-        final payload = change.next?.payload;
-        if (payload == null) {
-          return false;
-        }
-        final record = RecordPayload.fromWire(payload);
-        return record is DomainPackRecord &&
-            record.key.startsWith(universePolicyDefinitionPrefix);
-      }) ||
-      !base.any(isUniversePolicyRecord)) {
+    final payload = change.next?.payload;
+    if (payload == null) {
+      return false;
+    }
+    final record = RecordPayload.fromWire(payload);
+    return record is DomainPackRecord &&
+        record.key.startsWith(universePolicyDefinitionPrefix);
+  })) {
     return;
   }
   final selected = UniversePolicySelection.fromRecords(universe, base);

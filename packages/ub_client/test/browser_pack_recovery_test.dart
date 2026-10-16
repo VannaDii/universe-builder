@@ -11,6 +11,55 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 void main() {
+  test('Real World source selections recover exactly and round-trip as an operation', () async {
+    final name = 'ub-policy-sources-${OperationId.generate().value}';
+    final s = EditorFormScope(
+      instance: OperationId.generate(),
+      profile: ProfileId.generate(),
+      universe: UniverseId.generate(),
+      continuity: ContinuityId.generate(),
+      representedContext: RecordId.generate(),
+    );
+    final members = [RecordId.generate(), RecordId.generate()];
+    final f = UnfinishedPackForm(
+      baseRevision: RevisionId.generate(),
+      representedContext: s.representedContext!,
+      clientRef: RecordId.generate().value,
+      key: 'Memoir 記憶',
+      realWorldPolicy: true,
+      activatePolicy: true,
+      records: members.map((id) => id.value),
+    );
+    var store = await BrowserPackFormRecoveryStore.open(databaseName: name);
+    try {
+      await store.save(s, f, BigInt.zero);
+      store.close();
+      store = await BrowserPackFormRecoveryStore.open(databaseName: name);
+      final recovered = (await store.load(s))!.form;
+      expect(recovered.toWire().toText(), f.toWire().toText());
+      final operation = DefineUniversePolicyOperation(
+        clientRef: recovered.clientRef,
+        key: recovered.key,
+        realWorld: recovered.realWorldPolicy!,
+        activate: recovered.activatePolicy,
+        sourceCategoryMembers: recovered.records.map(RecordId.parse),
+      );
+      final restored = DomainOperation.fromWire(
+        operation.toWire(),
+      ) as DefineUniversePolicyOperation;
+      expect(restored.sourceCategoryMembers, members);
+    } finally {
+      store.close();
+      final done = Completer<void>();
+      final request = web.window.indexedDB.deleteDatabase(name);
+      request.onsuccess = ((web.Event _) => done.complete()).toJS;
+      request.onerror = ((web.Event _) => done.completeError(
+        StateError('Cleanup failed'),
+      )).toJS;
+      await done.future;
+    }
+  });
+
   test('browser packs retain exact dependencies, ordered members and upgrade references through refresh', () async {
     final name = 'ub-pack-test-${OperationId.generate().value}';
     var store = await BrowserPackFormRecoveryStore.open(databaseName: name);

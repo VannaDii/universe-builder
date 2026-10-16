@@ -311,9 +311,8 @@ _SourceRow _encodeSource(SavedSourceForm saved) {
 
 SavedSourceForm _decodeSource(
   _SourceRow row,
-  Iterable<DomainOperation> operations, {
-  bool legacy = false,
-}) => SavedSourceForm(
+  Iterable<DomainOperation> operations,
+) => SavedSourceForm(
   generation: BigInt.parse(row.generation),
   form: UnfinishedSourceForm(
     baseRevision: RevisionId.parse(row.baseRevision),
@@ -326,13 +325,7 @@ SavedSourceForm _decodeSource(
         ? null
         : BigInt.parse(row.draftVersion!),
     staged: operations,
-    anchorSource: legacy
-        ? (row.anchorSource == null
-              ? null
-              : VersionRef.fromCanonical(
-                  CanonicalValue.parseWireJson(row.anchorSource!),
-                ))
-        : row.anchorRecord == null
+    anchorSource: row.anchorRecord == null
         ? null
         : VersionRef(
             record: RecordId.parse(row.anchorRecord!),
@@ -368,45 +361,13 @@ final class BrowserSourceFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final name in _tables) {
-              db.createObjectStore(name);
-            }
-          } else {
-            void migrate(String table, JSAny Function(JSAny) convert) {
-              final scan = tx.objectStore(table).openCursor();
-              scan.onsuccess = ((web.Event _) {
-                try {
-                  if (scan.result == null || scan.result.isUndefined) return;
-                  final cursor = scan.result as web.IDBCursorWithValue;
-                  cursor.update(convert(cursor.value!));
-                  cursor.continue_();
-                } catch (_) {
-                  tx.abort();
-                }
-              }).toJS;
-            }
-
-            migrate(
-              _tables[0],
-              (value) => _encodeSource(
-                _decodeSource(value as _SourceRow, [], legacy: true),
-              ),
-            );
-            migrate(_tables[1], (value) {
-              final row = value as _OperationRow;
-              return _encodeOperation(
-                row.ordinal,
-                DomainOperation.fromWire(
-                  CanonicalValue.parseWireJson(row.operation),
-                ),
-              );
-            });
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

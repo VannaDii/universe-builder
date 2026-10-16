@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/installation.dart' show protectedFile;
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -110,25 +109,6 @@ UnfinishedValueDefinitionForm input(EditorFormScope s, {bool editing = true}) {
   );
 }
 
-void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
-  protectedFile(path, createNew: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE value_definition_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, generation, text) in entries) {
-      db.execute('INSERT INTO value_definition_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        generation.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
-
 UnfinishedValueDefinitionForm cleared(UnfinishedValueDefinitionForm form) =>
     UnfinishedValueDefinitionForm.fromWire(
       CanonicalObject([
@@ -190,112 +170,6 @@ void main() {
       }
     } finally {
       store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('value-definition conversion retains profiles and generations and atomically replaces shape subtrees', () {
-    final root = Directory('/tmp').createTempSync('ub-value-conversion-');
-    final path = '${root.path}/forms.sqlite', s = scope(), second = scope();
-    final form = input(s), other = input(second, editing: false);
-    legacy(path, [
-      (s, BigInt.from(7), form.toWire().toText()),
-      (second, maxU64, other.toWire().toText()),
-    ]);
-    var store = ValueDefinitionFormRecoveryStore.open(path);
-    final competing = ValueDefinitionFormRecoveryStore.open(path);
-    try {
-      expect(store.load(s)!.form.toWire().toText(), form.toWire().toText());
-      expect(
-        store.load(second)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      final changed = cleared(form);
-      expect(store.save(s, changed, BigInt.from(7)).generation, BigInt.from(8));
-      expect(store.save(s, changed, BigInt.from(7)).generation, BigInt.from(8));
-      expect(
-        () => competing.save(s, form, BigInt.from(7)),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.conflict,
-          ),
-        ),
-      );
-      expect(
-        () => store.save(second, other, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-      store.close();
-      store = ValueDefinitionFormRecoveryStore.open(path);
-      expect(store.load(s)!.form.toWire().toText(), changed.toWire().toText());
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 2);
-        for (final table in ['label', 'field', 'shape', 'subject']) {
-          expect(
-            db.select(
-              "SELECT count(*) AS n FROM value_definition_$table WHERE profile=? AND list_kind='input'",
-              [s.profile.value],
-            ).single['n'],
-            0,
-          );
-        }
-        expect(
-          db.select(
-            "SELECT count(*) AS n FROM value_definition_field WHERE profile=? AND list_kind='original'",
-            [s.profile.value],
-          ).single['n'],
-          form.original!.fields.length,
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
-      competing.close();
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('failed value-definition conversion rolls back complete shape trees and retains original rows', () {
-    final root = Directory('/tmp').createTempSync('ub-value-rollback-');
-    final path = '${root.path}/forms.sqlite',
-        s = scope(),
-        second = scope(),
-        text = input(s).toWire().toText();
-    legacy(path, [(s, BigInt.one, text), (second, BigInt.two, '{unfinished')]);
-    try {
-      expect(
-        () => ValueDefinitionFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 1);
-        expect(
-          db
-              .select(
-                'SELECT form_input FROM value_definition_form ORDER BY generation',
-              )
-              .map((r) => r['form_input']),
-          [text, '{unfinished'],
-        );
-        expect(
-          db
-              .select("SELECT name FROM sqlite_master WHERE type='table'")
-              .map((r) => r['name']),
-          ['value_definition_form'],
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
       root.deleteSync(recursive: true);
     }
   });

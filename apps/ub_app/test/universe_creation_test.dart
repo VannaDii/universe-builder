@@ -26,11 +26,6 @@ void main() {
       ) as CreateUniverseEngineRequest).realWorld,
       isTrue,
     );
-    final old = UniverseCreationForm.fromWire(
-      CanonicalObject(form.toWire().fields.where((e) => e.key != 'realWorld')),
-    );
-    expect(old.realWorld, isFalse);
-    expect(old.request().toWire().toText(), isNot(contains('real_world')));
     expect(
       () => EngineRequest.fromWire(
         CanonicalObject(

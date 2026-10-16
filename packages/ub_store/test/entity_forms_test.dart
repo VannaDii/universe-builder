@@ -8,48 +8,10 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/src/ownership.dart';
-
-import 'entity_legacy_fixture.dart';
 
 void main() {
   test(
-    'version-seven pending names retain input when expected versions are added',
-    () {
-      final root = Directory('/tmp').createTempSync('ub-entity-v7-');
-      final path = '${root.path}/entities.sqlite';
-      final scope = EditorFormScope(
-        instance: OperationId.generate(),
-        profile: ProfileId.generate(),
-        universe: UniverseId.generate(),
-        continuity: ContinuityId.generate(),
-        representedContext: RecordId.generate(),
-      );
-      final form = UnfinishedEntityForm(
-        baseRevision: RevisionId.generate(),
-        representedContext: scope.representedContext!,
-        clientRef: 'person',
-        name: '記憶 😀',
-        nameDetails: const EntityNameForm(role: ''),
-        classification: '',
-        worldRole: '',
-        rationale: 'Pending.',
-      );
-      writeLegacyEntityForms(path, 7, [(scope, form, BigInt.one)]);
-      final store = EntityFormRecoveryStore.open(path);
-      try {
-        final recovered = store.load(scope)!;
-        expect(recovered.form.toWire().toText(), form.toWire().toText());
-        expect(recovered.form.expectedRecordVersion, isNull);
-      } finally {
-        store.close();
-        root.deleteSync(recursive: true);
-      }
-    },
-  );
-
-  test(
-    'version-two drafts retain pending input when association editing is added',
+    'entity associations retain pending fields across saves and reopening',
     () {
       final root = Directory('/tmp').createTempSync('ub-entity-v2-');
       final path = '${root.path}/entities.sqlite';
@@ -62,51 +24,8 @@ void main() {
         entityClientRef: 'draft-person',
       );
       final revision = RevisionId.generate();
-      protectedFile(path, create: true);
-      final db = sqlite3.open(path);
-      db.execute("""
-      CREATE TABLE entity_form (
-        instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
-        continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
-        base_revision TEXT NOT NULL, client_ref TEXT NOT NULL, name TEXT NOT NULL,
-        classification TEXT NOT NULL, world_role TEXT NOT NULL, rationale TEXT NOT NULL, draft_version TEXT,
-        PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
-      ) STRICT;
-      CREATE TABLE entity_form_world (
-        instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
-        continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL,
-        PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
-        FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
-      ) STRICT;
-      PRAGMA user_version=2;
-    """);
-      db.execute(
-        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [
-          scope.instance.value,
-          scope.profile.value,
-          scope.universe.value,
-          scope.continuity.value,
-          scope.representedContext!.value,
-          'draft-person',
-          '7',
-          revision.value,
-          'draft-person',
-          '人物',
-          '',
-          '',
-          '',
-          '12',
-        ],
-      );
-      db.close();
       var store = EntityFormRecoveryStore.open(path);
       try {
-        final original = store.load(scope)!;
-        expect(original.generation, BigInt.from(7));
-        expect(original.form.name, '人物');
-        expect(original.form.draftVersion, BigInt.from(12));
-        expect(original.form.associations, isNull);
         UnfinishedEntityForm form(List<EntityAssociationForm> rows) =>
             UnfinishedEntityForm(
               baseRevision: revision,
@@ -228,187 +147,16 @@ void main() {
             ),
           ),
         ]);
-        store.save(scope, pending, BigInt.from(7));
+        store.save(scope, pending, BigInt.zero);
         store.close();
         store = EntityFormRecoveryStore.open(path);
         expect(
           store.load(scope)!.form.toWire().toText(),
           pending.toWire().toText(),
         );
-        store.save(scope, form([]), BigInt.from(8));
+        store.save(scope, form([]), BigInt.one);
         expect(store.load(scope)!.form.associations, isEmpty);
-        store.save(scope, pending, BigInt.from(9));
-        store.close();
-        writeLegacyEntityForms(path, 3, [(scope, pending, BigInt.from(10))]);
-        store = EntityFormRecoveryStore.open(path);
-        final upgraded = store.load(scope)!;
-        expect(upgraded.form.associations!.first.temporalValidity, isNull);
-        expect(upgraded.generation, BigInt.from(10));
-        expect(upgraded.form.associations!.first.world, '');
-        expect(upgraded.form.associations!.first.role, 'Unfinished');
-        expect(upgraded.form.associations!.first.originalOrdinal, 1);
-        expect(upgraded.form.associations!.first.validity, isNull);
-        store.save(scope, pending, upgraded.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-        store.close();
-        writeLegacyEntityForms(path, 4, [
-          (scope, pending, upgraded.generation + BigInt.one),
-        ]);
-        store = EntityFormRecoveryStore.open(path);
-        final priorValidity = store.load(scope)!;
-        expect(
-          priorValidity.form.associations!.first.validity,
-          const UnknownValidity(),
-        );
-        expect(priorValidity.form.associations!.first.temporalValidity, isNull);
-        store.save(scope, pending, priorValidity.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-        store.close();
-        writeLegacyEntityForms(path, 5, [
-          (scope, pending, priorValidity.generation + BigInt.one),
-        ]);
-        store = EntityFormRecoveryStore.open(path);
-        final oldRows = store.load(scope)!;
-        expect(oldRows.form.associations!.first.qualifiers, isNull);
-        expect(oldRows.form.nameDetails, isNull);
-        expect(oldRows.form.associations!.first.temporalValidity, isNotNull);
-        store.save(scope, pending, oldRows.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-        store.close();
-        writeLegacyEntityForms(path, 6, [
-          (scope, pending, oldRows.generation + BigInt.one),
-        ]);
-        store = EntityFormRecoveryStore.open(path);
-        final oldNames = store.load(scope)!;
-        expect(oldNames.form.nameDetails, isNull);
-        expect(
-          oldNames.form.associations!.first.toWire().toText(),
-          pending.associations!.first.toWire().toText(),
-        );
-        store.save(scope, pending, oldNames.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-      } finally {
-        store.close();
-        root.deleteSync(recursive: true);
-      }
-    },
-  );
-
-  test(
-    'legacy entity input survives upgrade while edits recover separately',
-    () {
-      final root = Directory('/tmp').createTempSync('ub-entity-upgrade-');
-      final path = '${root.path}/entities.sqlite';
-      final scope = EditorFormScope(
-        instance: OperationId.generate(),
-        profile: ProfileId.generate(),
-        universe: UniverseId.generate(),
-        continuity: ContinuityId.generate(),
-        representedContext: RecordId.generate(),
-      );
-      final revision = RevisionId.generate(), world = WorldId.generate();
-      protectedFile(path, create: true);
-      final db = sqlite3.open(path);
-      db.execute("""
-      CREATE TABLE entity_form (
-        instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
-        continuity TEXT NOT NULL, context TEXT NOT NULL, generation TEXT NOT NULL,
-        base_revision TEXT NOT NULL, client_ref TEXT NOT NULL, name TEXT NOT NULL,
-        classification TEXT NOT NULL, world_role TEXT NOT NULL, rationale TEXT NOT NULL,
-        PRIMARY KEY(instance,profile,universe,continuity,context)
-      ) STRICT;
-      CREATE TABLE entity_form_world (
-        instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
-        continuity TEXT NOT NULL, context TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL,
-        PRIMARY KEY(instance,profile,universe,continuity,context,ordinal),
-        FOREIGN KEY(instance,profile,universe,continuity,context) REFERENCES entity_form(instance,profile,universe,continuity,context) ON DELETE CASCADE
-      ) STRICT;
-      PRAGMA user_version=1;
-    """);
-      final binding = [
-        scope.instance.value,
-        scope.profile.value,
-        scope.universe.value,
-        scope.continuity.value,
-        scope.representedContext!.value,
-      ];
-      db.execute('INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
-        ...binding,
-        '7',
-        revision.value,
-        'new-person',
-        '人物',
-        '',
-        'home',
-        'Pending',
-      ]);
-      db.execute('INSERT INTO entity_form_world VALUES(?,?,?,?,?,?,?)', [
-        ...binding,
-        0,
-        world.value,
-      ]);
-      db.close();
-      var store = EntityFormRecoveryStore.open(path);
-      try {
-        final original = store.load(scope)!;
-        expect(original.generation, BigInt.from(7));
-        expect(original.form.name, '人物');
-        expect(original.form.worlds, [world]);
-        expect(original.form.worldRole, 'home');
-        expect(original.form.draftVersion, isNull);
-        final editScope = EditorFormScope(
-          instance: scope.instance,
-          profile: scope.profile,
-          universe: scope.universe,
-          continuity: scope.continuity,
-          representedContext: scope.representedContext,
-          entityClientRef: 'draft-person',
-        );
-        final edit = UnfinishedEntityForm(
-          baseRevision: revision,
-          representedContext: scope.representedContext!,
-          clientRef: 'draft-person',
-          name: 'Edited',
-          classification: '',
-          worldRole: '',
-          rationale: '',
-          draftVersion: BigInt.from(12),
-        );
-        store.save(editScope, edit, BigInt.zero);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(editScope)!.form.toWire().toText(),
-          edit.toWire().toText(),
-        );
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          original.form.toWire().toText(),
-        );
-        expect(
-          () => store.save(editScope, original.form, BigInt.one),
-          throwsFormatException,
-        );
+        store.save(scope, pending, BigInt.two);
       } finally {
         store.close();
         root.deleteSync(recursive: true);

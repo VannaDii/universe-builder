@@ -129,13 +129,11 @@ final class ContinuitySummary {
     required this.id,
     required this.revisionId,
     required this.name,
-    this.rootPolicyDefined,
     required Iterable<RepresentedContextSummary> representedContexts,
   }) : representedContexts = List.unmodifiable(representedContexts);
   final ContinuityId id;
   final RevisionId revisionId;
   final String name;
-  final bool? rootPolicyDefined;
   final List<RepresentedContextSummary> representedContexts;
   factory ContinuitySummary.fromWire(CanonicalValue value) {
     final f = WireFields(value, {
@@ -143,16 +141,11 @@ final class ContinuitySummary {
       'revision_id',
       'name',
       'represented_contexts',
-      'root_policy_defined',
     });
     return ContinuitySummary(
       id: ContinuityId.parse(wireString(f.require('id'))),
       revisionId: RevisionId.parse(wireString(f.require('revision_id'))),
       name: wireString(f.require('name')),
-      rootPolicyDefined: f.optional(
-        'root_policy_defined',
-        (_) => f.boolean('root_policy_defined'),
-      ),
       representedContexts: f
           .array('represented_contexts')
           .map((v) => RepresentedContextSummary.fromWire(v)),
@@ -162,8 +155,6 @@ final class ContinuitySummary {
     MapEntry('id', CanonicalString(id.value)),
     MapEntry('revision_id', CanonicalString(revisionId.value)),
     MapEntry('name', CanonicalString(name)),
-    if (rootPolicyDefined != null)
-      MapEntry('root_policy_defined', CanonicalBool(rootPolicyDefined!)),
     MapEntry(
       'represented_contexts',
       CanonicalArray(representedContexts.map((v) => v.toWire())),

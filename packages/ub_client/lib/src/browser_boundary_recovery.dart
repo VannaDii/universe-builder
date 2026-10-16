@@ -80,10 +80,9 @@ extension type _BoundaryRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
-SavedBoundaryForm _decodeBoundary(_BoundaryRow row, {bool legacy = false}) {
+SavedBoundaryForm _decodeBoundary(_BoundaryRow row) {
   return SavedBoundaryForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedBoundaryForm(
@@ -106,13 +105,7 @@ SavedBoundaryForm _decodeBoundary(_BoundaryRow row, {bool legacy = false}) {
       validity: TemporalValidityInput.fromWire(
         decodeBrowserInput(row.validity),
       ),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : BoundaryRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : BoundaryRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       rationale: row.rationale,
@@ -175,29 +168,13 @@ final class BrowserBoundaryFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeBoundary(
-                    _decodeBoundary(cursor.value as _BoundaryRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

@@ -12,7 +12,7 @@ typedef McpToolBackend = Future<CanonicalValue> Function(
   Future<void> cancelled,
 );
 
-/// UB's legacy MCP lifecycle/dispatch, independent of byte transport. This is
+/// UB's MCP lifecycle/dispatch, independent of byte transport. This is
 /// application behavior, not a general MCP SDK. HTTP authorization and session
 /// lifetime belong to its transport adapter; no authority is granted here.
 final class McpSession {

@@ -197,7 +197,6 @@ Future<CheckedValidation> checkProposalCandidate({
       ? await readSelectedAssessment(stored.reference)
       : null;
   final result = evaluateCandidate(
-    requireRootPolicy: true,
     candidate: candidate,
     base: base,
     changes: stored.changes,

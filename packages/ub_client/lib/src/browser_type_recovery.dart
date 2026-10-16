@@ -76,7 +76,6 @@ extension type _TypeRow._(JSObject _) implements JSObject {
   external String? get revisionTarget;
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external String get parentResolution;
 }
 
@@ -102,9 +101,8 @@ extension type _LabelRow._(JSObject _) implements JSObject {
 SavedTypeForm _decodeType(
   _TypeRow row,
   Iterable<_WorldRow> worlds,
-  Iterable<_LabelRow> labelRows, {
-  bool legacy = false,
-}) {
+  Iterable<_LabelRow> labelRows,
+) {
   return SavedTypeForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedTypeForm(
@@ -121,13 +119,7 @@ SavedTypeForm _decodeType(
       draftVersion: row.draftVersion == null
           ? null
           : BigInt.parse(row.draftVersion!),
-      revisionTarget: legacy
-          ? (row.revisionTarget == null
-                ? null
-                : RecordRef.fromCanonical(
-                    CanonicalValue.parseWireJson(row.revisionTarget!),
-                  ))
-          : row.revisionTargetFields == null
+      revisionTarget: row.revisionTargetFields == null
           ? null
           : RecordRef.fromCanonical(
               decodeBrowserInput(row.revisionTargetFields!),
@@ -135,13 +127,7 @@ SavedTypeForm _decodeType(
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : EntityTypeRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : EntityTypeRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       parentResolution: row.parentResolution,
@@ -204,31 +190,13 @@ final class BrowserTypeFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            final scan = tx.objectStore(_tables.first).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeType(
-                    _decodeType(cursor.value as _TypeRow, [], [], legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

@@ -12,7 +12,6 @@ import 'recovery_domain_rows.dart';
 import 'recovery_value_inputs.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _legacyColumns = '$_keys,generation,form_input';
 const _fields =
     'generation,base_revision,client_ref,scene_id,edition_record,edition_universe,edition_version,viewpoint_enabled,viewpoint_record,viewpoint_universe,narration_enabled,narration_record,narration_universe,position_enabled,position_input,rationale,original,target_record,target_universe,expected_record_version,draft_version';
 const _where =
@@ -90,36 +89,6 @@ final class SceneFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute('ALTER TABLE scene_form RENAME TO legacy_scene_form');
-          db.execute(_schema);
-          final store = SceneFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_scene_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            final form = UnfinishedSceneForm.fromWire(
-              CanonicalValue.parseWireJson(_text(row, 'form_input')),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedSceneForm(
-                generation: BigInt.parse(_text(row, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_scene_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -149,10 +118,6 @@ final class SceneFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacy =
-        version == 1 &&
-        tables.length == 1 &&
-        columns('scene_form') == _legacyColumns;
     final expected = {
       'scene_form': '$_keys,$_fields',
       'scene_reference': '$_keys,list_kind,ordinal,record_input,universe_input',
@@ -167,7 +132,7 @@ final class SceneFormRecoveryStore {
         tables.length == expected.length + _domainStorage.statements.length &&
         expected.entries.every((e) => columns(e.key) == e.value) &&
         _domainStorage.matches(db);
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

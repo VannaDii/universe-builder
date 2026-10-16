@@ -74,10 +74,7 @@ extension type _CorrectionRow._(JSObject _) implements JSObject {
   external String? get draftVersion;
 }
 
-SavedAssertionCorrectionForm _decodeAssertionCorrection(
-  _CorrectionRow row, {
-  bool legacy = false,
-}) {
+SavedAssertionCorrectionForm _decodeAssertionCorrection(_CorrectionRow row) {
   return SavedAssertionCorrectionForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedAssertionCorrectionForm(
@@ -90,9 +87,7 @@ SavedAssertionCorrectionForm _decodeAssertionCorrection(
       ),
       expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
       original: AssertionRecord.fromWire(
-        legacy
-            ? CanonicalValue.parseWireJson(row.original)
-            : decodeBrowserInput(row.originalFields),
+        decodeBrowserInput(row.originalFields),
       ),
       proposition: ExpressionReferenceInput(
         record: row.propositionRecord,
@@ -101,8 +96,6 @@ SavedAssertionCorrectionForm _decodeAssertionCorrection(
       evidence: AttributeEvidenceInput.fromWire(
         CanonicalObject([
           ...(decodeBrowserInput(row.evidence) as CanonicalObject).fields,
-          if (legacy && row.validity != null)
-            MapEntry('validity', CanonicalValue.parseWireJson(row.validity!)),
         ]),
       ),
       rationale: row.rationale,
@@ -156,32 +149,13 @@ final class BrowserAssertionCorrectionFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeAssertionCorrection(
-                    _decodeAssertionCorrection(
-                      cursor.value as _CorrectionRow,
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

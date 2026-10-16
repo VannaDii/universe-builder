@@ -911,7 +911,7 @@ impl SourceValidationBindingV1 {
                     "stale assessment cannot promote scope",
                 )?;
             }
-            AssessmentState::Absent {} | AssessmentState::UnavailableLegacy {} => {
+            AssessmentState::Absent {} => {
                 ensure(
                     self.selection.selected.is_none()
                         && matches!(self.submitted_input, SubmittedInput::RecordCandidate { .. }),

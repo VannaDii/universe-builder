@@ -35,21 +35,6 @@ Description discoveryDescription({
   capabilities: serviceCapabilities(),
 );
 
-bool? _rootPolicyDefined(List<RecordVersion> records) {
-  if (!records.any(isUniversePolicyRecord)) {
-    return false;
-  }
-  try {
-    UniversePolicySelection.fromRecords(
-      records.first.identity.universeId,
-      records,
-    );
-    return true;
-  } on FormatException {
-    return null;
-  }
-}
-
 /// A continuity with no accessible represented context is not discoverable.
 ContinuitySummary? discoveryContinuity({
   required ContinuityId id,
@@ -75,7 +60,6 @@ ContinuitySummary? discoveryContinuity({
     revisionId: revision,
     name: name,
     representedContexts: contexts,
-    rootPolicyDefined: worldScope == null ? _rootPolicyDefined(records) : null,
   );
 }
 
@@ -115,7 +99,7 @@ List<Capability> serviceCapabilities() => List.unmodifiable([
   Capability(
     id: "events.owner_attributes.v1",
     status: CapabilityStatus.implemented,
-    limitation: "New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.",
+    limitation: "New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. prose/action classification still requires author review.",
   ),
   Capability(
     id: "events.v1",
@@ -130,7 +114,7 @@ List<Capability> serviceCapabilities() => List.unmodifiable([
   Capability(
     id: "knowledge.explicit.v1",
     status: CapabilityStatus.implemented,
-    limitation: "Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge. Without an applicable acquisition policy, legacy Knows remains an authored attitude, not a justified-knowledge certificate.",
+    limitation: "Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge. Without an applicable acquisition policy, Knows remains an authored attitude, not a justified-knowledge certificate.",
   ),
   Capability(
     id: "perspective.views.v1",

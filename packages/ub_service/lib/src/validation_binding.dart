@@ -97,8 +97,8 @@ final class ValidationCapture {
     });
     f.require('latest_proposal_key');
     BigInt? sequence;
-    final raw = f.values['authority_sequence'];
-    if (raw != null && raw is! CanonicalNull) {
+    final raw = f.require('authority_sequence');
+    if (raw is! CanonicalNull) {
       if (raw is! CanonicalNumber ||
           RegExp(r'-?(0|[1-9][0-9]*)').stringMatch(raw.digits) != raw.digits) {
         throw const FormatException('Expected authority sequence integer');

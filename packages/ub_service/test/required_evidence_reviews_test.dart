@@ -1,3 +1,4 @@
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart' as p;
 import 'package:ub_domain/ub_domain.dart';
@@ -201,7 +202,10 @@ void main() {
   test(
     'the shared candidate evaluator enforces scoped source and review duties',
     () {
-      final rows = fixture();
+      final rows = [
+        ...fixture(),
+        ...initialUniversePolicyRecords(f.universe, false),
+      ];
       final assertion = rows.singleWhere((r) => r.identity.recordId == f.id(4));
       CandidateValidationResult check(p.AssessmentReview? selected) =>
           evaluateCandidate(

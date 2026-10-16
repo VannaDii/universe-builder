@@ -8,11 +8,10 @@ import 'package:ub_domain/ub_domain.dart';
 import 'ownership.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _legacyColumns = '$_keys,generation,form_input';
-const _fieldsV2 =
+const _packFields =
     'generation,base_revision,client_ref,pack_key,pack_version,target_record,target_universe,expected_record_version,rationale,draft_version,has_original,original_key,original_version';
 const _fields =
-    '$_fieldsV2,policy_real_world,policy_activate,expected_root_version';
+    '$_packFields,policy_real_world,policy_activate,expected_root_version';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = """
@@ -89,47 +88,6 @@ final class PackFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute('ALTER TABLE pack_form RENAME TO legacy_pack_form');
-          db.execute(_schema);
-          final store = PackFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_pack_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            final form = UnfinishedPackForm.fromWire(
-              CanonicalValue.parseWireJson(_text(row, 'form_input')),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedPackForm(
-                generation: BigInt.parse(_text(row, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_pack_form');
-        } else if (version == 2) {
-          db.execute(
-            'ALTER TABLE pack_form ADD COLUMN policy_real_world INTEGER CHECK(policy_real_world IN (0,1))',
-          );
-          db.execute(
-            'ALTER TABLE pack_form ADD COLUMN policy_activate INTEGER NOT NULL DEFAULT 1 CHECK(policy_activate IN (0,1))',
-          );
-          db.execute(
-            'ALTER TABLE pack_form ADD COLUMN expected_root_version TEXT',
-          );
-          db.execute('PRAGMA user_version=3');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -159,19 +117,14 @@ final class PackFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacy =
-        version == 1 &&
-        tables.length == 1 &&
-        columns('pack_form') == _legacyColumns;
     final current =
-        (version == 2 || version == 3) &&
+        version == 3 &&
         tables.length == 3 &&
-        columns('pack_form') ==
-            '$_keys,${version == 2 ? _fieldsV2 : _fields}' &&
+        columns('pack_form') == '$_keys,$_fields' &&
         columns('pack_dependency') ==
             '$_keys,list_kind,ordinal,dependency_key,dependency_version' &&
         columns('pack_item') == '$_keys,list_kind,ordinal,item';
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

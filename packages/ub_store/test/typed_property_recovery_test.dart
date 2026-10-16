@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/installation.dart' show protectedFile;
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -122,24 +121,6 @@ UnfinishedPropertyForm cleared(UnfinishedPropertyForm form) =>
           }),
       ]),
     );
-void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
-  protectedFile(path, createNew: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE property_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, g, text) in entries) {
-      db.execute('INSERT INTO property_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        g.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
 
 void main() {
   test('typed property recovery preserves every original shape, flag and nullable field alongside incomplete input', () {
@@ -217,119 +198,6 @@ void main() {
       }
     } finally {
       store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('property conversion preserves scopes, generations and original definitions while atomically replacing unfinished trees', () {
-    final root = Directory('/tmp').createTempSync('ub-property-conversion-');
-    final path = '${root.path}/forms.sqlite', s = scope(), otherScope = scope();
-    final form = input(s), other = input(otherScope, editing: false);
-    legacy(path, [
-      (s, BigInt.from(7), form.toWire().toText()),
-      (otherScope, maxU64, other.toWire().toText()),
-    ]);
-    var store = PropertyFormRecoveryStore.open(path);
-    final competing = PropertyFormRecoveryStore.open(path);
-    try {
-      expect(store.load(s)!.form.toWire().toText(), form.toWire().toText());
-      expect(
-        store.load(otherScope)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      final changed = cleared(form);
-      expect(store.save(s, changed, BigInt.from(7)).generation, BigInt.from(8));
-      expect(store.save(s, changed, BigInt.from(7)).generation, BigInt.from(8));
-      expect(
-        () => competing.save(s, form, BigInt.from(7)),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.conflict,
-          ),
-        ),
-      );
-      expect(
-        () => store.save(otherScope, other, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-      store.close();
-      store = PropertyFormRecoveryStore.open(path);
-      expect(store.load(s)!.form.toWire().toText(), changed.toWire().toText());
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 2);
-        for (final table in ['label', 'subject_type', 'subject']) {
-          expect(
-            db.select(
-              "SELECT count(*) AS n FROM property_$table WHERE profile=? AND list_kind='input'",
-              [s.profile.value],
-            ).single['n'],
-            0,
-          );
-        }
-        expect(
-          db.select(
-            "SELECT count(*) AS n FROM property_shape WHERE profile=? AND list_kind='input'",
-            [s.profile.value],
-          ).single['n'],
-          1,
-        );
-        expect(
-          db.select(
-            "SELECT count(*) AS n FROM property_subject_type WHERE profile=? AND list_kind='original'",
-            [s.profile.value],
-          ).single['n'],
-          form.original!.subjectTypes.length,
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
-      competing.close();
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('failed property conversion retains every original row without partial typed state', () {
-    final root = Directory('/tmp').createTempSync('ub-property-rollback-');
-    final path = '${root.path}/forms.sqlite',
-        s = scope(),
-        second = scope(),
-        text = input(s).toWire().toText();
-    legacy(path, [(s, BigInt.one, text), (second, BigInt.two, '{unfinished')]);
-    try {
-      expect(
-        () => PropertyFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 1);
-        expect(
-          db
-              .select(
-                'SELECT form_input FROM property_form ORDER BY generation',
-              )
-              .map((r) => r['form_input']),
-          [text, '{unfinished'],
-        );
-        expect(
-          db
-              .select("SELECT name FROM sqlite_master WHERE type='table'")
-              .map((r) => r['name']),
-          ['property_form'],
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
       root.deleteSync(recursive: true);
     }
   });

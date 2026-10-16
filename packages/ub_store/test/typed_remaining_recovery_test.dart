@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/src/ownership.dart';
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -281,29 +280,6 @@ dynamic input(String kind, EditorFormScope s, {bool empty = false}) {
   }
 }
 
-void legacy(
-  String kind,
-  String path,
-  List<(EditorFormScope, BigInt, String)> entries,
-) {
-  protectedFile(path, create: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE ${kind}_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, g, text) in entries) {
-      db.execute('INSERT INTO ${kind}_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        g.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
-
 void main() {
   for (final kind in ['plan', 'scene', 'item_power']) {
     test(
@@ -361,107 +337,6 @@ void main() {
           }
         } finally {
           store.close();
-          root.deleteSync(recursive: true);
-        }
-      },
-    );
-    test(
-      '$kind conversion preserves isolated forms, generations, retries and save conflicts',
-      () {
-        final root = Directory('/tmp').createTempSync('ub-$kind-conversion-'),
-            s = scope(),
-            second = scope();
-        final path = '${root.path}/forms.sqlite';
-        final dynamic form = input(kind, s), other = input(kind, second);
-        legacy(kind, path, [
-          (s, BigInt.from(19), form.toWire().toText() as String),
-          (second, maxU64, other.toWire().toText() as String),
-        ]);
-        final dynamic store = open(kind, path), competing = open(kind, path);
-        try {
-          expect(store.load(s).form.toWire().toText(), form.toWire().toText());
-          expect(
-            store.load(second).form.toWire().toText(),
-            other.toWire().toText(),
-          );
-          final dynamic changed = input(kind, s, empty: true);
-          expect(
-            store.save(s, changed, BigInt.from(19)).generation,
-            BigInt.from(20),
-          );
-          expect(
-            store.save(s, changed, BigInt.from(19)).generation,
-            BigInt.from(20),
-          );
-          expect(
-            () => competing.save(s, form, BigInt.from(19)),
-            throwsA(
-              isA<EditorRecoveryException>().having(
-                (e) => e.failure,
-                'failure',
-                EditorRecoveryFailure.conflict,
-              ),
-            ),
-          );
-          expect(
-            () => store.save(second, other, maxU64),
-            throwsA(
-              isA<EditorRecoveryException>().having(
-                (e) => e.failure,
-                'failure',
-                EditorRecoveryFailure.generationExhausted,
-              ),
-            ),
-          );
-          expect(
-            store.load(second).form.toWire().toText(),
-            other.toWire().toText(),
-          );
-        } finally {
-          competing.close();
-          store.close();
-          root.deleteSync(recursive: true);
-        }
-      },
-    );
-    test(
-      '$kind failed conversion retains every original unfinished form and rolls back typed rows',
-      () {
-        final root = Directory('/tmp').createTempSync('ub-$kind-rollback-'),
-            s = scope(),
-            second = scope();
-        final path = '${root.path}/forms.sqlite',
-            text = input(kind, s).toWire().toText() as String;
-        legacy(kind, path, [
-          (s, BigInt.one, text),
-          (second, BigInt.two, '{unfinished'),
-        ]);
-        try {
-          expect(
-            () => open(kind, path),
-            throwsA(isA<EditorRecoveryException>()),
-          );
-          final db = sqlite3.open(path, mode: OpenMode.readOnly);
-          try {
-            expect(db.select('PRAGMA user_version').single.values.single, 1);
-            expect(
-              db
-                  .select(
-                    'SELECT form_input FROM ${kind}_form ORDER BY generation',
-                  )
-                  .map((r) => r['form_input']),
-              [text, '{unfinished'],
-            );
-            expect(
-              db
-                  .select("SELECT name FROM sqlite_master WHERE type='table'")
-                  .map((r) => r['name']),
-              ['${kind}_form'],
-            );
-          } finally {
-            db.close();
-          }
-        } finally {
           root.deleteSync(recursive: true);
         }
       },

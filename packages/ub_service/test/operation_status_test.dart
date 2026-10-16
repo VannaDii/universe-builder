@@ -113,24 +113,13 @@ void main() {
     }
   });
 
-  test('missing retained reports distinguish current and legacy evaluators without manufacturing completion', () async {
+  test('missing retained reports do not manufacture completion', () async {
     final current = await report(
       operation(execution(), state: OperationState.succeeded),
     );
     final evaluated = current.validation as EvaluatedValidation;
     expect(evaluated.assessment, isA<AbsentAssessment>());
     expect(evaluated.finalBindingDigest, isNull);
-    final legacy = await report(
-      operation(execution(evaluator: 'historical-evaluator')),
-    );
-    expect(
-      (legacy.validation as EvaluatedValidation).assessment,
-      isA<LegacyUnavailableAssessment>(),
-    );
-    expect(
-      (legacy.validation as EvaluatedValidation).finalBindingDigest,
-      isNull,
-    );
   });
 
   test('completed retained report preserves its exact finished binding and input accounting', () async {

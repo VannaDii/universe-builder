@@ -2,7 +2,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/ub_service.dart';
-import 'package:ub_service/src/universe_evidence_policy.dart';
 
 import 'operation_compilation_test.dart' as f;
 import 'proposal_authorization_test.dart' as p;
@@ -77,21 +76,10 @@ void main() {
     final unrestricted = read(rows, null)!;
     expect(unrestricted.name, 'Alternate');
     expect(unrestricted.representedContexts.single.id, f.id(31));
-    expect(unrestricted.rootPolicyDefined, isFalse);
-    final rooted = read([
-      ...rows,
-      ...initialUniversePolicyRecords(f.u, false),
-    ], null)!;
-    expect(rooted.rootPolicyDefined, isTrue);
-    expect(
-      ContinuitySummary.fromWire(rooted.toWire()).rootPolicyDefined,
-      isTrue,
-    );
     expect(read(rows, {p.world(50)}), isNull);
     final visible = read([...rows, s.context(99)], {p.world(50)})!;
     expect(visible.representedContexts.map((c) => c.id), [f.id(99)]);
     expect(visible.revisionId, f.revision);
-    expect(visible.rootPolicyDefined, isNull);
     expect(
       visible.toWire().fields.map((field) => field.key),
       isNot(contains('root_policy_defined')),

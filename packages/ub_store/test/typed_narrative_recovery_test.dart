@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/installation.dart' show protectedFile;
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -29,28 +28,6 @@ List<String> binding(EditorFormScope s) => [
   s.typeClientRef!,
 ];
 const reason = '\ufeffMemoir 記憶 😀\r\n\u0000';
-void legacy(
-  String path,
-  String table,
-  List<(EditorFormScope, BigInt, String)> entries,
-) {
-  protectedFile(path, createNew: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE $table(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, generation, text) in entries) {
-      db.execute('INSERT INTO $table VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        generation.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
 
 dynamic input(String kind, EditorFormScope s, {bool editing = true}) {
   final base = RevisionId.generate(),
@@ -241,128 +218,6 @@ void main() {
           }
         } finally {
           store.close();
-          root.deleteSync(recursive: true);
-        }
-      },
-    );
-    test(
-      '$kind conversion preserves separate profiles, optional states, generations and competing edits',
-      () {
-        final root = Directory('/tmp')
-            .createTempSync('ub-narrative-conversion-');
-        final path = '${root.path}/forms.sqlite',
-            selected = scope(),
-            otherScope = scope();
-        final dynamic form = input(kind, selected),
-            other = input(kind, otherScope, editing: false);
-        legacy(path, table, [
-          (selected, BigInt.from(11), form.toWire().toText()),
-          (otherScope, maxU64, other.toWire().toText()),
-        ]);
-        dynamic store = open(path);
-        final dynamic competing = open(path);
-        try {
-          expect(
-            store.load(selected).form.toWire().toText(),
-            form.toWire().toText(),
-          );
-          expect(
-            store.load(otherScope).form.toWire().toText(),
-            other.toWire().toText(),
-          );
-          final dynamic changed = cleared(kind, form);
-          expect(
-            store.save(selected, changed, BigInt.from(11)).generation,
-            BigInt.from(12),
-          );
-          expect(
-            store.save(selected, changed, BigInt.from(11)).generation,
-            BigInt.from(12),
-          );
-          expect(
-            () => competing.save(selected, form, BigInt.from(11)),
-            throwsA(
-              isA<EditorRecoveryException>().having(
-                (e) => e.failure,
-                'failure',
-                EditorRecoveryFailure.conflict,
-              ),
-            ),
-          );
-          expect(
-            () => store.save(otherScope, other, maxU64),
-            throwsA(
-              isA<EditorRecoveryException>().having(
-                (e) => e.failure,
-                'failure',
-                EditorRecoveryFailure.generationExhausted,
-              ),
-            ),
-          );
-          store.close();
-          store = open(path);
-          expect(
-            store.load(selected).form.toWire().toText(),
-            changed.toWire().toText(),
-          );
-          final db = sqlite3.open(path, mode: OpenMode.readOnly);
-          try {
-            expect(db.select('PRAGMA user_version').single.values.single, 2);
-            for (final child in switch (kind) {
-              'saga' => ['saga_label', 'saga_membership'],
-              'work_version' => ['work_version_segment'],
-              _ => <String>[],
-            }) {
-              expect(
-                db.select('SELECT count(*) AS n FROM $child WHERE profile=?', [
-                  selected.profile.value,
-                ]).single['n'],
-                0,
-              );
-            }
-          } finally {
-            db.close();
-          }
-        } finally {
-          competing.close();
-          store.close();
-          root.deleteSync(recursive: true);
-        }
-      },
-    );
-    test(
-      '$kind failed conversion retains every legacy row without partial named fields',
-      () {
-        final root = Directory('/tmp').createTempSync('ub-narrative-rollback-');
-        final path = '${root.path}/forms.sqlite',
-            selected = scope(),
-            otherScope = scope();
-        final text = input(kind, selected).toWire().toText() as String;
-        legacy(path, table, [
-          (selected, BigInt.one, text),
-          (otherScope, BigInt.two, '{unfinished'),
-        ]);
-        try {
-          expect(() => open(path), throwsA(isA<EditorRecoveryException>()));
-          final db = sqlite3.open(path, mode: OpenMode.readOnly);
-          try {
-            expect(db.select('PRAGMA user_version').single.values.single, 1);
-            expect(
-              db
-                  .select('SELECT form_input FROM $table ORDER BY generation')
-                  .map((r) => r['form_input']),
-              [text, '{unfinished'],
-            );
-            expect(
-              db
-                  .select("SELECT name FROM sqlite_master WHERE type='table'")
-                  .map((r) => r['name']),
-              [table],
-            );
-          } finally {
-            db.close();
-          }
-        } finally {
           root.deleteSync(recursive: true);
         }
       },

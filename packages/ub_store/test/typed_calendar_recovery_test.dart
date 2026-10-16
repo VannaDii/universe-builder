@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/src/ownership.dart';
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -119,24 +118,6 @@ UnfinishedCalendarForm cleared(UnfinishedCalendarForm form) =>
           ),
       ]),
     );
-void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
-  protectedFile(path, create: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE calendar_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, g, text) in entries) {
-      db.execute('INSERT INTO calendar_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        g.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
 
 void main() {
   test('typed calendar recovery retains incomplete structures, disabled conversion expressions and original definitions after restart', () {
@@ -186,82 +167,6 @@ void main() {
       root.deleteSync(recursive: true);
     }
   });
-  test('calendar conversion preserves profiles, optional states and generations while removing replaced input rows', () {
-    final root = Directory('/tmp').createTempSync('ub-calendar-conversion-');
-    final path = '${root.path}/forms.sqlite', s = scope(), second = scope();
-    final form = input(s), other = input(second, editing: false);
-    legacy(path, [
-      (s, BigInt.from(19), form.toWire().toText()),
-      (second, maxU64, other.toWire().toText()),
-    ]);
-    var store = CalendarFormRecoveryStore.open(path);
-    final competing = CalendarFormRecoveryStore.open(path);
-    try {
-      expect(store.load(s)!.form.toWire().toText(), form.toWire().toText());
-      expect(
-        store.load(second)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      final changed = cleared(form);
-      expect(
-        store.save(s, changed, BigInt.from(19)).generation,
-        BigInt.from(20),
-      );
-      expect(
-        store.save(s, changed, BigInt.from(19)).generation,
-        BigInt.from(20),
-      );
-      expect(
-        () => competing.save(s, form, BigInt.from(19)),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.conflict,
-          ),
-        ),
-      );
-      expect(
-        () => store.save(second, other, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-      store.close();
-      store = CalendarFormRecoveryStore.open(path);
-      expect(store.load(s)!.form.toWire().toText(), changed.toWire().toText());
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 2);
-        for (final table in ['label', 'unit', 'conversion']) {
-          expect(
-            db.select(
-              "SELECT count(*) AS n FROM calendar_$table WHERE profile=? AND list_kind='input'",
-              [s.profile.value],
-            ).single['n'],
-            0,
-          );
-        }
-        expect(
-          db.select(
-            "SELECT count(*) AS n FROM calendar_conversion WHERE profile=? AND list_kind='original'",
-            [s.profile.value],
-          ).single['n'],
-          form.original!.conversions.length,
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
-      competing.close();
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
   test('calendar optional epoch and original states remain distinct through replacement and restart', () {
     final root = Directory('/tmp').createTempSync('ub-calendar-optionals-');
     final path = '${root.path}/forms.sqlite', s = scope();
@@ -301,42 +206,6 @@ void main() {
       expect(store.load(s)!.generation, generation);
     } finally {
       store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('failed calendar conversion rolls back every typed child and retains original unfinished input', () {
-    final root = Directory('/tmp').createTempSync('ub-calendar-rollback-');
-    final path = '${root.path}/forms.sqlite',
-        s = scope(),
-        second = scope(),
-        text = input(s).toWire().toText();
-    legacy(path, [(s, BigInt.one, text), (second, BigInt.two, '{unfinished')]);
-    try {
-      expect(
-        () => CalendarFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 1);
-        expect(
-          db
-              .select(
-                'SELECT form_input FROM calendar_form ORDER BY generation',
-              )
-              .map((r) => r['form_input']),
-          [text, '{unfinished'],
-        );
-        expect(
-          db
-              .select("SELECT name FROM sqlite_master WHERE type='table'")
-              .map((r) => r['name']),
-          ['calendar_form'],
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
       root.deleteSync(recursive: true);
     }
   });

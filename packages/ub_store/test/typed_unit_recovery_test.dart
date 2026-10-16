@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
-import 'package:ub_store/src/ownership.dart';
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -171,24 +170,6 @@ UnfinishedUnitForm cleared(UnfinishedUnitForm f) => UnfinishedUnitForm(
   representedContext: f.representedContext,
   clientRef: f.clientRef,
 );
-void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
-  protectedFile(path, create: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE unit_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,form_input TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; PRAGMA user_version=1',
-    );
-    for (final (s, g, text) in entries) {
-      db.execute('INSERT INTO unit_form VALUES(?,?,?,?,?,?,?,?)', [
-        ...binding(s),
-        g.toString(),
-        text,
-      ]);
-    }
-  } finally {
-    db.close();
-  }
-}
 
 int qualifierCount(QualifierInput q) =>
     1 +
@@ -236,88 +217,6 @@ void main() {
         db.close();
       }
     } finally {
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('unit conversion preserves scoped input and generations; replacement removes owned nested rows without affecting other forms', () {
-    final root = Directory('/tmp').createTempSync('ub-unit-conversion-');
-    final path = '${root.path}/forms.sqlite', s = scope(), second = scope();
-    final form = input(s), other = input(second, editing: false);
-    legacy(path, [
-      (s, BigInt.from(19), form.toWire().toText()),
-      (second, maxU64, other.toWire().toText()),
-    ]);
-    var store = UnitFormRecoveryStore.open(path);
-    final competing = UnitFormRecoveryStore.open(path);
-    try {
-      expect(store.load(s)!.form.toWire().toText(), form.toWire().toText());
-      expect(
-        store.load(second)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      // Replacing the same tree must not accumulate private original rows.
-      store.save(s, form, BigInt.from(19));
-      final changed = cleared(form);
-      expect(
-        store.save(s, changed, BigInt.from(20)).generation,
-        BigInt.from(21),
-      );
-      expect(
-        store.save(s, changed, BigInt.from(20)).generation,
-        BigInt.from(21),
-      );
-      expect(
-        () => competing.save(s, form, BigInt.from(20)),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.conflict,
-          ),
-        ),
-      );
-      expect(
-        () => store.save(second, other, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-      store.close();
-      store = UnitFormRecoveryStore.open(path);
-      expect(store.load(s)!.form.toWire().toText(), changed.toWire().toText());
-      expect(
-        store.load(second)!.form.toWire().toText(),
-        other.toWire().toText(),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 2);
-        expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        for (final row in db.select(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'r_%'",
-        )) {
-          expect(
-            db.select('SELECT count(*) AS n FROM "${row['name']}"').single['n'],
-            0,
-            reason: row['name'] as String,
-          );
-        }
-        expect(
-          db.select('SELECT count(*) AS n FROM unit_qualifier').single['n'],
-          qualifierCount(other.scale) +
-              temporalQualifierCount(other.temporalValidity) +
-              qualifierCount(changed.scale),
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
-      competing.close();
       store.close();
       root.deleteSync(recursive: true);
     }
@@ -396,40 +295,6 @@ void main() {
       }
     } finally {
       store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  test('failed unit conversion rolls back all typed rows and retains the legacy unfinished forms', () {
-    final root = Directory('/tmp').createTempSync('ub-unit-rollback-');
-    final path = '${root.path}/forms.sqlite',
-        s = scope(),
-        second = scope(),
-        text = input(s).toWire().toText();
-    legacy(path, [(s, BigInt.one, text), (second, BigInt.two, '{unfinished')]);
-    try {
-      expect(
-        () => UnitFormRecoveryStore.open(path),
-        throwsA(isA<EditorRecoveryException>()),
-      );
-      final db = sqlite3.open(path, mode: OpenMode.readOnly);
-      try {
-        expect(db.select('PRAGMA user_version').single.values.single, 1);
-        expect(
-          db
-              .select('SELECT form_input FROM unit_form ORDER BY generation')
-              .map((r) => r['form_input']),
-          [text, '{unfinished'],
-        );
-        expect(
-          db
-              .select("SELECT name FROM sqlite_master WHERE type='table'")
-              .map((r) => r['name']),
-          ['unit_form'],
-        );
-      } finally {
-        db.close();
-      }
-    } finally {
       root.deleteSync(recursive: true);
     }
   });

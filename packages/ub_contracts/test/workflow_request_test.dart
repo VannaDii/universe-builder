@@ -217,7 +217,7 @@ void main() {
         requests.whereType<GetProposalRequest>().single.toWire(),
       ) as GetProposalRequest;
       expect(get.version, max);
-      // Request contracts retain legacy opaque digests; service checks the binding.
+      // Request contracts retain unqualified opaque digests; service checks the binding.
       expect(get.proposalId, proposal.proposalId);
       final zero = Request.fromTool(
         get.toolName,

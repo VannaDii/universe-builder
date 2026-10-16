@@ -50,7 +50,7 @@ ${_domainStorage.statements.join('\n')}
 PRAGMA user_version=2;
 """;
 
-String _textProjection(String columns, {bool legacy = false}) => columns
+String _textProjection(String columns) => columns
     .split(',')
     .map(
       (c) =>
@@ -61,7 +61,7 @@ String _textProjection(String columns, {bool legacy = false}) => columns
                 'start_unbounded',
                 'width',
               }.contains(c) ||
-              (c == 'original' && !legacy)
+              c == 'original'
           ? c
           : 'CAST($c AS BLOB) AS $c',
     )
@@ -100,61 +100,6 @@ final class AppearanceFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          final tables = {
-            'appearance_form': '$_keys,$_fields',
-            'appearance_image': '$_keys,$_imageFields',
-            'appearance_link': '$_keys,$_linkFields',
-          };
-          for (final table in tables.keys) {
-            db.execute('ALTER TABLE $table RENAME TO legacy_$table');
-          }
-          db.execute(_schema);
-          for (final table in tables.entries) {
-            final columns = table.value.split(',');
-            for (final row in db.select(
-              'SELECT ${_textProjection(table.value, legacy: true)} FROM legacy_${table.key}',
-            )) {
-              final values = <Object?>[
-                for (final column in columns)
-                  row[column] is List<int>
-                      ? decodeExactUtf8(row[column] as List<int>)
-                      : row[column],
-              ];
-              if (table.key == 'appearance_form') {
-                final index = columns.indexOf('original');
-                if (values[index] != null) {
-                  values[index] = RelationalCodec(db).put(
-                    _originalModel,
-                    CanonicalValue.parseWireJson(values[index] as String),
-                  );
-                }
-              }
-              db.execute(
-                'INSERT INTO ${table.key} VALUES(${List.filled(columns.length, '?').join(',')})',
-                values,
-              );
-            }
-          }
-          final store = AppearanceFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_textProjection(_keys)} FROM appearance_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            store._validate(scope, store._read(scope)!.form);
-          }
-          for (final table in tables.keys.toList().reversed) {
-            db.execute('DROP TABLE legacy_$table');
-          }
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -198,8 +143,6 @@ final class AppearanceFormRecoveryStore {
               .join(',') ==
           e.value,
     );
-    final legacy =
-        version == 1 && names.length == expected.length && columnsMatch;
     final current =
         version == 2 &&
         names.length == expected.length + _domainStorage.statements.length &&
@@ -209,7 +152,7 @@ final class AppearanceFormRecoveryStore {
                 .singleWhere((r) => r['name'] == 'original')['type'] ==
             'INTEGER' &&
         _domainStorage.matches(db);
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

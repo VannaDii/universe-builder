@@ -352,7 +352,7 @@ void main() {
     final contracted =
         base().singleWhere((r) => r.identity.recordId == f.id(5)).payload
             as ActionDefinitionRecord;
-    final legacyAction = ActionDefinitionRecord(
+    final uncontractedAction = ActionDefinitionRecord(
       namespace: contracted.namespace,
       key: contracted.key,
       labels: contracted.labels,
@@ -360,11 +360,11 @@ void main() {
       scope: contracted.scope,
       validity: contracted.validity,
     );
-    final legacy = compileWritingEventEdits(
+    final unqualified = compileWritingEventEdits(
       frame: actions.frame,
       base: [
         for (final row in current)
-          row.identity.recordId == f.id(5) ? f.row(5, legacyAction) : row,
+          row.identity.recordId == f.id(5) ? f.row(5, uncontractedAction) : row,
       ],
       withdrawals: [],
       corrections: [
@@ -374,8 +374,8 @@ void main() {
         ),
       ],
     );
-    expect(legacy.operations, isEmpty);
-    expect(legacy.clarifications.single, contains('not contract-derived'));
+    expect(unqualified.operations, isEmpty);
+    expect(unqualified.clarifications.single, contains('not contract-derived'));
   });
 
   test('dependent resource consequences stay frozen until each affected event is explicitly corrected', () {

@@ -8,7 +8,6 @@ import 'package:ub_domain/ub_domain.dart';
 import 'ownership.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _legacyColumns = '$_keys,generation,form_input';
 const _fields =
     'generation,base_revision,client_ref,target_record,target_universe,expected_record_version,rationale,draft_version';
 const _where =
@@ -60,38 +59,6 @@ final class EventWithdrawalFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute(
-            'ALTER TABLE event_withdrawal_form RENAME TO legacy_event_withdrawal_form',
-          );
-          db.execute(_schema);
-          final store = EventWithdrawalFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_event_withdrawal_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            final form = UnfinishedEventWithdrawalForm.fromWire(
-              CanonicalValue.parseWireJson(_text(row, 'form_input')),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedEventWithdrawalForm(
-                generation: BigInt.parse(_text(row, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_event_withdrawal_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -123,9 +90,7 @@ final class EventWithdrawalFormRecoveryStore {
         .select('PRAGMA table_info(event_withdrawal_form)')
         .map((row) => row['name'])
         .join(',');
-    if (tables.length != 1 ||
-        !(version == 1 && columns == _legacyColumns ||
-            version == 2 && columns == '$_keys,$_fields')) {
+    if (tables.length != 1 || !(version == 2 && columns == '$_keys,$_fields')) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

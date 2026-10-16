@@ -72,8 +72,3 @@ CREATE TABLE historical_receipt(universe_id TEXT NOT NULL, principal TEXT NOT NU
 CREATE TRIGGER historical_receipt_no_update BEFORE UPDATE ON historical_receipt BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
 CREATE TRIGGER historical_receipt_no_delete BEFORE DELETE ON historical_receipt BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
 CREATE VIEW active_workflow_index AS SELECT key,digest FROM workflow_index WHERE key NOT IN (SELECT h.key FROM historical_workflow h JOIN workflow_entries e ON e.key=h.key WHERE e.family IN ('ApprovalEvidence','StoredOperation','StoredContext','Cursor'));
-
--- Conversion provenance binds original workflow evidence to normalized typed rows.
-CREATE TABLE import_workflow_digest(key TEXT PRIMARY KEY, source_digest TEXT NOT NULL, normalized_digest TEXT NOT NULL) STRICT;
-CREATE TRIGGER import_workflow_digest_no_update BEFORE UPDATE ON import_workflow_digest BEGIN SELECT RAISE(ABORT,'immutable import provenance'); END;
-CREATE TRIGGER import_workflow_digest_no_delete BEFORE DELETE ON import_workflow_digest BEGIN SELECT RAISE(ABORT,'immutable import provenance'); END;

@@ -18,7 +18,7 @@ final principal = PrincipalId.parse('prn_${suffix(1)}');
 RecordRef ref(int n) => RecordRef(universe: universe, record: id(n));
 
 /// The same already-admitted storage/evaluator workload as the transitional
-/// Rust test, built directly in the normative Dart store without legacy import.
+/// Rust test, built directly in the normative Dart store using current-format fixtures.
 RevisionId seed(OwnedSqliteDatabase package, Map<RecordId, String> digests) {
   final kernel = SqliteKernel(package.database, universe);
   final changes = <Assignment>[];

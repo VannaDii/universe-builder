@@ -158,15 +158,6 @@ void main() {
         ),
         throwsFormatException,
       );
-      final legacy = UnfinishedRuleForm.fromWire(
-        CanonicalObject(
-          form.toWire().fields.where((f) => f.key != 'knowledge'),
-        ),
-      );
-      expect(
-        ruleOperation(legacy).record.toWire().toText(),
-        record.toWire().toText(),
-      );
       final knowledge = form.knowledge!.copyWith(
         mode: 'author_established',
         boundaryEnabled: false,

@@ -77,10 +77,9 @@ extension type _ActionRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
-SavedActionForm _decodeAction(_ActionRow row, {bool legacy = false}) {
+SavedActionForm _decodeAction(_ActionRow row) {
   return SavedActionForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedActionForm(
@@ -95,7 +94,7 @@ SavedActionForm _decodeAction(_ActionRow row, {bool legacy = false}) {
       requirements: (decodeBrowserInput(row.requirements) as CanonicalArray)
           .items
           .map(ActionRequirementInput.fromWire),
-      slots: row.slots?.toDart.map((r) => _readSlot(r, legacy: legacy)),
+      slots: row.slots?.toDart.map((r) => _readSlot(r)),
       scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
       validity: TemporalValidityInput.fromWire(
         decodeBrowserInput(row.validity),
@@ -108,13 +107,7 @@ SavedActionForm _decodeAction(_ActionRow row, {bool legacy = false}) {
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : ActionDefinitionRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : decodeBrowserAction(row.originalFields!),
       rationale: row.rationale,
@@ -179,29 +172,13 @@ final class BrowserActionFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeAction(
-                    _decodeAction(cursor.value as _ActionRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -386,7 +363,6 @@ extension type _SlotRow._(JSObject _) implements JSObject {
   external JSAny get condition;
   external JSAny get value;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
 _SlotRow _writeSlot(ActionSlotInput input) => _SlotRow(
@@ -404,10 +380,7 @@ _SlotRow _writeSlot(ActionSlotInput input) => _SlotRow(
       ? null
       : encodeBrowserEffectSlot(input.original!),
 );
-ActionSlotInput _readSlot(
-  _SlotRow row, {
-  bool legacy = false,
-}) => ActionSlotInput(
+ActionSlotInput _readSlot(_SlotRow row) => ActionSlotInput(
   fields: {
     for (final e in (decodeBrowserInput(row.fields) as CanonicalObject).fields)
       e.key: wireString(e.value),
@@ -415,11 +388,7 @@ ActionSlotInput _readSlot(
   target: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.target)),
   condition: ActionRequirementInput.fromWire(decodeBrowserInput(row.condition)),
   value: QualifierInput.fromWire(decodeBrowserInput(row.value)),
-  original: legacy
-      ? (row.original == null
-            ? null
-            : EffectSlot.fromWire(CanonicalValue.parseWireJson(row.original!)))
-      : row.originalFields == null
+  original: row.originalFields == null
       ? null
       : decodeBrowserEffectSlot(row.originalFields!),
 );

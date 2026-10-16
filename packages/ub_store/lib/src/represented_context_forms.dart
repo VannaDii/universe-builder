@@ -8,7 +8,6 @@ import 'package:ub_domain/ub_domain.dart';
 import 'ownership.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _legacyColumns = '$_keys,generation,form_input';
 const _fields =
     'generation,base_revision,client_ref,context_kind,authored_label,reference_record,reference_universe,parent_enabled,parent_record,parent_universe,chronology_enabled,calendar_input,system_input,offset_input,tick_label_input,ticks_enabled,ticks_input,first_interaction_input,current_input,rationale,draft_version';
 const _originalFields =
@@ -92,38 +91,6 @@ final class RepresentedContextFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute(
-            'ALTER TABLE represented_context_form RENAME TO legacy_represented_context_form',
-          );
-          db.execute(_schema);
-          final store = RepresentedContextFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_represented_context_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            final form = UnfinishedRepresentedContextForm.fromWire(
-              CanonicalValue.parseWireJson(_text(row, 'form_input')),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedRepresentedContextForm(
-                generation: BigInt.parse(_text(row, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_represented_context_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -153,10 +120,6 @@ final class RepresentedContextFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacy =
-        version == 1 &&
-        tables.length == 1 &&
-        columns('represented_context_form') == _legacyColumns;
     final current =
         version == 2 &&
         tables.length == 3 &&
@@ -164,7 +127,7 @@ final class RepresentedContextFormRecoveryStore {
         columns('represented_context_label') ==
             '$_keys,list_kind,ordinal,language,label_text' &&
         columns('represented_context_original') == '$_keys,$_originalFields';
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

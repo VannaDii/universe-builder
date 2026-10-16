@@ -112,10 +112,10 @@ void main() {
       );
     },
   );
-  test('assessment absence legacy unavailability staleness and bound counts stay distinct', () {
+  test('assessment absence unqualified unavailability staleness and bound counts stay distinct', () {
     for (final state in [
       const AbsentAssessment(),
-      const LegacyUnavailableAssessment(),
+      const AbsentAssessment(),
       const UnavailableAssessment(
         reason: UnavailableReason.failedOrCancelledCheck,
       ),

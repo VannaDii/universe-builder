@@ -358,9 +358,9 @@ final class TemporalValidityInput {
     return TemporalValidityInput(
       kind: f.string('kind'),
       calendar: f.string('calendar'),
-      relation: f.optional('relation', wireString) ?? '',
-      targetUniverse: f.optional('target_universe', wireString) ?? '',
-      targetRecord: f.optional('target_record', wireString) ?? '',
+      relation: f.string('relation'),
+      targetUniverse: f.string('target_universe'),
+      targetRecord: f.string('target_record'),
       start: TemporalBoundInput.fromWire(f.require('start'), depth: depth),
       end: TemporalBoundInput.fromWire(f.require('end'), depth: depth),
     );
@@ -547,15 +547,15 @@ final class QualifierInput {
         'upper',
         (v) => QualifierInput.fromWire(v, depth: depth + 1),
       ),
-      lowerInclusive: f.optional('lower_inclusive', wireString) ?? '',
-      upperInclusive: f.optional('upper_inclusive', wireString) ?? '',
+      lowerInclusive: f.string('lower_inclusive'),
+      upperInclusive: f.string('upper_inclusive'),
       key: f.string('key'),
       kind: f.string('kind'),
       value: f.string('value'),
       denominator: f.string('denominator'),
       unit: f.string('unit'),
-      universe: f.optional('universe', wireString) ?? '',
-      definition: f.optional('definition', wireString) ?? '',
+      universe: f.string('universe'),
+      definition: f.string('definition'),
       originalKey: f.optional('original_key', wireString),
       children: f
           .array('children', defaultEmpty: true)
@@ -652,9 +652,7 @@ final class AttributeCreationInput {
       'property_universe',
     });
     return AttributeCreationInput(
-      relationship:
-          f.optional('relationship', (v) => (v as CanonicalBool).value) ??
-          false,
+      relationship: f.boolean('relationship'),
       subject: VersionRef.fromCanonical(f.require('subject')),
       operationRef: f.string('operation_ref'),
       propertyRecord: f.string('property_record'),

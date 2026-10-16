@@ -406,7 +406,7 @@ bool isExactDigits(String text, {required bool allowFraction}) {
 }
 
 /// Existing integer ordering: explicit '+' is not a comparison token, and
-/// authored negative zero keeps the legacy sign ordering. Display is untouched.
+/// authored negative zero keeps the signed-zero ordering. Display is untouched.
 int? compareExactDigits(String a, String b) {
   String? magnitude(String text) {
     final unsigned = text.startsWith('-') ? text.substring(1) : text;

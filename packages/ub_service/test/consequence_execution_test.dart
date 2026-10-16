@@ -79,11 +79,11 @@ void main() {
     'realization requires a contract exact event clock and bounded lifetime',
     () {
       final rows = fixture();
-      final legacy =
+      final unqualified =
           rows.firstWhere((r) => r.identity.recordId == f.id(5)).payload
               as ActionDefinitionRecord;
       expect(
-        () => realize(rows, legacy),
+        () => realize(rows, unqualified),
         invalid('no authored consequence contract'),
       );
       final set = const SetEffect(Polarity.support, BooleanValue(true));

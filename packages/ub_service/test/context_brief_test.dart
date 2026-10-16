@@ -1,3 +1,4 @@
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -7,6 +8,7 @@ import 'operation_compilation_test.dart' as f;
 import 'rule_checks_test.dart' as rules;
 
 void main() {
+  final root = initialUniversePolicyRecords(f.u, false);
   final frame = Frame(
     universe: f.u,
     continuity: rules.frame().continuity,
@@ -17,6 +19,7 @@ void main() {
   );
   test('brief keeps visible constraints first and reports missing dependencies as partial', () {
     final rows = [
+      ...root,
       f.row(1, f.entity()),
       f.row(9, rules.rule()),
       f.row(80, f.entity()),
@@ -32,7 +35,7 @@ void main() {
       byteBudget: 100000,
       offset: 0,
     );
-    expect(page.brief.records.first.identity.recordId, f.id(9));
+    expect(page.brief.records.first.identity.recordKind, RecordKind.domainPack);
     expect(page.brief.requiredDependencies, contains(f.id(9)));
     expect(
       page.brief.records.map((r) => r.identity.recordId),
@@ -53,7 +56,7 @@ void main() {
     expect(absent.brief.coverage, Coverage.partial);
   });
   test('brief never claims complete evidence for hidden rules or a restricted perspective', () {
-    final rows = [f.row(1, f.entity()), f.row(9, rules.rule())];
+    final rows = [f.row(1, f.entity()), f.row(9, rules.rule()), ...root];
     final page = buildContextBrief(
       all: rows,
       accessible: [rows.first],
@@ -68,7 +71,7 @@ void main() {
     expect(page.brief.records.length, 1);
     expect(page.brief.coverage, Coverage.partial);
     final restricted = buildContextBrief(
-      all: [rows.first],
+      all: [rows.first, ...root],
       accessible: [rows.first],
       visibility: {f.id(1)},
       focusIds: [f.id(1)],
@@ -147,7 +150,7 @@ void main() {
       ),
     );
     final page = buildContextBrief(
-      all: [entity, appearance],
+      all: [entity, appearance, ...root],
       accessible: [entity],
       visibility: {f.id(1)},
       focusIds: [f.id(1)],

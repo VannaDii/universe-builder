@@ -2,4 +2,3 @@
 library;
 
 export 'src/profile_credentials.dart';
-export 'src/credential_conversion.dart';

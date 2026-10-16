@@ -18,6 +18,8 @@ import 'package:ub_store/src/workflow_storage.dart';
 
 import 'proposal_state_test.dart' as proposals;
 
+import 'helpers/universe_creation.dart' as creation;
+
 void main() {
   late Directory directory;
   late SqliteInstallationStore store;
@@ -53,6 +55,7 @@ void main() {
       PrincipalId.generate(),
     );
     package.database.execute('COMMIT');
+    creation.addFixtureRoot(package);
     package.close();
     authority.registerUniverse(author, name: 'World', path: path);
   });

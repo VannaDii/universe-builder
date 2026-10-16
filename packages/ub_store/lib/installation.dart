@@ -8,8 +8,3 @@ export 'src/ownership.dart'
         privateDirectory,
         privateTemporaryDirectory,
         protectedFile;
-export 'src/installation_conversion.dart'
-    show
-        convertInstallation,
-        InstallationConversionException,
-        InstallationConversionFailure;

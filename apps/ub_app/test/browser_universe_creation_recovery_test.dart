@@ -10,38 +10,6 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
-@JS('Reflect.deleteProperty')
-external bool _deleteProperty(JSObject object, JSString key);
-
-Future<void> legacyRow(String name, (OperationId, ProfileId) scope) {
-  final done = Completer<void>();
-  final request = web.window.indexedDB.open(name, 1);
-  request.onerror = ((web.Event _) => done.completeError(
-    StateError('Open failed'),
-  )).toJS;
-  request.onsuccess = ((web.Event _) {
-    final db = request.result as web.IDBDatabase;
-    final tx = db.transaction('universe_creation_form'.toJS, 'readwrite');
-    final table = tx.objectStore('universe_creation_form');
-    final key = [scope.$1.value.toJS, scope.$2.value.toJS].toJS;
-    final read = table.get(key);
-    read.onsuccess = ((web.Event _) {
-      final row = read.result as JSObject;
-      _deleteProperty(row, 'realWorld'.toJS);
-      table.put(row, key);
-    }).toJS;
-    tx.oncomplete = ((web.Event _) {
-      db.close();
-      done.complete();
-    }).toJS;
-    tx.onabort = ((web.Event _) {
-      db.close();
-      done.completeError(StateError('Legacy row update failed'));
-    }).toJS;
-  }).toJS;
-  return done.future;
-}
-
 void main() {
   test('creation recovery preserves both calendars, unknown outcome and scope across reopen', () async {
     final name = 'ub-creation-test-${OperationId.generate().value}';
@@ -111,17 +79,6 @@ void main() {
       );
       await store.save(scope, form, pending.generation);
       expect((await store.load(scope))!.form.creationPending, isFalse);
-      store.close();
-      await legacyRow(name, scope);
-      store = await BrowserUniverseCreationFormRecoveryStore.open(
-        databaseName: name,
-      );
-      expect((await store.load(scope))!.form.realWorld, isFalse);
-      expect(
-        (await store.load(scope))!.form.toWire().toText(),
-        CanonicalObject(form.toWire().fields.where((e) => e.key != 'realWorld'))
-            .toText(),
-      );
     } finally {
       store.close();
       final done = Completer<void>();

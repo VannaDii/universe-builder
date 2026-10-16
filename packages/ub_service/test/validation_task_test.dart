@@ -11,28 +11,31 @@ import 'operation_compilation_test.dart' as f;
 import 'structural_checks_test.dart' as structure;
 
 void main() {
-  test('queued publication cannot validate a rootless legacy candidate', () {
-    final base = [structure.context(99)];
-    final task = PreparedValidationTask(
-      operationId: OperationId.generate(),
-      proposal: proposals.prepare(base: base),
-      base: base,
-      candidate: [...base, f.row(10, f.entity())],
-      approvalAuthor: proposals.actor,
-      restricted: false,
-      capture: null,
-    );
-    expect(
-      () => task.evaluate(),
-      throwsA(
-        isA<InvalidArgumentError>().having(
-          (error) => error.message,
-          'root requirement',
-          contains('root policy'),
+  test(
+    'queued publication cannot validate a candidate without a root policy',
+    () {
+      final base = [structure.context(99)];
+      final task = PreparedValidationTask(
+        operationId: OperationId.generate(),
+        proposal: proposals.prepare(base: base),
+        base: base,
+        candidate: [...base, f.row(10, f.entity())],
+        approvalAuthor: proposals.actor,
+        restricted: false,
+        capture: null,
+      );
+      expect(
+        () => task.evaluate(),
+        throwsA(
+          isA<InvalidArgumentError>().having(
+            (error) => error.message,
+            'root requirement',
+            contains('root policy'),
+          ),
         ),
-      ),
-    );
-  });
+      );
+    },
+  );
   test('evaluation uses immutable snapshots and propagates cancellation', () {
     final base = [
       structure.context(99),

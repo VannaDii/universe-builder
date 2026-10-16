@@ -89,29 +89,26 @@ _StoryTimeRow _encodeStoryTime(SavedStoryTimeForm saved) {
   );
 }
 
-SavedStoryTimeForm _decodeStoryTime(_StoryTimeRow row, {bool legacy = false}) =>
-    SavedStoryTimeForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedStoryTimeForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        target: ExpressionReferenceInput(
-          record: row.targetRecord,
-          universe: row.targetUniverse,
-        ),
-        expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
-        original: legacy
-            ? Chronology.fromWire(CanonicalValue.parseWireJson(row.original))
-            : decodeBrowserChronology(row.originalFields),
-        value: row.value,
-        mode: row.mode,
-        reason: row.reason,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+SavedStoryTimeForm _decodeStoryTime(_StoryTimeRow row) => SavedStoryTimeForm(
+  generation: BigInt.parse(row.generation),
+  form: UnfinishedStoryTimeForm(
+    baseRevision: RevisionId.parse(row.baseRevision),
+    representedContext: RecordId.parse(row.representedContext),
+    target: ExpressionReferenceInput(
+      record: row.targetRecord,
+      universe: row.targetUniverse,
+    ),
+    expectedRecordVersion: RecordVersionId.parse(row.expectedRecordVersion),
+    original: decodeBrowserChronology(row.originalFields),
+    value: row.value,
+    mode: row.mode,
+    reason: row.reason,
+    rationale: row.rationale,
+    draftVersion: row.draftVersion == null
+        ? null
+        : BigInt.parse(row.draftVersion!),
+  ),
+);
 
 final class BrowserStoryTimeFormRecoveryStore {
   BrowserStoryTimeFormRecoveryStore._(this._db);
@@ -132,32 +129,13 @@ final class BrowserStoryTimeFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeStoryTime(
-                    _decodeStoryTime(
-                      cursor.value as _StoryTimeRow,
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

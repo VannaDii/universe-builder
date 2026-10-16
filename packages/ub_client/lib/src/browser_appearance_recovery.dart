@@ -87,7 +87,6 @@ extension type _AppearanceRow._(JSObject _) implements JSObject {
   external String? get targetUniverse;
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external String? get draftVersion;
 }
 
@@ -142,9 +141,8 @@ extension type _LinkRow._(JSObject _) implements JSObject {
 SavedAppearanceForm _decodeAppearance(
   _AppearanceRow row,
   Iterable<_ImageRow> imageRows,
-  Iterable<_LinkRow> linkRows, {
-  bool legacy = false,
-}) {
+  Iterable<_LinkRow> linkRows,
+) {
   return SavedAppearanceForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedAppearanceForm(
@@ -209,13 +207,7 @@ SavedAppearanceForm _decodeAppearance(
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : AppearanceRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : AppearanceRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       draftVersion: row.draftVersion == null
@@ -278,36 +270,13 @@ final class BrowserAppearanceFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            final scan = tx.objectStore(_tables.first).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeAppearance(
-                    _decodeAppearance(
-                      cursor.value as _AppearanceRow,
-                      [],
-                      [],
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

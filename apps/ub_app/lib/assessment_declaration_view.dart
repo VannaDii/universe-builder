@@ -88,8 +88,6 @@ class _AssessmentDeclarationViewState extends State<AssessmentDeclarationView> {
           BoundAssessment() => 'At this check, the assessment is bound to the proposal and its source bytes are verified.',
           StaleAssessment() => 'At this check, the assessment is stale. Its retained declaration can still be read.',
           AbsentAssessment() => 'No source assessment was selected for this proposal. Existing evidence policies still apply.',
-          LegacyUnavailableAssessment() =>
-            'The source assessment is unavailable for this older proposal.',
           UnavailableAssessment() =>
             'The source assessment is unavailable for this check.',
         }),

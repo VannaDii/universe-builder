@@ -177,18 +177,6 @@ final class CanonicalIntegrity {
       }
       final workflow = WorkflowStorage(database);
       for (final row in database.select(
-        'SELECT key,source_digest,normalized_digest FROM import_workflow_digest',
-      )) {
-        final value = workflow.evidence(row['key'] as String);
-        if (value == null ||
-            canonicalDigest(value) != row['normalized_digest'] ||
-            !_hash(row['source_digest'] as String)) {
-          throw const FormatException(
-            'Converted workflow digest provenance mismatch',
-          );
-        }
-      }
-      for (final row in database.select(
         'SELECT p.source_digest,p.normalized_digest,v.digest FROM import_record_digest p JOIN record_versions v ON v.universe_id=p.universe_id AND v.id=p.version_id',
       )) {
         if (row['normalized_digest'] != row['digest'] ||

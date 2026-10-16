@@ -6,15 +6,11 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:postgres/postgres.dart';
-import 'package:sqlite3/sqlite3.dart' show sqlite3;
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/postgres_runtime.dart';
 import 'package:ub_store/postgres_installation.dart';
-import 'package:ub_store/sqlite.dart' as local;
-import 'package:ub_store/ub_store.dart';
-import 'package:ub_store/src/ownership.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
@@ -23,7 +19,7 @@ void main() {
     Platform.environment['UB_TEST_POSTGRES_PORT'] ?? '',
   );
   group(
-    'PostgreSQL namespace registration and legacy conversion',
+    'PostgreSQL namespace registration',
     () {
       late Directory directory;
       late PostgresInstallationStore store;
@@ -85,112 +81,6 @@ void main() {
       ) => author.execute(
         RegisterUniverseEngineRequest(path: 'ub_${universe.value}', name: name),
       );
-      ({
-        UniverseId universe,
-        StoredVersion first,
-        StoredVersion second,
-        String path,
-      })
-      legacySource() {
-        final universe = UniverseId.generate(), id = RecordId.generate();
-        universes.add(universe);
-        StoredVersion version(String name) => StoredVersion.build(
-          RecordVersionId.generate(),
-          RecordIdentity(
-            universeId: universe,
-            recordId: id,
-            recordKind: RecordKind.representedContext,
-          ),
-          RepresentedContextRecord(
-            universe: universe,
-            kind: const ObjectiveContext(),
-            labels: {'name': name},
-          ).toWire(),
-        );
-        final first = version('Earlier é😀'), second = version('Later');
-        final path = '${directory.path}/legacy.sqlite';
-        protectedFile(path, createNew: true);
-        final db = sqlite3.open(path);
-        try {
-          db.execute(
-            File('../../crates/universe-store/src/schema_v0.sql')
-                .readAsStringSync(),
-          );
-          db.execute(
-            'INSERT INTO universes(id,name,created_at) VALUES(?,?,?)',
-            [universe.value, 'Legacy campaign', 'then'],
-          );
-          db.execute(
-            'INSERT INTO record_identities(id,universe_id,kind,created_at) VALUES(?,?,?,?)',
-            [id.value, universe.value, 'represented_context', 'then'],
-          );
-          for (final row in [first, second]) {
-            db.execute(
-              'INSERT INTO record_versions(id,record_id,universe_id,kind,payload,digest,created_at) VALUES(?,?,?,?,?,?,?)',
-              [
-                row.versionId.value,
-                id.value,
-                universe.value,
-                'represented_context',
-                row.payload.toBytes(),
-                row.digest,
-                'then',
-              ],
-            );
-          }
-          for (final (revision, parent) in [
-            ('old-first', null),
-            ('old-second', 'old-first'),
-            ('old-third', 'old-second'),
-          ]) {
-            db.execute(
-              'INSERT INTO commits(id,universe_id,continuity_id,parent_id,author,reason,created_at) VALUES(?,?,?,?,?,?,?)',
-              [
-                revision,
-                universe.value,
-                'cont_main',
-                parent,
-                'Original author',
-                'Original $revision',
-                'then',
-              ],
-            );
-          }
-          db.execute('INSERT INTO commit_changes VALUES(?,?,?,?,?)', [
-            'change-first',
-            'old-first',
-            id.value,
-            'create',
-            first.versionId.value,
-          ]);
-          db.execute('INSERT INTO commit_changes VALUES(?,?,?,?,?)', [
-            'change-second',
-            'old-second',
-            id.value,
-            'replace',
-            second.versionId.value,
-          ]);
-          db.execute('INSERT INTO commit_changes VALUES(?,?,?,?,?)', [
-            'change-third',
-            'old-third',
-            id.value,
-            'tombstone',
-            null,
-          ]);
-          db.execute('INSERT INTO continuities VALUES(?,?,?,?,?,?)', [
-            'cont_main',
-            universe.value,
-            'old-third',
-            null,
-            'then',
-            'then',
-          ]);
-        } finally {
-          db.close();
-        }
-        return (universe: universe, first: first, second: second, path: path);
-      }
-
       setUp(() async {
         universes.clear();
         directory = Directory.systemTemp.createTempSync(
@@ -354,93 +244,6 @@ void main() {
         await store.transaction(
           (session) => session.verifyUniverse(universe, complete: true),
         );
-      });
-
-      test('legacy conversion retains typed versions tombstones and source bytes and requires separate reviewed admission', () async {
-        final author = await runtime.connect(hello(authorId));
-        final writer = await runtime.connect(hello(writerId));
-        final fixture = legacySource();
-        final original = File(fixture.path).readAsBytesSync();
-        final output = '${directory.path}/converted.sqlite';
-        final request = ConvertLegacyEngineRequest(
-          source: fixture.path,
-          destination: output,
-        );
-        await expectLater(
-          writer.execute(request),
-          throwsA(isA<NotFoundOrNotAccessibleError>()),
-        );
-        expect(File(output).existsSync(), isFalse);
-        final report = await author.execute(request);
-        expect(text(report, 'universe'), fixture.universe.value);
-        expect((fields(report)['canonical'] as CanonicalBool).value, isFalse);
-        expect(
-          await store.transaction(
-            (session) =>
-                session.authority.catalog(authorId, epochSeconds: BigInt.zero),
-          ),
-          isEmpty,
-        );
-        final archive = local.OwnedSqliteDatabase.stageLogicalArchive(
-          output,
-          directory.path,
-        );
-        try {
-          final journal = local.SqliteJournal(
-            archive.package.database,
-            fixture.universe,
-          );
-          for (final version in [fixture.first, fixture.second]) {
-            expect(
-              journal.load(version.versionId).toCanonical().toText(),
-              version.toCanonical().toText(),
-            );
-          }
-          final mapping = fields(fields(report)['continuity_mapping']!);
-          final continuity = ContinuityId.parse(
-            wireString(mapping['cont_main']!),
-          );
-          expect(
-            journal.snapshot(continuity, journal.head(continuity)),
-            isEmpty,
-          );
-        } finally {
-          archive.close();
-        }
-        final reviewed = await author.execute(
-          PreviewImportEngineRequest(
-            source: output,
-            name: 'Admitted legacy',
-            mode: ImportMode.restore,
-          ),
-        );
-        await author.execute(
-          AcceptImportEngineRequest(
-            previewId: OperationId.parse(text(reviewed, 'preview_id')),
-            digest: text(reviewed, 'digest'),
-          ),
-        );
-        await store.transaction((session) async {
-          await session.verifyUniverse(fixture.universe, complete: true);
-          for (final version in [fixture.first, fixture.second]) {
-            expect(
-              (await session
-                      .kernel(fixture.universe)
-                      .journal
-                      .load(version.versionId))
-                  .toCanonical()
-                  .toText(),
-              version.toCanonical().toText(),
-            );
-          }
-        });
-        expect(File(fixture.path).readAsBytesSync(), orderedEquals(original));
-        final published = File(output).readAsBytesSync();
-        await expectLater(
-          author.execute(request),
-          throwsA(isA<FileSystemException>()),
-        );
-        expect(File(output).readAsBytesSync(), orderedEquals(published));
       });
     },
     skip: port == null

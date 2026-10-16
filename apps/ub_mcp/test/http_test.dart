@@ -155,7 +155,7 @@ void main() {
         expect(tool['isError'], isNot(true));
         expect(tool['structuredContent'], isA<Map<String, dynamic>>());
         expect(result.body, contains('Test'));
-        expect(result.body, contains('root_policy_defined'));
+        expect(result.body, contains('represented_contexts'));
       } finally {
         handler.close();
         await engine.close();
@@ -208,13 +208,13 @@ void main() {
   );
 
   test('HTTP negotiation, notification acknowledgement, discovery and no GET stream', () async {
-    final legacy = await send(
+    final unqualified = await send(
       body: initialize.toText().replaceFirst('2025-11-25', '2024-11-05'),
       version: null,
     );
-    expect(legacy.status, 200);
-    expect(legacy.body, contains('2025-11-25'));
-    final id = legacy.headers['mcp-session-id']!;
+    expect(unqualified.status, 200);
+    expect(unqualified.body, contains('2025-11-25'));
+    final id = unqualified.headers['mcp-session-id']!;
     expect(id, matches(RegExp(r'^[A-Za-z0-9_-]{43}$')));
     expect(
       (await send(

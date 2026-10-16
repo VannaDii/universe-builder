@@ -453,7 +453,6 @@ sealed class AssessmentState {
     );
     return switch (kind) {
       'absent' => AbsentAssessment.fromWire(value),
-      'unavailable_legacy' => LegacyUnavailableAssessment.fromWire(value),
       'unavailable' => UnavailableAssessment.fromWire(value),
       'stale' => StaleAssessment.fromWire(value),
       'bound' => BoundAssessment.fromWire(value),
@@ -474,21 +473,6 @@ final class AbsentAssessment extends AssessmentState {
   @override
   CanonicalObject toWire() =>
       CanonicalObject([MapEntry('kind', CanonicalString('absent'))]);
-}
-
-final class LegacyUnavailableAssessment extends AssessmentState {
-  const LegacyUnavailableAssessment();
-  factory LegacyUnavailableAssessment.fromWire(CanonicalValue value) {
-    final f = WireFields(value, {'kind'});
-    if (f.string('kind') != 'unavailable_legacy') {
-      throw const FormatException('Wrong variant');
-    }
-    return LegacyUnavailableAssessment();
-  }
-  @override
-  CanonicalObject toWire() => CanonicalObject([
-    MapEntry('kind', CanonicalString('unavailable_legacy')),
-  ]);
 }
 
 final class UnavailableAssessment extends AssessmentState {

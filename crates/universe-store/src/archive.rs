@@ -951,9 +951,6 @@ impl Kernel {
     }
 }
 
-#[path = "legacy.rs"]
-mod legacy;
-pub use legacy::convert_legacy;
 
 pub(super) fn mark_historical(c: &Connection) -> StoreResult<()> {
     c.execute(

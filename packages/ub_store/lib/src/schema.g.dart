@@ -8736,12 +8736,11 @@ CREATE TABLE "r_source_binding_passage_id" (
 
 CREATE TABLE "r_assessment_state" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 4),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 3),
   v0 INTEGER REFERENCES "r_assessment_state_v0"(__row_id),
   v1 INTEGER REFERENCES "r_assessment_state_v1"(__row_id),
   v2 INTEGER REFERENCES "r_assessment_state_v2"(__row_id),
   v3 INTEGER REFERENCES "r_assessment_state_v3"(__row_id),
-  v4 INTEGER REFERENCES "r_assessment_state_v4"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -8749,9 +8748,7 @@ CREATE TABLE "r_assessment_state" (
   CHECK(variant=2 OR v2 IS NULL),
   CHECK(variant!=2 OR v2 IS NOT NULL),
   CHECK(variant=3 OR v3 IS NULL),
-  CHECK(variant!=3 OR v3 IS NOT NULL),
-  CHECK(variant=4 OR v4 IS NULL),
-  CHECK(variant!=4 OR v4 IS NOT NULL)
+  CHECK(variant!=3 OR v3 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_assessment_state_v0" (
@@ -8764,14 +8761,6 @@ CREATE TABLE "r_assessment_state_v0" (
 
 CREATE TABLE "r_assessment_state_v1" (
   __row_id INTEGER PRIMARY KEY,
-  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
-  "kind" TEXT,
-  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
-  CHECK("kind"='unavailable_legacy')
-) STRICT;
-
-CREATE TABLE "r_assessment_state_v2" (
-  __row_id INTEGER PRIMARY KEY,
   "reason__state" INTEGER NOT NULL CHECK("reason__state" IN (2)),
   "reason" TEXT,
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
@@ -8782,12 +8771,12 @@ CREATE TABLE "r_assessment_state_v2" (
   CHECK("kind"='unavailable')
 ) STRICT;
 
-CREATE TABLE "r_assessment_state_v3" (
+CREATE TABLE "r_assessment_state_v2" (
   __row_id INTEGER PRIMARY KEY,
   "assessment_reference__state" INTEGER NOT NULL CHECK("assessment_reference__state" IN (2)),
   "assessment_reference" INTEGER REFERENCES "r_assessment_ref"(__row_id),
   "reasons__state" INTEGER NOT NULL CHECK("reasons__state" IN (2)),
-  "reasons" INTEGER REFERENCES "r_assessment_state_v3_reasons"(__row_id),
+  "reasons" INTEGER REFERENCES "r_assessment_state_v2_reasons"(__row_id),
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
   "kind" TEXT,
   CHECK(("assessment_reference__state"=2 AND "assessment_reference" IS NOT NULL) OR ("assessment_reference__state" IN (0,1) AND "assessment_reference" IS NULL)),
@@ -8806,13 +8795,13 @@ CREATE TABLE "r_assessment_ref" (
   CHECK(("digest__state"=2 AND "digest" IS NOT NULL) OR ("digest__state" IN (0,1) AND "digest" IS NULL))
 ) STRICT;
 
-CREATE TABLE "r_assessment_state_v3_reasons" (
+CREATE TABLE "r_assessment_state_v2_reasons" (
   __row_id INTEGER PRIMARY KEY
 ) STRICT;
 
-CREATE TABLE "r_assessment_state_v3_reasons_items" (owner INTEGER NOT NULL REFERENCES "r_assessment_state_v3_reasons"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+CREATE TABLE "r_assessment_state_v2_reasons_items" (owner INTEGER NOT NULL REFERENCES "r_assessment_state_v2_reasons"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
 
-CREATE TABLE "r_assessment_state_v4" (
+CREATE TABLE "r_assessment_state_v3" (
   __row_id INTEGER PRIMARY KEY,
   "assessment_reference__state" INTEGER NOT NULL CHECK("assessment_reference__state" IN (2)),
   "assessment_reference" INTEGER REFERENCES "r_assessment_ref"(__row_id),
@@ -13134,25 +13123,21 @@ CREATE TRIGGER "r_assessment_state_v2_no_update" BEFORE UPDATE ON "r_assessment_
 
 CREATE TRIGGER "r_assessment_state_v2_no_delete" BEFORE DELETE ON "r_assessment_state_v2" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_no_update" BEFORE UPDATE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_assessment_state_v3_no_delete" BEFORE DELETE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
 CREATE TRIGGER "r_assessment_ref_no_update" BEFORE UPDATE ON "r_assessment_ref" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_assessment_ref_no_delete" BEFORE DELETE ON "r_assessment_ref" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_no_update" BEFORE UPDATE ON "r_assessment_state_v3_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_no_update" BEFORE UPDATE ON "r_assessment_state_v2_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_no_delete" BEFORE DELETE ON "r_assessment_state_v3_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_no_delete" BEFORE DELETE ON "r_assessment_state_v2_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_items_no_update" BEFORE UPDATE ON "r_assessment_state_v3_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_items_no_update" BEFORE UPDATE ON "r_assessment_state_v2_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_items_no_delete" BEFORE DELETE ON "r_assessment_state_v3_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_items_no_delete" BEFORE DELETE ON "r_assessment_state_v2_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v4_no_update" BEFORE UPDATE ON "r_assessment_state_v4" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v3_no_update" BEFORE UPDATE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v4_no_delete" BEFORE DELETE ON "r_assessment_state_v4" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v3_no_delete" BEFORE DELETE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_validation_report_v0_final_binding_digest_no_update" BEFORE UPDATE ON "r_validation_report_v0_final_binding_digest" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -13738,11 +13723,6 @@ CREATE TABLE historical_receipt(universe_id TEXT NOT NULL, principal TEXT NOT NU
 CREATE TRIGGER historical_receipt_no_update BEFORE UPDATE ON historical_receipt BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
 CREATE TRIGGER historical_receipt_no_delete BEFORE DELETE ON historical_receipt BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
 CREATE VIEW active_workflow_index AS SELECT key,digest FROM workflow_index WHERE key NOT IN (SELECT h.key FROM historical_workflow h JOIN workflow_entries e ON e.key=h.key WHERE e.family IN ('ApprovalEvidence','StoredOperation','StoredContext','Cursor'));
-
--- Conversion provenance binds original workflow evidence to normalized typed rows.
-CREATE TABLE import_workflow_digest(key TEXT PRIMARY KEY, source_digest TEXT NOT NULL, normalized_digest TEXT NOT NULL) STRICT;
-CREATE TRIGGER import_workflow_digest_no_update BEFORE UPDATE ON import_workflow_digest BEGIN SELECT RAISE(ABORT,'immutable import provenance'); END;
-CREATE TRIGGER import_workflow_digest_no_delete BEFORE DELETE ON import_workflow_digest BEGIN SELECT RAISE(ABORT,'immutable import provenance'); END;
 ''';
 const relationalCatalog = r'''{
   "roots": [
@@ -26918,8 +26898,7 @@ const relationalCatalog = r'''{
         "AssessmentState_v0",
         "AssessmentState_v1",
         "AssessmentState_v2",
-        "AssessmentState_v3",
-        "AssessmentState_v4"
+        "AssessmentState_v3"
       ]
     },
     "AssessmentState_v0": {
@@ -26941,27 +26920,12 @@ const relationalCatalog = r'''{
       "table": "r_assessment_state_v1",
       "kind": "object",
       "fields": {
-        "kind": {
-          "model": "AssessmentState_v1_kind",
-          "required": true
-        }
-      }
-    },
-    "AssessmentState_v1_kind": {
-      "table": "r_assessment_state_v1_kind",
-      "kind": "string",
-      "const": "unavailable_legacy"
-    },
-    "AssessmentState_v2": {
-      "table": "r_assessment_state_v2",
-      "kind": "object",
-      "fields": {
         "reason": {
           "model": "UnavailableReason",
           "required": true
         },
         "kind": {
-          "model": "AssessmentState_v2_kind",
+          "model": "AssessmentState_v1_kind",
           "required": true
         }
       }
@@ -26975,13 +26939,13 @@ const relationalCatalog = r'''{
         "failed_or_cancelled_check"
       ]
     },
-    "AssessmentState_v2_kind": {
-      "table": "r_assessment_state_v2_kind",
+    "AssessmentState_v1_kind": {
+      "table": "r_assessment_state_v1_kind",
       "kind": "string",
       "const": "unavailable"
     },
-    "AssessmentState_v3": {
-      "table": "r_assessment_state_v3",
+    "AssessmentState_v2": {
+      "table": "r_assessment_state_v2",
       "kind": "object",
       "fields": {
         "assessment_reference": {
@@ -26989,11 +26953,11 @@ const relationalCatalog = r'''{
           "required": true
         },
         "reasons": {
-          "model": "AssessmentState_v3_reasons",
+          "model": "AssessmentState_v2_reasons",
           "required": true
         },
         "kind": {
-          "model": "AssessmentState_v3_kind",
+          "model": "AssessmentState_v2_kind",
           "required": true
         }
       }
@@ -27017,8 +26981,8 @@ const relationalCatalog = r'''{
       "kind": "string",
       "pattern": "^asm_[0-9a-f]{24}$"
     },
-    "AssessmentState_v3_reasons": {
-      "table": "r_assessment_state_v3_reasons",
+    "AssessmentState_v2_reasons": {
+      "table": "r_assessment_state_v2_reasons",
       "kind": "array",
       "item": "StaleReason"
     },
@@ -27034,13 +26998,13 @@ const relationalCatalog = r'''{
         "evaluator_changed"
       ]
     },
-    "AssessmentState_v3_kind": {
-      "table": "r_assessment_state_v3_kind",
+    "AssessmentState_v2_kind": {
+      "table": "r_assessment_state_v2_kind",
       "kind": "string",
       "const": "stale"
     },
-    "AssessmentState_v4": {
-      "table": "r_assessment_state_v4",
+    "AssessmentState_v3": {
+      "table": "r_assessment_state_v3",
       "kind": "object",
       "fields": {
         "assessment_reference": {
@@ -27048,7 +27012,7 @@ const relationalCatalog = r'''{
           "required": true
         },
         "selection_generation": {
-          "model": "AssessmentState_v4_selection_generation",
+          "model": "AssessmentState_v3_selection_generation",
           "required": true
         },
         "byte_verification": {
@@ -27060,15 +27024,15 @@ const relationalCatalog = r'''{
           "required": true
         },
         "inventory_count": {
-          "model": "AssessmentState_v4_inventory_count",
+          "model": "AssessmentState_v3_inventory_count",
           "required": true
         },
         "mapping_count": {
-          "model": "AssessmentState_v4_mapping_count",
+          "model": "AssessmentState_v3_mapping_count",
           "required": true
         },
         "unresolved_count": {
-          "model": "AssessmentState_v4_unresolved_count",
+          "model": "AssessmentState_v3_unresolved_count",
           "required": true
         },
         "inventory_digest": {
@@ -27076,13 +27040,13 @@ const relationalCatalog = r'''{
           "required": true
         },
         "kind": {
-          "model": "AssessmentState_v4_kind",
+          "model": "AssessmentState_v3_kind",
           "required": true
         }
       }
     },
-    "AssessmentState_v4_selection_generation": {
-      "table": "r_assessment_state_v4_selection_generation",
+    "AssessmentState_v3_selection_generation": {
+      "table": "r_assessment_state_v3_selection_generation",
       "kind": "integer",
       "minimum": 0
     },
@@ -27102,23 +27066,23 @@ const relationalCatalog = r'''{
         "unresolved"
       ]
     },
-    "AssessmentState_v4_inventory_count": {
-      "table": "r_assessment_state_v4_inventory_count",
+    "AssessmentState_v3_inventory_count": {
+      "table": "r_assessment_state_v3_inventory_count",
       "kind": "integer",
       "minimum": 0
     },
-    "AssessmentState_v4_mapping_count": {
-      "table": "r_assessment_state_v4_mapping_count",
+    "AssessmentState_v3_mapping_count": {
+      "table": "r_assessment_state_v3_mapping_count",
       "kind": "integer",
       "minimum": 0
     },
-    "AssessmentState_v4_unresolved_count": {
-      "table": "r_assessment_state_v4_unresolved_count",
+    "AssessmentState_v3_unresolved_count": {
+      "table": "r_assessment_state_v3_unresolved_count",
       "kind": "integer",
       "minimum": 0
     },
-    "AssessmentState_v4_kind": {
-      "table": "r_assessment_state_v4_kind",
+    "AssessmentState_v3_kind": {
+      "table": "r_assessment_state_v3_kind",
       "kind": "string",
       "const": "bound"
     },

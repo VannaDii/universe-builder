@@ -1471,16 +1471,9 @@ void main() {
     expect(authority.catalog(author), hasLength(1));
   });
 
-  ({
-    UniverseId id,
-    String source,
-    ContinuityId continuity,
-    RevisionId revision,
-    RecordVersion? context,
-  })
-  restoreSource({bool withContext = false}) {
-    final id = UniverseId.generate();
-    final continuity = ContinuityId.generate();
+  ({UniverseId id, String source, ContinuityId continuity, RevisionId revision})
+  restoreSource() {
+    final id = UniverseId.generate(), continuity = ContinuityId.generate();
     final source = '${root.path}/restore-source-${id.value}.sqlite';
     final package = OwnedSqliteDatabase.create(
       '${root.path}/source-${id.value}/package.sqlite',
@@ -1490,51 +1483,34 @@ void main() {
       package.database.execute('BEGIN IMMEDIATE');
       journal.initialize('Restore fixture', continuity, PrincipalId.generate());
       package.database.execute('COMMIT');
-      RecordVersion? context;
-      var revision = journal.head(continuity);
-      if (withContext) {
-        context = RecordVersion.build(
-          recordVersionId: RecordVersionId.generate(),
-          identity: RecordIdentity(
-            universeId: id,
-            recordId: f.id(99),
-            recordKind: RecordKind.representedContext,
-          ),
-          payload: RepresentedContextRecord(
-            universe: id,
-            kind: const ObjectiveContext(),
-            labels: {'en': 'Legacy reality'},
-          ),
-        );
-        revision = SqliteKernel(package.database, id).commit(
-          CommitInput(
-            universe: id,
-            continuity: continuity,
-            expectedHead: revision,
-            principal: PrincipalId.generate(),
-            decision: 'Admitted legacy context',
-            reason: 'Legacy import fixture',
-            idempotencyKey: 'legacy-context',
-            changes: [
+      final revision = SqliteKernel(package.database, id).commit(
+        CommitInput(
+          universe: id,
+          continuity: continuity,
+          expectedHead: journal.head(continuity),
+          principal: PrincipalId.generate(),
+          decision: 'Create root policy',
+          reason: 'Current universe fixture',
+          idempotencyKey: 'root-policy',
+          changes: [
+            for (final row in initialUniversePolicyRecords(id, false))
               Assignment(
-                recordId: context.identity.recordId,
+                recordId: row.identity.recordId,
                 next: StoredVersion.build(
-                  context.recordVersionId,
-                  context.identity,
-                  context.payload.toWire(),
+                  row.recordVersionId,
+                  row.identity,
+                  row.payload.toWire(),
                 ),
               ),
-            ],
-          ),
-        );
-      }
+          ],
+        ),
+      );
       package.backup(source);
       return (
         id: id,
         source: source,
         continuity: continuity,
         revision: revision,
-        context: context,
       );
     } finally {
       package.close();
@@ -1587,197 +1563,6 @@ void main() {
     'workflow_and_approvals',
     'canonical',
     'conflicts',
-  });
-
-  test('rootless imported history is readable but publication needs explicit root adoption', () async {
-    final fixture = restoreSource(withContext: true);
-    final source = OwnedSqliteDatabase.openExisting(fixture.source);
-    final archive = '${root.path}/legacy-policy.sqlite';
-    try {
-      source.exportCompleteHistory(archive);
-    } finally {
-      source.close();
-    }
-    final connection = runtime.connect(hello(author.id));
-    final review = importReport(
-      await engine(
-        connection,
-        PreviewImportEngineRequest(
-          source: archive,
-          name: 'Legacy policy',
-          mode: ImportMode.restore,
-        ),
-      ),
-    );
-    await engine(
-      connection,
-      AcceptImportEngineRequest(
-        previewId: OperationId.parse(review.string('preview_id')),
-        digest: review.string('digest'),
-      ),
-    );
-    const selector = Selector('Legacy policy');
-    Future<T> read<T>(
-      Request request,
-      T Function(CanonicalValue) decode,
-    ) async => decode((await tool(connection, request)).result);
-    Future<OpenedContext> open() => read(
-      OpenContextRequest(
-        universe: selector,
-        universeId: fixture.id,
-        continuityId: fixture.continuity,
-        revision: const HeadRevisionSelector(),
-        representedContext: ContextIdSelector(
-          fixture.context!.identity.recordId,
-        ),
-        temporalQuery: const TimelessFrameTime(),
-        temporalSystems: [],
-        perspective: const AuthorPerspective(),
-      ),
-      OpenedContext.fromWire,
-    );
-    final before = await open();
-    expect(
-      (await read(
-        DescribeSummaryRequest(universe: selector),
-        Description.fromWire,
-      )).continuities.single.rootPolicyDefined,
-      isFalse,
-    );
-    final blocked = await read(
-      CreateProposalRequest(
-        universe: selector,
-        contextId: before.contextId,
-        operations: [
-          CreateEntityOperation(
-            clientRef: RecordId.generate().value,
-            record: f.entity(),
-          ),
-        ],
-        submission: Submission.submitted,
-        rationale: 'Legacy write needs a policy.',
-        idempotencyKey: 'without-root',
-      ),
-      Proposal.fromWire,
-    );
-    ProposalRef ref(Proposal proposal) => ProposalRef(
-      proposalId: proposal.proposalId,
-      version: proposal.version,
-      digest: proposal.digest,
-    );
-    await expectLater(
-      read(
-        ProposalValidationRequest(
-          universe: selector,
-          contextId: before.contextId,
-          proposalReference: ref(blocked),
-          checkScope: CheckScope.candidate,
-        ),
-        ValidationV3.fromWire,
-      ),
-      throwsA(
-        isA<InvalidArgumentError>().having(
-          (e) => e.message,
-          'root requirement',
-          contains('root policy'),
-        ),
-      ),
-    );
-    final adopted = await read(
-      CreateProposalRequest(
-        universe: selector,
-        contextId: before.contextId,
-        operations: [
-          DefineUniversePolicyOperation(
-            clientRef: RecordId.generate().value,
-            key: 'Explicit legacy baseline',
-            realWorld: false,
-            activate: true,
-          ),
-        ],
-        submission: Submission.submitted,
-        rationale: 'Adopt an empty policy without rewriting history.',
-        idempotencyKey: 'adopt-root',
-      ),
-      Proposal.fromWire,
-    );
-    final checked = await read(
-      ProposalValidationRequest(
-        universe: selector,
-        contextId: before.contextId,
-        proposalReference: ref(adopted),
-        checkScope: CheckScope.candidate,
-      ),
-      ValidationV3.fromWire,
-    ) as EvaluatedValidation;
-    await engine(
-      connection,
-      ApproveEngineRequest(
-        universe: selector,
-        proposalReference: ref(adopted),
-        validationRun: checked.execution.runId,
-      ),
-    );
-    final receipt = await read(
-      CommitRequest(
-        universe: selector,
-        proposalReference: ref(adopted),
-        expectedBaseRevision: before.frame.revision,
-        validationRun: checked.execution.runId,
-        idempotencyKey: 'publish-adoption',
-      ),
-      CommitReceipt.fromWire,
-    );
-    expect(receipt.revision, isNot(fixture.revision));
-    expect(
-      (await read(
-        DescribeSummaryRequest(universe: selector),
-        Description.fromWire,
-      )).continuities.single.rootPolicyDefined,
-      isTrue,
-    );
-    final retained = await read(
-      GetRequest(
-        universe: selector,
-        contextId: before.contextId,
-        recordIds: [fixture.context!.identity.recordId],
-        fieldGroups: [FieldGroup.payload],
-      ),
-      Records.fromWire,
-    );
-    expect(
-      retained.records.single.toWire().toText(),
-      fixture.context!.toWire().toText(),
-    );
-    final current = await open();
-    final ready = await read(
-      CreateProposalRequest(
-        universe: selector,
-        contextId: current.contextId,
-        operations: [
-          CreateEntityOperation(
-            clientRef: RecordId.generate().value,
-            record: f.entity(),
-          ),
-        ],
-        submission: Submission.submitted,
-        rationale: 'Policy is now defined.',
-        idempotencyKey: 'after-adoption',
-      ),
-      Proposal.fromWire,
-    );
-    expect(
-      await read(
-        ProposalValidationRequest(
-          universe: selector,
-          contextId: current.contextId,
-          proposalReference: ref(ready),
-          checkScope: CheckScope.candidate,
-        ),
-        ValidationV3.fromWire,
-      ),
-      isA<EvaluatedValidation>(),
-    );
   });
 
   test('native logical import persists exact preview across restart and retries admission', () async {
@@ -1978,7 +1763,7 @@ void main() {
             preserved.database
                 .select('SELECT count(*) AS n FROM commits')
                 .single['n'],
-            1,
+            2,
           );
         } finally {
           preserved.close();
@@ -1986,129 +1771,6 @@ void main() {
       }
     }
     expect(authority.catalog(author), hasLength(2));
-  });
-
-  test('native legacy conversion requires author authority and produces a reviewed archive without registration', () async {
-    final source = '${root.path}/legacy.sqlite';
-    final destination = '${root.path}/legacy-converted.sqlite';
-    final request = ConvertLegacyEngineRequest(
-      source: source,
-      destination: destination,
-    );
-    await expectLater(
-      engine(runtime.connect(hello(writer.id)), request),
-      throwsA(isA<NotFoundOrNotAccessibleError>()),
-    );
-    expect(File(destination).existsSync(), isFalse);
-    protectedFile(source, createNew: true);
-    final universe = UniverseId.generate(), id = RecordId.generate();
-    final version = StoredVersion.build(
-      RecordVersionId.generate(),
-      RecordIdentity(
-        universeId: universe,
-        recordId: id,
-        recordKind: RecordKind.representedContext,
-      ),
-      RepresentedContextRecord(
-        universe: universe,
-        kind: const ObjectiveContext(),
-        labels: {'name': 'Legacy'},
-      ).toWire(),
-    );
-    final db = sqlite3.open(source);
-    try {
-      db.execute(
-        File('../../crates/universe-store/src/schema_v0.sql')
-            .readAsStringSync(),
-      );
-      db.execute('INSERT INTO universes(id,name,created_at) VALUES(?,?,?)', [
-        universe.value,
-        'Legacy',
-        'then',
-      ]);
-      db.execute(
-        'INSERT INTO record_identities(id,universe_id,kind,created_at) VALUES(?,?,?,?)',
-        [id.value, universe.value, 'represented_context', 'then'],
-      );
-      db.execute(
-        'INSERT INTO record_versions(id,record_id,universe_id,kind,payload,digest,created_at) VALUES(?,?,?,?,?,?,?)',
-        [
-          version.versionId.value,
-          id.value,
-          universe.value,
-          'represented_context',
-          version.payload.toBytes(),
-          version.digest,
-          'then',
-        ],
-      );
-      db.execute(
-        'INSERT INTO commits(id,universe_id,continuity_id,author,reason,created_at) VALUES(?,?,?,?,?,?)',
-        [
-          'old-commit',
-          universe.value,
-          'cont_main',
-          'Historical author',
-          'Original genesis',
-          'then',
-        ],
-      );
-      db.execute('INSERT INTO commit_changes VALUES(?,?,?,?,?)', [
-        'old-change',
-        'old-commit',
-        id.value,
-        'create',
-        version.versionId.value,
-      ]);
-      db.execute('INSERT INTO continuities VALUES(?,?,?,?,?,?)', [
-        'cont_main',
-        universe.value,
-        'old-commit',
-        null,
-        'then',
-        'then',
-      ]);
-    } finally {
-      db.close();
-    }
-    final original = File(source).readAsBytesSync();
-    final connection = runtime.connect(hello(author.id));
-    final report = WireFields(await engine(connection, request), {
-      'converted',
-      'canonical',
-      'universe',
-      'continuity_mapping',
-      'revision_mapping',
-      'record_and_version_ids',
-      'workflow_authority',
-      'next_step',
-    });
-    expect(report.boolean('converted'), isTrue);
-    expect(report.boolean('canonical'), isFalse);
-    expect(authority.catalog(author), hasLength(1));
-    final preview = importReport(
-      await engine(
-        connection,
-        PreviewImportEngineRequest(
-          source: destination,
-          name: 'Legacy clone',
-          mode: ImportMode.clone,
-        ),
-      ),
-    );
-    await engine(
-      connection,
-      AcceptImportEngineRequest(
-        previewId: OperationId.parse(preview.string('preview_id')),
-        digest: preview.string('digest'),
-      ),
-    );
-    expect(authority.catalog(author), hasLength(2));
-    await engine(
-      connection,
-      const LibraryEngineRequest(universe: Selector('Legacy clone')),
-    );
-    expect(File(source).readAsBytesSync(), orderedEquals(original));
   });
 
   test('native logical export supplies complete canon and filtered archives through exact clone admission', () async {
@@ -2214,8 +1876,8 @@ void main() {
       ),
     );
     expect(report.boolean('complete'), isFalse);
-    expect(report.require('omitted_records').toText(), '3');
-    expect(report.require('record_count').toText(), '2');
+    expect(report.require('omitted_records').toText(), '1');
+    expect(report.require('record_count').toText(), '4');
     await engine(
       connection,
       AcceptImportEngineRequest(
@@ -3064,6 +2726,35 @@ void main() {
     expect(authority.catalog(author), hasLength(1));
   });
 
+  test(
+    'native registration rejects a universe without a root policy',
+    () async {
+      final path = '${root.path}/invalid-root.sqlite';
+      final package = OwnedSqliteDatabase.create(path);
+      try {
+        package.database.execute('BEGIN IMMEDIATE');
+        SqliteJournal(package.database, UniverseId.generate()).initialize(
+          'Missing policy',
+          ContinuityId.generate(),
+          PrincipalId.generate(),
+        );
+        package.database.execute('COMMIT');
+      } finally {
+        package.close();
+      }
+      final before = authority.catalog(author).length;
+      final client = runtime.connect(hello(author.id));
+      await expectLater(
+        engine(
+          client,
+          RegisterUniverseEngineRequest(path: path, name: 'Missing policy'),
+        ),
+        throwsFormatException,
+      );
+      expect(authority.catalog(author), hasLength(before));
+    },
+  );
+
   test('native registration retains recovered external identity and retries after catalog conflict', () async {
     final foreign = UniverseId.generate();
     final continuity = ContinuityId.generate();
@@ -3077,6 +2768,28 @@ void main() {
         foreign,
       ).journal.initialize('External', continuity, PrincipalId.generate());
       external.database.execute('COMMIT');
+      genesis = SqliteKernel(external.database, foreign).commit(
+        CommitInput(
+          universe: foreign,
+          continuity: continuity,
+          expectedHead: genesis,
+          principal: PrincipalId.generate(),
+          decision: 'Create root policy',
+          reason: 'Current external universe',
+          idempotencyKey: 'root-policy',
+          changes: [
+            for (final row in initialUniversePolicyRecords(foreign, false))
+              Assignment(
+                recordId: row.identity.recordId,
+                next: StoredVersion.build(
+                  row.recordVersionId,
+                  row.identity,
+                  row.payload.toWire(),
+                ),
+              ),
+          ],
+        ),
+      );
     } finally {
       external.close();
     }
@@ -3126,8 +2839,8 @@ void main() {
         DescribeSummaryRequest(universe: const Selector('Imported')),
       )).result,
     );
-    // Registration does not manufacture a represented context for an empty
-    // existing package. Its genesis is verified directly after reopening.
+    // A policy-only fixture has no represented context to disclose.
+    // Registration preserves its existing policy revision.
     expect(summary.continuities, isEmpty);
     await runtime.close();
     final recovered = OwnedSqliteDatabase.openExisting(path);
@@ -3733,6 +3446,7 @@ void main() {
         other,
       ).initialize('Healthy fixture', continuity, PrincipalId.generate());
       setup.database.execute('COMMIT');
+      creation.addFixtureRoot(setup);
     } finally {
       setup.close();
     }

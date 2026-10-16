@@ -66,7 +66,6 @@ extension type _DefinitionRow._(JSObject _) implements JSObject {
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
 @JS()
@@ -100,9 +99,8 @@ extension type _LabelRow._(JSObject _) implements JSObject {
 SavedValueDefinitionForm _decodeValueDefinition(
   _DefinitionRow row,
   Iterable<_FieldRow> fieldRows,
-  Iterable<_LabelRow> labelRows, {
-  bool legacy = false,
-}) {
+  Iterable<_LabelRow> labelRows,
+) {
   return SavedValueDefinitionForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedValueDefinitionForm(
@@ -123,13 +121,7 @@ SavedValueDefinitionForm _decodeValueDefinition(
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : ValueDefinitionRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : ValueDefinitionRecord.fromWire(
               decodeBrowserInput(row.originalFields!),
@@ -199,36 +191,13 @@ final class BrowserValueDefinitionFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            final scan = tx.objectStore(_tables.first).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeValueDefinition(
-                    _decodeValueDefinition(
-                      cursor.value as _DefinitionRow,
-                      [],
-                      [],
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

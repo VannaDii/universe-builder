@@ -112,6 +112,4 @@ final class UniversePolicySelection {
 Set<RecordId> inactiveUniversePolicyRules(
   UniverseId universe,
   List<RecordVersion> records,
-) => records.any(isUniversePolicyRecord)
-    ? UniversePolicySelection.fromRecords(universe, records).inactiveRuleIds
-    : const {};
+) => UniversePolicySelection.fromRecords(universe, records).inactiveRuleIds;

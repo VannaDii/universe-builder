@@ -280,10 +280,4 @@ A same-version restart/restore drill is implemented. A historical released-versi
 - Native layout, keyboard/VoiceOver interaction, LM Studio, clean supported Macs, true offline operation, hosted CI, Developer ID/notarization, broader security/fuzz/scale acceptance and the full scope-case matrix remain release gates until evidence is recorded. Publish OS support only for actually tested environments.
 
 
-Relational archive transfer is verified in Goal 26 evidence. `universe export NAME /absolute/archive.sqlite` creates a canon-only archive; add `--complete-history` to retain workflows, drafts, receipts and staged content. Complete-history export requires the entire universe. `--record ID` creates a dependency-closed canon-only archive with declared omissions. Validate an import preview and accept its exact digest; use restore for original identities or clone for a fresh universe identity. Canon-only completeness describes canonical identities; `includes_workflow` separately declares workflow inclusion. Installation grants, credentials and profile secrets are excluded from both archive modes. Old serialized packages and preview layouts require explicit operator conversion; this work does not migrate active author data.
-
-Goal 27's [explicit operator procedure](operator-conversion-procedure.md) and
-[readiness report](operator-conversion-readiness.md) qualify disposable offline
-package, installation and credential conversion. Startup does not convert legacy
-data. Live author conversion and installation/catalog cutover require a separate
-operator decision and remain unexecuted.
+Relational archive transfer is verified in Goal 26 evidence. `universe export NAME /absolute/archive.sqlite` creates a canon-only archive; add `--complete-history` to retain workflows, drafts, receipts and staged content. Complete-history export requires the entire universe. `--record ID` creates a dependency-closed canon-only archive with declared omissions. Validate an import preview and accept its exact digest; use restore for original identities or clone for a fresh universe identity. Canon-only completeness describes canonical identities; `includes_workflow` separately declares workflow inclusion. Installation grants, credentials and profile secrets are excluded from both archive modes. Only the current v0 schema is supported.

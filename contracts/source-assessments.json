@@ -4994,19 +4994,6 @@
           {
             "type": "object",
             "properties": {
-              "kind": {
-                "type": "string",
-                "const": "unavailable_legacy"
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "kind"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
               "reason": {
                 "$ref": "#/$defs/UnavailableReason"
               },

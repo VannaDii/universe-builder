@@ -1,5 +1,5 @@
 //! Single normative relational package schema.
-//! Existing author packages require a separately authorized conversion.
+//! Only the current v0 schema is supported.
 
 use crate::StoreResult;
 

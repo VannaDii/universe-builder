@@ -290,24 +290,6 @@ void main() {
               instance,
             ).requireAuthor(author);
             await tx.execute(
-              'INSERT INTO $schema.import_workflow_digest VALUES(\$1,\$2,\$3)',
-              parameters: [
-                postgresAuthoredText('source:$digest'),
-                'a' * 64,
-                '0' * 64,
-              ],
-            );
-            await PostgresCanonicalIntegrity(tx, universe).verify();
-          }),
-          throwsFormatException,
-        );
-        await expectLater(
-          connection.runTx((tx) async {
-            await PostgresInstallationAuthority(
-              tx,
-              instance,
-            ).requireAuthor(author);
-            await tx.execute(
               'ALTER TABLE $schema.source_content DISABLE TRIGGER immutable_workflow',
             );
             await tx.execute(

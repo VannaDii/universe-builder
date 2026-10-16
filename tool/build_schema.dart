@@ -62,8 +62,6 @@ Json _contracts(Directory root, Directory source) {
         if (f.key != r'$defs' && f.key != r'$schema') f.key: f.value,
     };
   }
-  final continuitySummary = _asObject(definitions['ContinuitySummary']);
-  _asObject(continuitySummary['properties'])['root_policy_defined'] = _boolean;
   // Exact private envelope fields, retained from the existing normative model.
   definitions.addAll({
     'Footprint': _object({

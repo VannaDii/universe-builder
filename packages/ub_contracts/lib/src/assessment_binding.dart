@@ -54,7 +54,7 @@ extension SourceValidationBindingIntegrity on SourceValidationBindingV1 {
           submittedInput is RecordCandidateInput,
           'Stale assessment cannot promote scope',
         );
-      case AbsentAssessment() || LegacyUnavailableAssessment():
+      case AbsentAssessment():
         _ensure(
           selection.selected == null && submittedInput is RecordCandidateInput,
           'Absent assessment selection/scope mismatch',

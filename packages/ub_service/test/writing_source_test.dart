@@ -40,7 +40,7 @@ void main() {
     final assertion = f.assertion(validity: f.interval);
     final belief = knowledge.attitude(
       kind: EpistemicAttitudeKind.believes,
-      legacy: true,
+      unqualified: true,
     );
     final operations = <DomainOperation>[
       RecordRelationOperation(

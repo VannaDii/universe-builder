@@ -142,15 +142,11 @@ void main() {
     },
   );
 
-  test('typed operation retains exact commit input and capture with legacy absent capture', () {
+  test('typed operation retains exact commit input and capture and nullable capture', () {
     final original = operation(kind: OperationKind.commit, commit: input);
     final decoded = StoredOperation.fromWire(original.toWire());
     expect(decoded.toWire().toText(), original.toWire().toText());
     expect(decoded.input!.toCanonical().toText(), input.toCanonical().toText());
-    final legacy = CanonicalObject(
-      original.toWire().fields.where((e) => e.key != 'validation_capture'),
-    );
-    expect(StoredOperation.fromWire(legacy).validationCapture, isNull);
   });
 
   test('request aliases resolve terminal before running without rewriting immutable queue state', () async {

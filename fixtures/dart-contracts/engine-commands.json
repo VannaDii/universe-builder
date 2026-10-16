@@ -101,11 +101,6 @@
   },
   {
     "type": "EngineRequest",
-    "input_raw": "{\"method\":\"convert_legacy\",\"source\":\"/disposable test/data é/source\",\"destination\":\"/disposable test/data é/destination\"}",
-    "expected_wire": "{\"method\":\"convert_legacy\",\"source\":\"/disposable test/data é/source\",\"destination\":\"/disposable test/data é/destination\"}"
-  },
-  {
-    "type": "EngineRequest",
     "input_raw": "{\"method\":\"export_logical\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"],\"complete_history\":true}",
     "expected_wire": "{\"method\":\"export_logical\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"],\"complete_history\":true}"
   },

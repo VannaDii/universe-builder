@@ -1,3 +1,6 @@
+import 'package:ub_service/src/universe_evidence_policy.dart';
+import 'package:ub_store/sqlite.dart';
+import 'package:ub_store/ub_store.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 List<DomainOperation> unsourcedCreationFact(
@@ -57,4 +60,34 @@ List<DomainOperation> unsourcedCreationFact(
       ),
     ),
   ];
+}
+
+/// Complete the v0 root records in low-level authority fixtures.
+void addFixtureRoot(OwnedSqliteDatabase package) {
+  final universe = package.universeId;
+  final journal = SqliteJournal(package.database, universe);
+  for (final head in journal.heads().entries) {
+    SqliteKernel(package.database, universe).commit(
+      CommitInput(
+        universe: universe,
+        continuity: head.key,
+        expectedHead: head.value,
+        principal: PrincipalId.generate(),
+        decision: 'Root policy',
+        reason: 'Current v0 fixture',
+        idempotencyKey: 'fixture-root:${head.key.value}',
+        changes: [
+          for (final row in initialUniversePolicyRecords(universe, false))
+            Assignment(
+              recordId: row.identity.recordId,
+              next: StoredVersion.build(
+                row.recordVersionId,
+                row.identity,
+                row.payload.toWire(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

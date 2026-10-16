@@ -4,7 +4,7 @@ import 'mcp_metadata.dart';
 import 'protocol_error.dart';
 
 const mcpStdioProtocolVersion = '2025-11-25';
-const _legacyVersions = {
+const _supportedProtocolVersions = {
   '2024-11-05',
   '2025-03-26',
   '2025-06-18',
@@ -63,7 +63,7 @@ final class McpInvocation {
   }
 }
 
-/// Initialize over stdio uses the maintained legacy negotiation: honor a known
+/// Initialize over stdio uses the supported protocol negotiation: honor a known
 /// handshake version, otherwise return 2025-11-25. Streamable HTTP excludes the
 /// older 2024-11-05 transport while preserving the stdio negotiation contract.
 /// Lifecycle admission belongs to the adapter, not these result constructors.
@@ -85,7 +85,7 @@ CanonicalObject mcpInitializeResult(
     MapEntry(
       'protocolVersion',
       CanonicalString(
-        _legacyVersions.contains(requested) &&
+        _supportedProtocolVersions.contains(requested) &&
                 (!streamableHttp || requested != '2024-11-05')
             ? requested
             : mcpStdioProtocolVersion,
@@ -128,7 +128,7 @@ CanonicalObject mcpToolsListResult({bool advanced = false}) => CanonicalObject([
   ),
 ]);
 
-/// Legacy stdio results retain structured content and its exact JSON text form.
+/// Stdio results retain structured content and its exact JSON text form.
 /// Protocol failures are tool errors, not JSON-RPC transport errors.
 CanonicalObject mcpStructuredToolResult(
   CanonicalValue value, {

@@ -93,22 +93,6 @@ enum Command {
         #[arg(long)]
         collect: bool,
     },
-    ConvertPackage {
-        source: std::path::PathBuf,
-        destination: std::path::PathBuf,
-    },
-    ConvertInstallation {
-        source: std::path::PathBuf,
-        destination: std::path::PathBuf,
-    },
-    ConvertCredential {
-        source: std::path::PathBuf,
-        destination: std::path::PathBuf,
-    },
-    ConvertLegacy {
-        source: std::path::PathBuf,
-        destination: std::path::PathBuf,
-    },
     Export {
         universe: String,
         destination: std::path::PathBuf,
@@ -132,33 +116,6 @@ enum Command {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let converted = match &args.command {
-        Command::ConvertPackage {
-            source,
-            destination,
-        } => Some(serde_json::to_value(
-            universe_store::kernel::operator_conversion::convert_package(source, destination)?,
-        )?),
-        Command::ConvertInstallation {
-            source,
-            destination,
-        } => Some(universe_service::conversion::convert_installation(
-            source,
-            destination,
-        )?),
-        Command::ConvertCredential {
-            source,
-            destination,
-        } => Some(universe_service::conversion::convert_credential(
-            source,
-            destination,
-        )?),
-        _ => None,
-    };
-    if let Some(report) = converted {
-        println!("{}", serde_json::to_string_pretty(&report)?);
-        return Ok(());
-    }
     let helper = sibling_engine()?;
     if matches!(args.command, Command::Init) {
         let status = std::process::Command::new(helper)
@@ -178,10 +135,7 @@ async fn main() -> anyhow::Result<()> {
         EngineClient::ensure_running(&args.installation, &profile, &helper, "maintenance-cli")
             .await?;
     let request = match args.command {
-        Command::Init
-        | Command::ConvertPackage { .. }
-        | Command::ConvertInstallation { .. }
-        | Command::ConvertCredential { .. } => unreachable!(),
+        Command::Init => unreachable!(),
         Command::Status => EngineRequest::Status,
         Command::Doctor => EngineRequest::Doctor,
         Command::Create {
@@ -312,13 +266,6 @@ async fn main() -> anyhow::Result<()> {
         Command::Maintain { universe, collect } => EngineRequest::Maintain {
             universe: universe_protocol::request::Selector(universe),
             collect,
-        },
-        Command::ConvertLegacy {
-            source,
-            destination,
-        } => EngineRequest::ConvertLegacy {
-            source,
-            destination,
         },
         Command::Export {
             universe,

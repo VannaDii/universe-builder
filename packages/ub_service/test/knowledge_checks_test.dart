@@ -47,7 +47,7 @@ KnowledgeAcquisition acquisition({
 
 EpistemicAttitudeRecord attitude({
   KnowledgeAcquisition? declared,
-  bool legacy = false,
+  bool unqualified = false,
   Validity? validity,
   EvidenceBasis basis = const AuthorDecisionBasis('Declared acquisition'),
   EpistemicAttitudeKind kind = EpistemicAttitudeKind.knows,
@@ -57,7 +57,7 @@ EpistemicAttitudeRecord attitude({
   attitude: kind,
   validity: validity ?? InstantValidity(ExactTime(facts.calendar, '12')),
   basis: basis,
-  acquisition: legacy ? null : declared ?? acquisition(),
+  acquisition: unqualified ? null : declared ?? acquisition(),
 );
 
 CommunicationRecord message() => CommunicationRecord(
@@ -124,26 +124,29 @@ void main() {
     },
   );
 
-  test('legacy knowledge is constrained only by a matching context policy', () {
-    final rows = fixture();
-    put(rows, 6, attitude(legacy: true));
-    expectOutcome(
-      rows,
-      EvidenceOutcome.notEstablished,
-      repair: 'explicit acquisition',
-    );
-    put(rows, 7, policy(context: facts.ref(98)));
-    expect(assess(rows), isEmpty);
-    rows.removeWhere((r) => r.identity.recordId == facts.id(7));
-    expect(assess(rows), isEmpty);
-    put(rows, 6, attitude());
-    expectOutcome(
-      rows,
-      EvidenceOutcome.notEstablished,
-      repair: 'No matching knowledge policy',
-    );
-    expect(assess(rows).single.evidence, [facts.version(6)]);
-  });
+  test(
+    'unqualified knowledge is constrained only by a matching context policy',
+    () {
+      final rows = fixture();
+      put(rows, 6, attitude(unqualified: true));
+      expectOutcome(
+        rows,
+        EvidenceOutcome.notEstablished,
+        repair: 'explicit acquisition',
+      );
+      put(rows, 7, policy(context: facts.ref(98)));
+      expect(assess(rows), isEmpty);
+      rows.removeWhere((r) => r.identity.recordId == facts.id(7));
+      expect(assess(rows), isEmpty);
+      put(rows, 6, attitude());
+      expectOutcome(
+        rows,
+        EvidenceOutcome.notEstablished,
+        repair: 'No matching knowledge policy',
+      );
+      expect(assess(rows).single.evidence, [facts.version(6)]);
+    },
+  );
 
   test('belief, suspicion, rejection and memory never become knowledge', () {
     for (final kind in EpistemicAttitudeKind.values.where(

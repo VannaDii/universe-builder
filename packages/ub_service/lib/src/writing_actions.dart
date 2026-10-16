@@ -233,14 +233,14 @@ compileWritingActions({
         final contract = action.consequenceContract;
         if (contract == null) {
           throw const FormatException(
-            'Legacy action without a declared consequence contract requires advanced review.',
+            'An action without a declared consequence contract requires advanced review.',
           );
         }
         for (var i = 0; i < contract.slots.length; i++) {
           if (contract.slots[i].slot != 'effect_${i + 1}' ||
               contract.slots[i].order != i) {
             throw const FormatException(
-              'Editing legacy effect slots/order requires advanced contract review; no authored slot metadata is discarded.',
+              'Editing custom effect slots/order requires advanced contract review; no authored slot metadata is discarded.',
             );
           }
         }

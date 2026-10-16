@@ -213,10 +213,9 @@ void main() {
       expect(back.toWire().toText(), isNot(contains('claim_mappings')));
     },
   );
-  test('final bindings preserve distinct absent legacy stale unavailable and bound states', () {
+  test('final bindings preserve distinct absent stale unavailable and bound states', () {
     for (final b in [
       binding(),
-      binding(state: const LegacyUnavailableAssessment()),
       binding(
         state: const UnavailableAssessment(
           reason: UnavailableReason.missingRetainedMaterial,

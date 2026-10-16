@@ -6,7 +6,6 @@ import 'package:ub_store/ub_store.dart';
 
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
-import 'candidate_validation.dart';
 import 'validation_binding.dart';
 
 String operationRequestKey(ProfileId principal, String kind, String key) =>
@@ -116,6 +115,7 @@ final class StoredOperation {
       'shared',
       'protected',
     });
+    f.require('validation_capture');
     return StoredOperation(
       owner: ProfileId.parse(f.string('owner')),
       digest: f.string('digest'),
@@ -240,7 +240,7 @@ Future<StoredOperation> loadStoredOperation({
 }
 
 /// Render an already admitted operation without exposing complete evidence to
-/// a scoped viewer. Pending, failed and legacy fallback reports never create a
+/// a scoped viewer. Pending and failed reports never create a
 /// final approval/publication binding; completed retained reports remain exact.
 Future<OperationStatusV3> publicOperationStatus({
   required OperationStatus status,
@@ -292,10 +292,7 @@ Future<OperationStatusV3> publicOperationStatus({
             : EvaluatedValidation(
                 execution: execution,
                 submittedInput: recordCandidateInput(reference, p.changes),
-                assessment:
-                    execution.evaluatorVersion != candidateEvaluatorVersion
-                    ? const LegacyUnavailableAssessment()
-                    : const AbsentAssessment(),
+                assessment: const AbsentAssessment(),
                 finalBindingDigest: null,
               );
         if ({

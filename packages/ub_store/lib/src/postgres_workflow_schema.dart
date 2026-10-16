@@ -37,7 +37,6 @@ Iterable<String> postgresWorkflowSchema(UniverseId universe) sync* {
   yield 'CREATE VIEW $s.active_workflow_index AS SELECT key,digest FROM $s.workflow_index WHERE key NOT IN '
       '(SELECT h.key FROM $s.historical_workflow h JOIN $s.workflow_entries e ON e.key=h.key '
       "WHERE e.family IN ('ApprovalEvidence','StoredOperation','StoredContext','Cursor'))";
-  yield 'CREATE TABLE $s.import_workflow_digest(key BYTEA PRIMARY KEY, source_digest $text NOT NULL, normalized_digest $text NOT NULL)';
   for (final table in [
     'workflow_entries',
     'source_content',
@@ -46,7 +45,6 @@ Iterable<String> postgresWorkflowSchema(UniverseId universe) sync* {
     'image_staging',
     'continuity_name',
     'historical_workflow',
-    'import_workflow_digest',
   ]) {
     yield 'CREATE TRIGGER immutable_workflow BEFORE UPDATE OR DELETE ON $s.$table FOR EACH ROW EXECUTE FUNCTION $s.immutable_body()';
   }

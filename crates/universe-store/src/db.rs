@@ -53,13 +53,13 @@ impl Database {
             || !workflow_columns.iter().any(|name| name == "StoredProposal")
         {
             return Err(StoreError::Migration(
-                "package requires explicit relational workflow conversion; original preserved"
+                "package schema is incompatible with the current v0 format"
                     .into(),
             ));
         }
-        let boundary:bool=conn.query_row("SELECT count(*)=4 FROM sqlite_master WHERE name IN ('historical_workflow','historical_receipt','active_workflow_index','import_workflow_digest')",[],|r|r.get(0))?;
+        let boundary:bool=conn.query_row("SELECT count(*)=3 FROM sqlite_master WHERE name IN ('historical_workflow','historical_receipt','active_workflow_index')",[],|r|r.get(0))?;
         if !boundary {
-            return Err(StoreError::Migration("package requires explicit historical-authority boundary conversion; original preserved".into()));
+            return Err(StoreError::Migration("package schema is incompatible with the current v0 format".into()));
         }
         Ok(())
     }

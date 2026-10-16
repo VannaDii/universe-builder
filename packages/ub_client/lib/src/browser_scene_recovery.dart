@@ -84,7 +84,6 @@ extension type _SceneRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external JSAny? get correctionTarget;
   external String? get expectedRecordVersion;
 }
@@ -113,7 +112,7 @@ SceneRecord _decodeOriginalScene(JSAny value) => SceneRecord.fromWire(
   ]),
 );
 
-SavedSceneForm _decodeScene(_SceneRow row, {bool legacy = false}) {
+SavedSceneForm _decodeScene(_SceneRow row) {
   return SavedSceneForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedSceneForm(
@@ -143,13 +142,7 @@ SavedSceneForm _decodeScene(_SceneRow row, {bool legacy = false}) {
       associations: (decodeBrowserInput(row.associations) as CanonicalArray)
           .items
           .map(WorkAssociationInput.fromWire),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : SceneRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : _decodeOriginalScene(row.originalFields!),
       correctionTarget: row.correctionTarget == null
@@ -229,29 +222,13 @@ final class BrowserSceneFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeScene(
-                    _decodeScene(cursor.value as _SceneRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

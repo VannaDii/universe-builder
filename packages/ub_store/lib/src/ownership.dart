@@ -1,6 +1,5 @@
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -148,108 +147,6 @@ void publishSnapshot(String source, String destination) {
       destination,
     ),
   );
-}
-
-/// Exclusive durable file publication required by offline operator conversion.
-void publishConversionFile(String source, String destination) {
-  _pathCheck(source);
-  _pathCheck(destination);
-  final parent = privateDirectory(File(destination).parent.path);
-  using(
-    (arena) => _checkError(
-      nativePublishConversion(
-        source.toNativeUtf8(allocator: arena).cast(),
-        destination.toNativeUtf8(allocator: arena).cast(),
-        parent.toNativeUtf8(allocator: arena).cast(),
-      ),
-      'Conversion publication refused or durability uncertain',
-      destination,
-    ),
-  );
-}
-
-/// Publish one complete offline installation directory without replacing a
-/// raced file, directory or link. Callers first close and sync its retained files.
-void publishConversionDirectory(String source, String destination) {
-  _pathCheck(source);
-  _pathCheck(destination);
-  if (FileSystemEntity.typeSync(source, followLinks: false) !=
-      FileSystemEntityType.directory) {
-    throw const FormatException('Private conversion directory required');
-  }
-  final actual = privateDirectory(source);
-  final parent = privateDirectory(Directory(destination).absolute.parent.path);
-  using(
-    (arena) => _checkError(
-      nativePublishConversionDirectory(
-        actual.toNativeUtf8(allocator: arena).cast(),
-        destination.toNativeUtf8(allocator: arena).cast(),
-        parent.toNativeUtf8(allocator: arena).cast(),
-      ),
-      'Installation conversion publication refused or durability uncertain',
-      destination,
-    ),
-  );
-}
-
-/// Exact private read-only input, capped at the existing 4096-byte credential limit.
-Uint8List readOriginalCredential(String source) {
-  _pathCheck(source);
-  return using((arena) {
-    final bytes = arena<Uint8>(4097), length = arena<Int32>();
-    _checkError(
-      nativeReadCredential(
-        source.toNativeUtf8(allocator: arena).cast(),
-        bytes,
-        4097,
-        length,
-      ),
-      'Protected credential input refused',
-      source,
-    );
-    if (length.value < 0 || length.value > 4096) {
-      throw const FormatException('Credential input size');
-    }
-    return Uint8List.fromList(bytes.asTypedList(length.value));
-  });
-}
-
-/// Stream an owned private read-only regular file through one checked descriptor.
-/// Each callback receives at most 64 KiB; the 8 GiB bound also covers file growth.
-void readOriginalChunks(String source, void Function(Uint8List) accept) {
-  _pathCheck(source);
-  using((arena) {
-    final error = arena<Int32>();
-    final handle = nativeOriginalOpen(
-      source.toNativeUtf8(allocator: arena).cast(),
-      error,
-    );
-    _checkError(
-      error.value,
-      'Protected offline conversion input refused',
-      source,
-    );
-    if (handle == nullptr) {
-      throw StateError('Native original reader returned no handle');
-    }
-    try {
-      final bytes = arena<Uint8>(65536), length = arena<Int32>();
-      while (true) {
-        _checkError(
-          nativeOriginalRead(handle, bytes, 65536, length),
-          'Protected offline conversion read refused',
-          source,
-        );
-        if (length.value < 0 || length.value > 65536) {
-          throw const FormatException('Original input chunk size');
-        }
-        if (length.value == 0) break;
-        accept(Uint8List.fromList(bytes.asTypedList(length.value)));
-      }
-    } finally {
-      nativeOriginalClose(handle);
-    }
-  });
 }
 
 /// Descriptor-owned flock, compatible with the original POSIX runtime and

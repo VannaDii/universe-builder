@@ -13,7 +13,6 @@ import 'recovery_value_inputs.dart';
 import 'recovery_expression_inputs.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _legacyColumns = '$_keys,generation,form_input';
 const _fields =
     'generation,base_revision,client_ref,boundary_key,area_kind,record_record,record_universe,predicate_input,subject_enabled,subject_record,subject_universe,category_input,mode_input,scope_applicability,scope_context_record,scope_context_universe,scope_has_realm,scope_realm_record,scope_realm_universe,temporal,rationale,original,draft_version';
 const _where =
@@ -92,38 +91,6 @@ final class BoundaryFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute(
-            'ALTER TABLE boundary_form RENAME TO legacy_boundary_form',
-          );
-          db.execute(_schema);
-          final store = BoundaryFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_textProjection(_legacyColumns)} FROM legacy_boundary_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            final form = UnfinishedBoundaryForm.fromWire(
-              CanonicalValue.parseWireJson(_text(row, 'form_input')),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedBoundaryForm(
-                generation: BigInt.parse(_text(row, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_boundary_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -153,10 +120,6 @@ final class BoundaryFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacy =
-        version == 1 &&
-        tables.length == 1 &&
-        columns('boundary_form') == _legacyColumns;
     final expected = {
       'boundary_form': '$_keys,$_fields',
       'boundary_world': '$_keys,ordinal,world_input',
@@ -169,7 +132,7 @@ final class BoundaryFormRecoveryStore {
         tables.length == expected.length + _domainStorage.statements.length &&
         expected.entries.every((e) => columns(e.key) == e.value) &&
         _domainStorage.matches(db);
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

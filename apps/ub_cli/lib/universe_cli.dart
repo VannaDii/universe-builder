@@ -10,13 +10,6 @@ import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/ub_service.dart'
     show BackendConfiguration, ConfigurationException;
 
-import 'operator_cli.dart';
-
-const _offline = {
-  'convert-package',
-  'convert-installation',
-  'convert-credential',
-};
 const _usage = '''Usage: universe --installation <path> [--profile <id>] <command> [arguments]
 
 init | status | doctor | enroll | shutdown | browser-session
@@ -30,19 +23,17 @@ approve <universe> <proposal-id> <version> <digest> <validation-run>
 author-writing <universe>              Read exact private author action from stdin.
 stage-source <universe> <label> <file>
 backup <universe> <destination> | restore <source> <name>
-maintain <universe> [--collect] | convert-legacy <source> <destination>
+maintain <universe> [--collect]
 export <universe> <destination> [--record <id>]... [--complete-history]
 preview-import <source> <name> [--clone] | accept-import <preview-id> <digest>
 moves [--after <operation-id>] [--limit <count>] | move-status <operation-id>
 prepare-move <universe-id> <operation-id> <upload-id> <name> --target-installation <path> --target-profile <id>
 accept-move <operation-id> <preview-id> <digest> --target-installation <path> --target-profile <id>
-convert-package | convert-installation | convert-credential <source> <destination>
 
 configure tests an existing backend and saves protected local settings while the
 engine is stopped. PostgreSQL reads its connection URI from stdin, never arguments.
 It neither transfers data nor restarts the engine; environment overrides still win.
-Every service command requires --profile except init and configure. Offline conversions do not
-authenticate, resolve backend settings, launch an engine or register packages.
+Every service command requires --profile except init and configure.
 Review and approval use exact proposal versions; publication remains separate.''';
 
 Future<int> runUniverseCli(
@@ -88,9 +79,6 @@ Future<int> runUniverseCli(
     }
     if (index == arguments.length) throw const _UsageError();
     final command = arguments[index++];
-    if (_offline.contains(command)) {
-      return runOperatorCli(arguments, output: output, error: error);
-    }
     final tail = arguments.sublist(index);
     if (tail.length == 1 && {'--help', '-h'}.contains(tail.single)) {
       output(_usage);
@@ -518,12 +506,6 @@ Future<EngineRequest> parseAuthorCommand(
       return MaintainEngineRequest(
         universe: universe(),
         collect: args.has('collect'),
-      );
-    case 'convert-legacy':
-      args.count(2);
-      return ConvertLegacyEngineRequest(
-        source: args.positional[0],
-        destination: args.positional[1],
       );
     case 'export':
       args.count(2);

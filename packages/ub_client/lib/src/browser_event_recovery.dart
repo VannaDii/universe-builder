@@ -91,10 +91,9 @@ extension type _EventRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
-SavedEventForm _decodeEvent(_EventRow row, {bool legacy = false}) {
+SavedEventForm _decodeEvent(_EventRow row) {
   return SavedEventForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedEventForm(
@@ -110,7 +109,7 @@ SavedEventForm _decodeEvent(_EventRow row, {bool legacy = false}) {
       participants: (decodeBrowserInput(row.participants) as CanonicalArray)
           .items
           .map(EventParticipantInput.fromWire),
-      effects: row.effects?.toDart.map((r) => _readEffect(r, legacy: legacy)),
+      effects: row.effects?.toDart.map((r) => _readEffect(r)),
       preconditions: row.preconditions == null
           ? null
           : (decodeBrowserInput(row.preconditions!) as CanonicalArray).items
@@ -130,13 +129,7 @@ SavedEventForm _decodeEvent(_EventRow row, {bool legacy = false}) {
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : RecordPayload.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ) as EventRecord)
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : decodeBrowserEvent(row.originalFields!),
       rationale: row.rationale,
@@ -212,29 +205,13 @@ final class BrowserEventFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeEvent(
-                    _decodeEvent(cursor.value as _EventRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -425,7 +402,6 @@ extension type _EffectRow._(JSObject _) implements JSObject {
   external JSAny get factualScope;
   external JSAny get validity;
   external JSAny? get originalFields;
-  external String? get original;
 }
 
 _EffectRow _writeEffect(EventEffectInput input) => _EffectRow(
@@ -440,24 +416,15 @@ _EffectRow _writeEffect(EventEffectInput input) => _EffectRow(
       ? null
       : encodeBrowserEntityEffect(input.original!),
 );
-EventEffectInput _readEffect(_EffectRow row, {bool legacy = false}) =>
-    EventEffectInput(
-      slot: row.slot,
-      propositionRecord: row.propositionRecord,
-      propositionUniverse: row.propositionUniverse,
-      polarity: row.polarity,
-      order: row.order,
-      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-      validity: TemporalValidityInput.fromWire(
-        decodeBrowserInput(row.validity),
-      ),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : EntityEffect.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
-          ? null
-          : decodeBrowserEntityEffect(row.originalFields!),
-    );
+EventEffectInput _readEffect(_EffectRow row) => EventEffectInput(
+  slot: row.slot,
+  propositionRecord: row.propositionRecord,
+  propositionUniverse: row.propositionUniverse,
+  polarity: row.polarity,
+  order: row.order,
+  scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+  validity: TemporalValidityInput.fromWire(decodeBrowserInput(row.validity)),
+  original: row.originalFields == null
+      ? null
+      : decodeBrowserEntityEffect(row.originalFields!),
+);

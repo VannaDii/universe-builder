@@ -85,40 +85,6 @@ final class PackageImportFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute(
-            'ALTER TABLE package_import_form RENAME TO legacy_package_import_form',
-          );
-          db.execute(_schema);
-          final store = PackageImportFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_projection(_columns.split(','))} FROM legacy_package_import_form',
-          )) {
-            final scope = (
-              OperationId.parse(_text(row, 'instance')),
-              ProfileId.parse(_text(row, 'profile')),
-            );
-            final saved = SavedPackageImport(
-              generation: BigInt.parse(_text(row, 'generation')),
-              form: PackageImportDraft(
-                operation: OperationId.parse(_text(row, 'operation')),
-                name: _text(row, 'name'),
-                mode: ImportMode.fromName(_text(row, 'mode')),
-                phase: PackageImportPhase.values.byName(_text(row, 'phase')),
-                fileName: _text(row, 'file_name'),
-                review: row['review'] == null
-                    ? null
-                    : CanonicalValue.parseWireJson(_text(row, 'review'))
-                          as CanonicalObject,
-                receipt: row['receipt'] == null
-                    ? null
-                    : CanonicalValue.parseWireJson(_text(row, 'receipt'))
-                          as CanonicalObject,
-              ),
-            );
-            store._write(scope, saved);
-          }
-          db.execute('DROP TABLE legacy_package_import_form');
         }
         db.execute('COMMIT');
       } on Object {
@@ -151,11 +117,6 @@ final class PackageImportFormRecoveryStore {
       'package_import_receipt': '$_keys,${_fields(false).join(',')}',
       'package_import_conflict': '$_keys,ordinal,conflict',
     };
-    if (version == 1 &&
-        tables.length == 1 &&
-        columns('package_import_form') == _columns) {
-      return 1;
-    }
     if (version == 2 &&
         tables.length == expected.length &&
         expected.entries.every((e) => columns(e.key) == e.value)) {

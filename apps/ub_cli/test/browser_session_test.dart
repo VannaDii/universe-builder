@@ -257,7 +257,6 @@ void main() {
           destination: deniedPath,
         ),
         RestoreEngineRequest(source: deniedPath, name: 'Restored'),
-        ConvertLegacyEngineRequest(source: deniedPath, destination: deniedPath),
         ExportLogicalEngineRequest(
           universe: Selector('Browser universe'),
           destination: deniedPath,

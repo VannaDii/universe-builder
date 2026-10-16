@@ -4049,7 +4049,9 @@ final class PostgresValidationWorkflow {
       );
       await _workflow.compareAppend({}, [MapEntry(key, running.toWire())]);
     }
-    final inactivePolicies = inactiveUniversePolicyRules(universe, candidate);
+    final inactivePolicies = restricted
+        ? const <RecordId>{}
+        : inactiveUniversePolicyRules(universe, candidate);
     return PreparedValidationTask(
       operationId: id,
       proposal: proposal,

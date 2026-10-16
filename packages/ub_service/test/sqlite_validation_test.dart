@@ -44,6 +44,8 @@ import 'knowledge_checks_test.dart' as knowledge;
 import 'writing_binding_test.dart' as named;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
+import 'helpers/universe_creation.dart' as root_fixtures;
+
 void main() {
   late Directory directory;
   late SqliteInstallationStore installation;
@@ -1143,6 +1145,7 @@ void main() {
         PrincipalId.generate(),
       );
       other.database.execute('COMMIT');
+      root_fixtures.addFixtureRoot(other);
     } finally {
       other.close();
     }

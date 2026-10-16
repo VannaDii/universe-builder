@@ -397,7 +397,7 @@ compileWritingRelations({
         final (original, rule) = matches.single;
         if (!supportedWritingRelationLimit(rule)) {
           throw const FormatException(
-            'This legacy relationship limit requires advanced contract review; its metadata will not be discarded.',
+            'This relationship limit requires advanced contract review; its metadata will not be discarded.',
           );
         }
         final old = rule.relationCardinality!;

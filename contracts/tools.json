@@ -7460,10 +7460,6 @@
             "revision_id": {
               "$ref": "#/$defs/RevisionId"
             },
-            "root_policy_defined": {
-              "description": "Whether the current head has a root policy; omitted when scope cannot establish it.",
-              "type": "boolean"
-            },
             "name": {
               "type": "string"
             },
@@ -40693,19 +40689,6 @@
             {
               "type": "object",
               "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unavailable_legacy"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "reason": {
                   "$ref": "#/$defs/UnavailableReason"
                 },
@@ -70130,19 +70113,6 @@
             {
               "type": "object",
               "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unavailable_legacy"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "reason": {
                   "$ref": "#/$defs/UnavailableReason"
                 },
@@ -75670,19 +75640,6 @@
                 "kind": {
                   "type": "string",
                   "const": "absent"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unavailable_legacy"
                 }
               },
               "additionalProperties": false,
@@ -85970,19 +85927,6 @@
                 "kind": {
                   "type": "string",
                   "const": "absent"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unavailable_legacy"
                 }
               },
               "additionalProperties": false,

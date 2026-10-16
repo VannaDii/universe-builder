@@ -81,7 +81,7 @@ extension type _EndRow._(JSObject _) implements JSObject {
   external String? get draftVersion;
 }
 
-SavedAssertionEndForm _decodeAssertionEnd(_EndRow row, {bool legacy = false}) {
+SavedAssertionEndForm _decodeAssertionEnd(_EndRow row) {
   return SavedAssertionEndForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedAssertionEndForm(
@@ -96,9 +96,7 @@ SavedAssertionEndForm _decodeAssertionEnd(_EndRow row, {bool legacy = false}) {
       calendar: CalendarId.parse(row.calendar),
       coordinate: row.coordinate,
       originalBasis: EvidenceBasis.fromWire(
-        legacy
-            ? CanonicalValue.parseWireJson(row.originalBasis)
-            : decodeBrowserInput(row.originalBasisFields),
+        decodeBrowserInput(row.originalBasisFields),
       ),
       basis: EvidenceBasisInput(
         kind: row.basisKind,
@@ -162,29 +160,13 @@ final class BrowserAssertionEndFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeAssertionEnd(
-                    _decodeAssertionEnd(cursor.value as _EndRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

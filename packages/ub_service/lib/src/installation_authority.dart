@@ -8,7 +8,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
-import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
+import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase, SqliteJournal;
 import 'package:ub_store/postgres_installation.dart';
 
 import 'validation_binding.dart';
@@ -203,11 +203,12 @@ final class InstallationAuthority {
     required String path,
   }) {
     requireAuthor(actor);
-    return _store.registerExistingPackage(
-      actor: actor.id,
-      name: name,
-      path: path,
-    );
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      return registerOpenedUniverse(actor, name: name, package: package);
+    } finally {
+      package.close();
+    }
   }
 
   String newUniversePath(InstallationPrincipal actor, UniverseId id) {
@@ -302,6 +303,20 @@ final class InstallationAuthority {
     required OwnedSqliteDatabase package,
   }) {
     requireAuthor(actor);
+    final journal = SqliteJournal(package.database, package.universeId);
+    final heads = journal.heads();
+    if (heads.isEmpty) {
+      throw const FormatException('A universe requires a root policy');
+    }
+    for (final head in heads.entries) {
+      final rows = journal.loadMany(
+        journal.snapshot(head.key, head.value).values,
+      );
+      UniversePolicySelection.fromRecords(
+        package.universeId,
+        rows.map((r) => RecordVersion.fromWire(r.toCanonical())).toList(),
+      );
+    }
     return _store.registerOwnedPackage(
       actor: actor.id,
       name: name,

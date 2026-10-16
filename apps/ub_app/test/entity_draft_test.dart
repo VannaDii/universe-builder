@@ -967,69 +967,54 @@ void main() {
       );
     },
   );
-  test(
-    'reference and enumeration edits retain targets and recover older forms',
-    () {
-      final target = RecordId.generate(), universe = UniverseId.generate();
-      final definition = ValueDefinitionId.generate();
-      final inputs = [
-        QualifierInput(
-          key: 'target',
-          kind: 'entity_ref',
-          value: target.value,
-          universe: universe.value,
-        ),
-        QualifierInput(
-          key: 'entry',
-          kind: 'enum',
-          definition: definition.value,
-          value: '記憶 😀',
-        ),
-      ];
-      final values = buildQualifiers(inputs, {});
-      expect(
-        values['target'],
-        ReferenceValue(
-          ValueReferenceKind.parse('entity_ref'),
-          RecordRef(universe: universe, record: target),
-        ),
-      );
-      expect(values['entry'], EnumValue(definition, '記憶 😀'));
-      final old = QualifierInput.fromWire(
-        CanonicalObject([
-          MapEntry('key', CanonicalString('old')),
-          MapEntry('kind', CanonicalString('text')),
-          MapEntry('value', CanonicalString('kept')),
-          MapEntry('denominator', CanonicalString('1')),
-          MapEntry('unit', CanonicalString('')),
-        ]),
-      );
-      expect(old.universe, '');
-      expect(old.definition, '');
-      expect(buildQualifiers([old], {})['old'], const TextValue('kept'));
-      for (final input in [
-        const QualifierInput(
-          key: 'target',
-          kind: 'record_ref',
-          value: 'unfinished',
-        ),
-        QualifierInput(
-          key: 'target',
-          kind: 'record_ref',
-          value: target.value,
-          universe: 'unfinished',
-        ),
-        const QualifierInput(
-          key: 'entry',
-          kind: 'enum',
-          definition: 'unfinished',
-          value: 'key',
-        ),
-      ]) {
-        expect(() => buildQualifiers([input], {}), throwsFormatException);
-      }
-    },
-  );
+  test('reference and enumeration edits retain targets and exact input', () {
+    final target = RecordId.generate(), universe = UniverseId.generate();
+    final definition = ValueDefinitionId.generate();
+    final inputs = [
+      QualifierInput(
+        key: 'target',
+        kind: 'entity_ref',
+        value: target.value,
+        universe: universe.value,
+      ),
+      QualifierInput(
+        key: 'entry',
+        kind: 'enum',
+        definition: definition.value,
+        value: '記憶 😀',
+      ),
+    ];
+    final values = buildQualifiers(inputs, {});
+    expect(
+      values['target'],
+      ReferenceValue(
+        ValueReferenceKind.parse('entity_ref'),
+        RecordRef(universe: universe, record: target),
+      ),
+    );
+    expect(values['entry'], EnumValue(definition, '記憶 😀'));
+    for (final input in [
+      const QualifierInput(
+        key: 'target',
+        kind: 'record_ref',
+        value: 'unfinished',
+      ),
+      QualifierInput(
+        key: 'target',
+        kind: 'record_ref',
+        value: target.value,
+        universe: 'unfinished',
+      ),
+      const QualifierInput(
+        key: 'entry',
+        kind: 'enum',
+        definition: 'unfinished',
+        value: 'key',
+      ),
+    ]) {
+      expect(() => buildQualifiers([input], {}), throwsFormatException);
+    }
+  });
   test(
     'temporal validity retains exact calendar notation and uncertain bounds',
     () {
@@ -1112,20 +1097,6 @@ void main() {
           expect(buildQualifiers([row], {'time': value})['time'], value);
         }
       }
-      final legacy = TemporalValidityInput.fromWire(
-        CanonicalObject([
-          MapEntry('kind', CanonicalString('instant')),
-          MapEntry('calendar', CanonicalString(calendar.value)),
-          MapEntry('start', const TemporalBoundInput(value: 'Day 1').toWire()),
-          MapEntry('end', const TemporalBoundInput().toWire()),
-        ]),
-      );
-      expect(legacy.relation, '');
-      expect(legacy.targetRecord, '');
-      expect(
-        buildTemporalValidity(legacy, null),
-        InstantValidity(ExactTime(calendar, 'Day 1')),
-      );
       final relativeInput = TemporalValidityInput(
         kind: 'instant_relative',
         calendar: calendar.value,

@@ -43,6 +43,7 @@ Set<RecordId> archiveSelection(
           RecordKind.calendar,
           RecordKind.valueDefinition,
           RecordKind.rule,
+          RecordKind.domainPack,
           RecordKind.boundary,
           RecordKind.completeness,
           RecordKind.exception,

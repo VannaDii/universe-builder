@@ -1,3 +1,1 @@
 Explicit universe required on every tool call. Persistent mode authenticates a profile and enforces current grants, pinned context, validation and exact author approval or an explicit bounded delegated-commit grant.
-
-A continuity with root_policy_defined=false is legacy research material until the author explicitly defines and selects its root policy through Universe policies and Changes. Its historical records stay readable, but publication requires a root in the candidate. Do not invent a default policy or weaken one to make checks pass. An omitted root_policy_defined field does not establish that a policy exists or is absent.

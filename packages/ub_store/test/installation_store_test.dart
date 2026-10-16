@@ -40,7 +40,7 @@ void main() {
     expect(() => reopened.hasProfiles, throwsStateError);
   });
 
-  test('legacy installation without stable identity is preserved', () {
+  test('installation without stable identity is refused unchanged', () {
     final store = SqliteInstallationStore.create(directory.path);
     store.close();
     final path = '${directory.path}/installation.sqlite';

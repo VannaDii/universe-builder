@@ -307,24 +307,6 @@ void main() {
     expect(CanonicalIntegrity(journal).verify, throwsFormatException);
     expect(database.autocommit, isTrue);
   });
-  test('conversion provenance must bind the retained normalized workflow', () {
-    final cursor = value({'binding': 'imported binding', 'offset': 0});
-    write(() {
-      workflow.put('cursor:one', cursor);
-      database.execute('INSERT INTO import_workflow_digest VALUES(?,?,?)', [
-        'cursor:one',
-        'a' * 64,
-        canonicalDigest(cursor),
-      ]);
-    });
-    CanonicalIntegrity(journal).verify();
-    database.execute('DROP TRIGGER import_workflow_digest_no_update');
-    database.execute('UPDATE import_workflow_digest SET normalized_digest=?', [
-      'b' * 64,
-    ]);
-    expect(CanonicalIntegrity(journal).verify, throwsFormatException);
-    expect(database.autocommit, isTrue);
-  });
   test('source and image staging retain typed payloads and enforce their key families', () {
     final source = value({
       'record_kind': 'source_version',

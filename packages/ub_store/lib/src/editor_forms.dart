@@ -64,37 +64,6 @@ final class WorldFormRecoveryStore {
         final populated = _checkSchema(db);
         if (populated == 0) {
           db.execute(_schema);
-        } else if (db.select('PRAGMA user_version').single.values.single == 1) {
-          // Preserve existing device work while adding separate operation edits.
-          for (final table in [
-            'world_form_alias',
-            'world_form_label',
-            'world_form',
-          ]) {
-            db.execute('ALTER TABLE $table RENAME TO legacy_$table');
-          }
-          db.execute(_schema);
-          db.execute(
-            "INSERT INTO world_form SELECT instance,profile,universe,continuity,'',generation,base_revision,represented_context,record_id,selector,setting_type,rationale,NULL,NULL FROM legacy_world_form",
-          );
-          db.execute(
-            "INSERT INTO world_form_alias SELECT instance,profile,universe,continuity,'',ordinal,value FROM legacy_world_form_alias",
-          );
-          db.execute(
-            "INSERT INTO world_form_label SELECT instance,profile,universe,continuity,'',language,value FROM legacy_world_form_label",
-          );
-          for (final table in [
-            'world_form_alias',
-            'world_form_label',
-            'world_form',
-          ]) {
-            db.execute('DROP TABLE legacy_$table');
-          }
-        } else if (db.select('PRAGMA user_version').single.values.single == 2) {
-          db.execute(
-            'ALTER TABLE world_form ADD COLUMN expected_record_version TEXT',
-          );
-          db.execute('PRAGMA user_version=3');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -126,12 +95,7 @@ final class WorldFormRecoveryStore {
             as int;
     if (count == 0) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    const legacyColumns = {
-      'world_form': 'instance,profile,universe,continuity,generation,base_revision,represented_context,record_id,selector,setting_type,rationale',
-      'world_form_alias': 'instance,profile,universe,continuity,ordinal,value',
-      'world_form_label': 'instance,profile,universe,continuity,language,value',
-    };
-    const versionTwoColumns = {
+    const baseColumns = {
       'world_form': 'instance,profile,universe,continuity,editor_key,generation,base_revision,represented_context,record_id,selector,setting_type,rationale,draft_version',
       'world_form_alias':
           'instance,profile,universe,continuity,editor_key,ordinal,value',
@@ -139,17 +103,12 @@ final class WorldFormRecoveryStore {
           'instance,profile,universe,continuity,editor_key,language,value',
     };
     final currentColumns = {
-      ...versionTwoColumns,
-      'world_form':
-          '${versionTwoColumns['world_form']},expected_record_version',
+      ...baseColumns,
+      'world_form': '${baseColumns['world_form']},expected_record_version',
     };
-    final columns = version == 1
-        ? legacyColumns
-        : version == 2
-        ? versionTwoColumns
-        : currentColumns;
+    final columns = currentColumns;
     if (count != columns.length ||
-        (version != 1 && version != 2 && version != 3) ||
+        version != 3 ||
         columns.entries.any(
           (entry) =>
               db

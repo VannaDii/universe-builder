@@ -16,7 +16,6 @@ import 'installation_store.dart'
         moveRecoveryReport,
         archiveUploadProgress;
 import 'owned_database.dart';
-import 'legacy_conversion.dart' as legacy;
 import 'ownership.dart';
 import 'postgres_authority.dart';
 import 'postgres_authority_schema.dart';
@@ -482,6 +481,7 @@ final class PostgresInstallationSession {
       );
     }
     await verifyUniverse(universe, complete: true);
+    await _requireRootPolicies(universe);
     await recovery(universe).rebuild();
     await authority.registerUniverse(
       actor: actor,
@@ -490,26 +490,6 @@ final class PostgresInstallationSession {
     );
     return universe;
   });
-
-  /// Explicit canon-only conversion remains read-only on the legacy source.
-  /// Its output is a reviewed logical archive, never automatic registration.
-  Future<CanonicalObject> convertLegacyPackage({
-    required ProfileId actor,
-    required String source,
-    required String destination,
-  }) async {
-    await authority.requireAuthor(actor);
-    final temporary = privateTemporaryDirectory(
-      Directory.systemTemp.path,
-      'universe-builder-conversion-',
-    );
-    try {
-      privateDirectory(temporary.path);
-      return legacy.convertLegacy(source, destination, temporary.path);
-    } finally {
-      temporary.deleteSync(recursive: true);
-    }
-  }
 
   Future<CanonicalObject> backupUniverse(
     UniverseId universe,
@@ -547,6 +527,7 @@ final class PostgresInstallationSession {
         await _provisionUniverse(universe);
         await PostgresLogicalImport(_tx, universe).copy(staged.package);
         await verifyUniverse(universe, complete: true);
+        await _requireRootPolicies(universe);
         await recovery(universe).rebuild();
         await authority.registerUniverse(
           actor: actor,
@@ -576,6 +557,24 @@ final class PostgresInstallationSession {
       complete
       ? PostgresCanonicalIntegrity(_tx, universe).verifyComplete()
       : PostgresCanonicalIntegrity(_tx, universe).verify();
+
+  Future<void> _requireRootPolicies(UniverseId universe) async {
+    final journal = PostgresJournal(_tx, universe);
+    final heads = await journal.heads();
+    if (heads.isEmpty) {
+      throw const FormatException('A universe requires a root policy');
+    }
+    for (final head in heads.entries) {
+      final versions = journal.loadMany(
+        (await journal.snapshot(head.key, head.value)).values,
+      );
+      final rows = [
+        await for (final row in versions)
+          RecordVersion.fromWire(row.toCanonical()),
+      ];
+      UniversePolicySelection.fromRecords(universe, rows);
+    }
+  }
 
   PostgresKernel kernel(UniverseId universe) => PostgresKernel(_tx, universe);
   PostgresWorkflowStorage workflows(UniverseId universe) =>
@@ -652,6 +651,7 @@ final class PostgresInstallationSession {
       await _provisionUniverse(universe);
       await PostgresLogicalImport(_tx, universe).copy(staged.package);
       await verifyUniverse(universe, complete: true);
+      await _requireRootPolicies(universe);
       await recovery(universe).rebuild();
       await authority.registerUniverse(
         actor: actor,

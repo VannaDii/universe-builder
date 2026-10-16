@@ -10,11 +10,8 @@ import 'catalog.dart';
 import 'relational.dart';
 import 'recovery_domain_rows.dart';
 
-const _legacyColumns =
-    'instance,profile,universe,continuity,context,generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable';
 const _columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,draft_version';
-const _v3Columns = '$_columns,revision_input';
 const _currentColumns =
     '$_columns,target_record,target_universe,expected_record_version,original,parent_resolution';
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
@@ -91,98 +88,6 @@ final class TypeFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version < 4) {
-          db.execute(
-            'ALTER TABLE type_form_world RENAME TO legacy_type_form_world',
-          );
-          db.execute('ALTER TABLE type_form RENAME TO legacy_type_form');
-          db.execute(_schema);
-          final store = TypeFormRecoveryStore._(db),
-              legacyColumns = version == 1
-                  ? _legacyColumns
-                  : version == 2
-                  ? _columns
-                  : _v3Columns;
-          for (final r in db.select(
-            'SELECT ${_projection(legacyColumns)} FROM legacy_type_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(r, 'instance')),
-              profile: ProfileId.parse(_text(r, 'profile')),
-              universe: UniverseId.parse(_text(r, 'universe')),
-              continuity: ContinuityId.parse(_text(r, 'continuity')),
-              representedContext: RecordId.parse(_text(r, 'context')),
-              typeClientRef: version == 1 || _text(r, 'editor_key').isEmpty
-                  ? null
-                  : _text(r, 'editor_key'),
-            );
-            final revision = version < 3 || r['revision_input'] == null
-                ? null
-                : WireFields(
-                    CanonicalValue.parseWireJson(_text(r, 'revision_input')),
-                    {
-                      'target',
-                      'expected_version',
-                      'original',
-                      'parent_resolution',
-                      'labels',
-                    },
-                  );
-            final worldWhere = version == 1
-                ? 'instance=? AND profile=? AND universe=? AND continuity=? AND context=?'
-                : _where;
-            final form = UnfinishedTypeForm(
-              baseRevision: RevisionId.parse(_text(r, 'base_revision')),
-              representedContext: scope.representedContext!,
-              clientRef: _text(r, 'client_ref'),
-              namespace: _text(r, 'namespace'),
-              key: _text(r, 'key'),
-              name: _text(r, 'name'),
-              parentChoice: _text(r, 'parent_choice'),
-              applicabilityChoice: _text(r, 'applicability_choice'),
-              rationale: _text(r, 'rationale'),
-              classificationExecutable: r['classification_executable'] == null
-                  ? null
-                  : r['classification_executable'] == 1,
-              draftVersion: version == 1 || r['draft_version'] == null
-                  ? null
-                  : BigInt.parse(_text(r, 'draft_version')),
-              revisionTarget: revision?.optional(
-                'target',
-                RecordRef.fromCanonical,
-              ),
-              expectedRecordVersion: revision?.optional(
-                'expected_version',
-                (v) => RecordVersionId.parse(wireString(v)),
-              ),
-              original: revision?.optional(
-                'original',
-                EntityTypeRecord.fromWire,
-              ),
-              parentResolution: revision?.string('parent_resolution') ?? '',
-              labels:
-                  revision?.array('labels').map(PropertyLabelInput.fromWire) ??
-                  const [],
-              worlds: db
-                  .select(
-                    'SELECT ${_projection('world')} FROM legacy_type_form_world WHERE $worldWhere ORDER BY ordinal',
-                    version == 1
-                        ? store._binding(scope).sublist(0, 5)
-                        : store._binding(scope),
-                  )
-                  .map((w) => WorldId.parse(_text(w, 'world'))),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedTypeForm(
-                generation: BigInt.parse(_text(r, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_type_form_world');
-          db.execute('DROP TABLE legacy_type_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -212,20 +117,6 @@ final class TypeFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacyColumns = switch (version) {
-      1 => _legacyColumns,
-      2 => _columns,
-      3 => _v3Columns,
-      _ => null,
-    };
-    final legacy =
-        legacyColumns != null &&
-        tables.length == 2 &&
-        columns('type_form') == legacyColumns &&
-        columns('type_form_world') ==
-            (version == 1
-                ? 'instance,profile,universe,continuity,context,ordinal,world'
-                : '$_keys,ordinal,world');
     final expected = {
       'type_form': _currentColumns,
       'type_form_world': '$_keys,ordinal,world',
@@ -236,7 +127,7 @@ final class TypeFormRecoveryStore {
         tables.length == expected.length + _domains.statements.length &&
         expected.entries.every((e) => columns(e.key) == e.value) &&
         _domains.matches(db);
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

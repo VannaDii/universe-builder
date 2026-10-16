@@ -415,114 +415,107 @@ void main() {
     },
   );
 
-  test(
-    'legacy slot metadata and incomplete corrections require clarification',
-    () {
-      final base = rows();
-      final legacy = base.singleWhere((r) => r.identity.recordId == f.id(5));
-      final result = compileWritingActions(
-        universe: f.u,
-        frame: a.frame,
-        base: base,
-        rows: base,
-        declarations: [],
-        corrections: [
-          WritingActionCorrection(name: 'charged_action', reason: 'No change'),
-          WritingActionCorrection(
-            name: 'charged_action',
-            reason: '',
-            requirements: [],
-          ),
-          WritingActionCorrection(
-            name: 'charged_action',
-            reason: 'Incomplete time',
-            atTick: '10',
-          ),
-          WritingActionCorrection(
-            name: 'charged_action',
-            reason: 'Replace legacy effects',
-            effects: [],
-          ),
-        ],
-      );
-      expect(result.operations, isEmpty);
-      expect(result.clarifications, hasLength(4));
-      expect(result.clarifications.last, contains('advanced review'));
-      final declared =
-          (compileWritingActions(
-                    universe: f.u,
-                    frame: a.frame,
-                    base: base,
-                    rows: base,
-                    declarations: [action()],
-                    corrections: [],
-                  ).operations.single
-                  as DefineActionOperation)
-              .record;
-      final slot = declared.consequenceContract!.slots.single;
-      final renamed = f.row(
-        71,
-        ActionDefinitionRecord(
-          namespace: declared.namespace,
-          key: declared.key,
-          labels: {},
-          requirements: declared.requirements,
-          scope: declared.scope,
-          validity: declared.validity,
-          consequenceContract: ConsequenceContract([
-            EffectSlot(
-              slot: 'authored_slot',
-              order: 0,
-              presence: slot.presence,
-              target: slot.target,
-              condition: slot.condition,
-              change: slot.change,
-              lifetime: slot.lifetime,
-            ),
-          ]),
+  test('unqualified slot metadata and incomplete corrections require clarification', () {
+    final base = rows();
+    final unqualified = base.singleWhere((r) => r.identity.recordId == f.id(5));
+    final result = compileWritingActions(
+      universe: f.u,
+      frame: a.frame,
+      base: base,
+      rows: base,
+      declarations: [],
+      corrections: [
+        WritingActionCorrection(name: 'charged_action', reason: 'No change'),
+        WritingActionCorrection(
+          name: 'charged_action',
+          reason: '',
+          requirements: [],
         ),
-      );
-      final cannotDiscard = compileWritingActions(
-        universe: f.u,
-        frame: a.frame,
-        base: [...base, renamed],
-        rows: [...base, renamed],
-        declarations: [],
-        corrections: [
-          WritingActionCorrection(
-            name: 'Spend',
-            reason: 'Replace',
-            effects: [],
+        WritingActionCorrection(
+          name: 'charged_action',
+          reason: 'Incomplete time',
+          atTick: '10',
+        ),
+        WritingActionCorrection(
+          name: 'charged_action',
+          reason: 'Replace unqualified effects',
+          effects: [],
+        ),
+      ],
+    );
+    expect(result.operations, isEmpty);
+    expect(result.clarifications, hasLength(4));
+    expect(result.clarifications.last, contains('advanced review'));
+    final declared =
+        (compileWritingActions(
+                  universe: f.u,
+                  frame: a.frame,
+                  base: base,
+                  rows: base,
+                  declarations: [action()],
+                  corrections: [],
+                ).operations.single
+                as DefineActionOperation)
+            .record;
+    final slot = declared.consequenceContract!.slots.single;
+    final renamed = f.row(
+      71,
+      ActionDefinitionRecord(
+        namespace: declared.namespace,
+        key: declared.key,
+        labels: {},
+        requirements: declared.requirements,
+        scope: declared.scope,
+        validity: declared.validity,
+        consequenceContract: ConsequenceContract([
+          EffectSlot(
+            slot: 'authored_slot',
+            order: 0,
+            presence: slot.presence,
+            target: slot.target,
+            condition: slot.condition,
+            change: slot.change,
+            lifetime: slot.lifetime,
           ),
-        ],
-      );
-      expect(cannotDiscard.operations, isEmpty);
-      expect(
-        cannotDiscard.clarifications.single,
-        contains('no authored slot metadata is discarded'),
-      );
-      final allowed = compileWritingActions(
-        universe: f.u,
-        frame: a.frame,
-        base: base,
-        rows: base,
-        declarations: [],
-        corrections: [
-          WritingActionCorrection(
-            name: 'charged_action',
-            reason: 'Update requirements',
-            requirements: [],
-          ),
-        ],
-      );
-      expect(allowed.clarifications, isEmpty);
-      expect(
-        ((allowed.operations.single as ReviseDefinitionOperation).replacement
-                as ActionDefinitionRecord)
-            .consequenceContract,
-        isNull,
-      );
-      expect(legacy.recordVersionId, f.ver(5));
-    },
-  );
+        ]),
+      ),
+    );
+    final cannotDiscard = compileWritingActions(
+      universe: f.u,
+      frame: a.frame,
+      base: [...base, renamed],
+      rows: [...base, renamed],
+      declarations: [],
+      corrections: [
+        WritingActionCorrection(name: 'Spend', reason: 'Replace', effects: []),
+      ],
+    );
+    expect(cannotDiscard.operations, isEmpty);
+    expect(
+      cannotDiscard.clarifications.single,
+      contains('no authored slot metadata is discarded'),
+    );
+    final allowed = compileWritingActions(
+      universe: f.u,
+      frame: a.frame,
+      base: base,
+      rows: base,
+      declarations: [],
+      corrections: [
+        WritingActionCorrection(
+          name: 'charged_action',
+          reason: 'Update requirements',
+          requirements: [],
+        ),
+      ],
+    );
+    expect(allowed.clarifications, isEmpty);
+    expect(
+      ((allowed.operations.single as ReviseDefinitionOperation).replacement
+              as ActionDefinitionRecord)
+          .consequenceContract,
+      isNull,
+    );
+    expect(unqualified.recordVersionId, f.ver(5));
+  });
 }

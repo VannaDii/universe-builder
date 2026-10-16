@@ -8734,12 +8734,11 @@ CREATE TABLE "r_source_binding_passage_id" (
 
 CREATE TABLE "r_assessment_state" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 4),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 3),
   v0 INTEGER REFERENCES "r_assessment_state_v0"(__row_id),
   v1 INTEGER REFERENCES "r_assessment_state_v1"(__row_id),
   v2 INTEGER REFERENCES "r_assessment_state_v2"(__row_id),
   v3 INTEGER REFERENCES "r_assessment_state_v3"(__row_id),
-  v4 INTEGER REFERENCES "r_assessment_state_v4"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -8747,9 +8746,7 @@ CREATE TABLE "r_assessment_state" (
   CHECK(variant=2 OR v2 IS NULL),
   CHECK(variant!=2 OR v2 IS NOT NULL),
   CHECK(variant=3 OR v3 IS NULL),
-  CHECK(variant!=3 OR v3 IS NOT NULL),
-  CHECK(variant=4 OR v4 IS NULL),
-  CHECK(variant!=4 OR v4 IS NOT NULL)
+  CHECK(variant!=3 OR v3 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_assessment_state_v0" (
@@ -8762,14 +8759,6 @@ CREATE TABLE "r_assessment_state_v0" (
 
 CREATE TABLE "r_assessment_state_v1" (
   __row_id INTEGER PRIMARY KEY,
-  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
-  "kind" TEXT,
-  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
-  CHECK("kind"='unavailable_legacy')
-) STRICT;
-
-CREATE TABLE "r_assessment_state_v2" (
-  __row_id INTEGER PRIMARY KEY,
   "reason__state" INTEGER NOT NULL CHECK("reason__state" IN (2)),
   "reason" TEXT,
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
@@ -8780,12 +8769,12 @@ CREATE TABLE "r_assessment_state_v2" (
   CHECK("kind"='unavailable')
 ) STRICT;
 
-CREATE TABLE "r_assessment_state_v3" (
+CREATE TABLE "r_assessment_state_v2" (
   __row_id INTEGER PRIMARY KEY,
   "assessment_reference__state" INTEGER NOT NULL CHECK("assessment_reference__state" IN (2)),
   "assessment_reference" INTEGER REFERENCES "r_assessment_ref"(__row_id),
   "reasons__state" INTEGER NOT NULL CHECK("reasons__state" IN (2)),
-  "reasons" INTEGER REFERENCES "r_assessment_state_v3_reasons"(__row_id),
+  "reasons" INTEGER REFERENCES "r_assessment_state_v2_reasons"(__row_id),
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
   "kind" TEXT,
   CHECK(("assessment_reference__state"=2 AND "assessment_reference" IS NOT NULL) OR ("assessment_reference__state" IN (0,1) AND "assessment_reference" IS NULL)),
@@ -8804,13 +8793,13 @@ CREATE TABLE "r_assessment_ref" (
   CHECK(("digest__state"=2 AND "digest" IS NOT NULL) OR ("digest__state" IN (0,1) AND "digest" IS NULL))
 ) STRICT;
 
-CREATE TABLE "r_assessment_state_v3_reasons" (
+CREATE TABLE "r_assessment_state_v2_reasons" (
   __row_id INTEGER PRIMARY KEY
 ) STRICT;
 
-CREATE TABLE "r_assessment_state_v3_reasons_items" (owner INTEGER NOT NULL REFERENCES "r_assessment_state_v3_reasons"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+CREATE TABLE "r_assessment_state_v2_reasons_items" (owner INTEGER NOT NULL REFERENCES "r_assessment_state_v2_reasons"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
 
-CREATE TABLE "r_assessment_state_v4" (
+CREATE TABLE "r_assessment_state_v3" (
   __row_id INTEGER PRIMARY KEY,
   "assessment_reference__state" INTEGER NOT NULL CHECK("assessment_reference__state" IN (2)),
   "assessment_reference" INTEGER REFERENCES "r_assessment_ref"(__row_id),
@@ -13132,25 +13121,21 @@ CREATE TRIGGER "r_assessment_state_v2_no_update" BEFORE UPDATE ON "r_assessment_
 
 CREATE TRIGGER "r_assessment_state_v2_no_delete" BEFORE DELETE ON "r_assessment_state_v2" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_no_update" BEFORE UPDATE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_assessment_state_v3_no_delete" BEFORE DELETE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
 CREATE TRIGGER "r_assessment_ref_no_update" BEFORE UPDATE ON "r_assessment_ref" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_assessment_ref_no_delete" BEFORE DELETE ON "r_assessment_ref" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_no_update" BEFORE UPDATE ON "r_assessment_state_v3_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_no_update" BEFORE UPDATE ON "r_assessment_state_v2_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_no_delete" BEFORE DELETE ON "r_assessment_state_v3_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_no_delete" BEFORE DELETE ON "r_assessment_state_v2_reasons" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_items_no_update" BEFORE UPDATE ON "r_assessment_state_v3_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_items_no_update" BEFORE UPDATE ON "r_assessment_state_v2_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v3_reasons_items_no_delete" BEFORE DELETE ON "r_assessment_state_v3_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v2_reasons_items_no_delete" BEFORE DELETE ON "r_assessment_state_v2_reasons_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v4_no_update" BEFORE UPDATE ON "r_assessment_state_v4" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v3_no_update" BEFORE UPDATE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_assessment_state_v4_no_delete" BEFORE DELETE ON "r_assessment_state_v4" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+CREATE TRIGGER "r_assessment_state_v3_no_delete" BEFORE DELETE ON "r_assessment_state_v3" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_validation_report_v0_final_binding_digest_no_update" BEFORE UPDATE ON "r_validation_report_v0_final_binding_digest" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

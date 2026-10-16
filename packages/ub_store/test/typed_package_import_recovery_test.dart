@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/package_import_forms.dart';
-import 'package:ub_store/src/ownership.dart';
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 PackageImportDraft input({bool empty = false}) {
@@ -58,36 +57,6 @@ PackageImportDraft input({bool empty = false}) {
       const MapEntry('imported', CanonicalBool(true)),
     ]),
   );
-}
-
-void legacy(
-  String path,
-  (OperationId, ProfileId) scope,
-  PackageImportDraft form,
-  BigInt generation, {
-  bool malformed = false,
-}) {
-  protectedFile(path, create: true);
-  final db = sqlite3.open(path);
-  try {
-    db.execute(
-      'CREATE TABLE package_import_form(instance TEXT NOT NULL,profile TEXT NOT NULL,generation TEXT NOT NULL,operation TEXT NOT NULL,name TEXT NOT NULL,mode TEXT NOT NULL,phase TEXT NOT NULL,file_name TEXT NOT NULL,review TEXT,receipt TEXT,PRIMARY KEY(instance,profile)) STRICT; PRAGMA user_version=1',
-    );
-    db.execute('INSERT INTO package_import_form VALUES(?,?,?,?,?,?,?,?,?,?)', [
-      scope.$1.value,
-      scope.$2.value,
-      generation.toString(),
-      form.operation.value,
-      form.name,
-      form.mode.name,
-      form.phase.name,
-      form.fileName,
-      form.review?.toText(),
-      malformed ? '{unfinished' : form.receipt?.toText(),
-    ]);
-  } finally {
-    db.close();
-  }
 }
 
 void main() {
@@ -142,71 +111,4 @@ void main() {
       root.deleteSync(recursive: true);
     }
   });
-  test('version one migrates exact import results and preserves exhausted generation', () {
-    final root = Directory('/tmp').createTempSync('ub-import-v1-'),
-        scope = (OperationId.generate(), ProfileId.generate());
-    final path = '${root.path}/forms.sqlite', f = input();
-    legacy(path, scope, f, maxU64);
-    final store = PackageImportFormRecoveryStore.open(path);
-    try {
-      expect(store.load(scope)!.form.toWire().toText(), f.toWire().toText());
-      expect(store.load(scope)!.generation, maxU64);
-      expect(
-        () => store.save(scope, f, maxU64),
-        throwsA(
-          isA<EditorRecoveryException>().having(
-            (e) => e.failure,
-            'failure',
-            EditorRecoveryFailure.generationExhausted,
-          ),
-        ),
-      );
-    } finally {
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
-  for (final malformed in [false, true]) {
-    test(
-      'legacy conversion rolls back on ${malformed ? 'malformed result' : 'invalid generation'}',
-      () {
-        final root = Directory('/tmp').createTempSync('ub-import-rollback-'),
-            scope = (OperationId.generate(), ProfileId.generate());
-        final path = '${root.path}/forms.sqlite', f = input();
-        legacy(
-          path,
-          scope,
-          f,
-          malformed ? BigInt.one : maxU64 + BigInt.one,
-          malformed: malformed,
-        );
-        try {
-          expect(
-            () => PackageImportFormRecoveryStore.open(path),
-            throwsA(anything),
-          );
-          final db = sqlite3.open(path, mode: OpenMode.readOnly);
-          try {
-            expect(db.select('PRAGMA user_version').single.values.single, 1);
-            expect(
-              db
-                  .select("SELECT name FROM sqlite_master WHERE type='table'")
-                  .length,
-              1,
-            );
-            expect(
-              db
-                  .select('SELECT receipt FROM package_import_form')
-                  .single['receipt'],
-              malformed ? '{unfinished' : f.receipt!.toText(),
-            );
-          } finally {
-            db.close();
-          }
-        } finally {
-          root.deleteSync(recursive: true);
-        }
-      },
-    );
-  }
 }

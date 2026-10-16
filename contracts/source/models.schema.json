@@ -565,19 +565,6 @@
         {
           "type": "object",
           "properties": {
-            "kind": {
-              "type": "string",
-              "const": "unavailable_legacy"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "kind"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
             "reason": {
               "$ref": "#/$defs/UnavailableReason"
             },
@@ -1741,10 +1728,6 @@
         },
         "revision_id": {
           "$ref": "#/$defs/RevisionId"
-        },
-        "root_policy_defined": {
-          "description": "Whether the current head has a root policy; omitted when scope cannot establish it.",
-          "type": "boolean"
         },
         "name": {
           "type": "string"
@@ -3608,7 +3591,9 @@
             "source_category_members": {
               "description": "Explicit existing source-version identities qualifying for the independent Real World clone. Omit for scratch policies. The candidate snapshot and exact category version pin membership.",
               "type": "array",
-              "items": { "$ref": "#/$defs/RecordId" },
+              "items": {
+                "$ref": "#/$defs/RecordId"
+              },
               "uniqueItems": true
             }
           },

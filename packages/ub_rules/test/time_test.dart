@@ -60,53 +60,56 @@ List<RecordVersion> edge(
 ];
 
 void main() {
-  test('half-open validity, timeless selection and legacy unknown clocks', () {
-    final v = CalendarIntervalValidity(
-      cal(1),
-      const ExactBound('10'),
-      const ExactBound('20'),
-    );
-    for (final (n, expected) in [
-      (9, false),
-      (10, true),
-      (19, true),
-      (20, false),
-    ]) {
-      expect(temporalApplies(v, AtFrameTime(at(n))), expected);
-    }
-    expect(
-      temporalApplies(const UnspecifiedValidity(), AtFrameTime(at(10))),
-      isNull,
-    );
-    expect(
-      temporalApplies(const UnknownValidity(), AtFrameTime(at(10))),
-      isNull,
-    );
-    expect(temporalApplies(v, AtFrameTime(at(10, clock: 2))), isNull);
-    expect(
-      temporalApplies(const UnknownValidity(), const TimelessFrameTime()),
-      isTrue,
-    );
-    expect(
-      temporalApplies(v, AtEventFrameTime(ref(1), EventTimeSide.before)),
-      isNull,
-    );
-    expect(
-      temporalOverlaps(
-        const UnspecifiedValidity(),
-        const UnspecifiedValidity(),
-      ),
-      isTrue,
-    );
-    expect(temporalOverlaps(const UnknownValidity(), v), isNull);
-    expect(
-      temporalApplies(
-        const IntervalValidity(ExactBound('10'), ExactBound('20')),
-        AtFrameTime(at(15)),
-      ),
-      isNull,
-    );
-  });
+  test(
+    'half-open validity, timeless selection and unqualified unknown clocks',
+    () {
+      final v = CalendarIntervalValidity(
+        cal(1),
+        const ExactBound('10'),
+        const ExactBound('20'),
+      );
+      for (final (n, expected) in [
+        (9, false),
+        (10, true),
+        (19, true),
+        (20, false),
+      ]) {
+        expect(temporalApplies(v, AtFrameTime(at(n))), expected);
+      }
+      expect(
+        temporalApplies(const UnspecifiedValidity(), AtFrameTime(at(10))),
+        isNull,
+      );
+      expect(
+        temporalApplies(const UnknownValidity(), AtFrameTime(at(10))),
+        isNull,
+      );
+      expect(temporalApplies(v, AtFrameTime(at(10, clock: 2))), isNull);
+      expect(
+        temporalApplies(const UnknownValidity(), const TimelessFrameTime()),
+        isTrue,
+      );
+      expect(
+        temporalApplies(v, AtEventFrameTime(ref(1), EventTimeSide.before)),
+        isNull,
+      );
+      expect(
+        temporalOverlaps(
+          const UnspecifiedValidity(),
+          const UnspecifiedValidity(),
+        ),
+        isTrue,
+      );
+      expect(temporalOverlaps(const UnknownValidity(), v), isNull);
+      expect(
+        temporalApplies(
+          const IntervalValidity(ExactBound('10'), ExactBound('20')),
+          AtFrameTime(at(15)),
+        ),
+        isNull,
+      );
+    },
+  );
 
   test(
     'uncertain boundaries never select a convenient date or become infinity',

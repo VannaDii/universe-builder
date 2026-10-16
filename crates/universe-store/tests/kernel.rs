@@ -646,21 +646,6 @@ fn sqlite_full_rolls_back_the_entire_transaction() {
 }
 
 #[test]
-fn empty_legacy_scaffold_requires_explicit_conversion() {
-    let d = tempfile::tempdir().unwrap();
-    let path = d.path().join("legacy.db");
-    let c = rusqlite::Connection::open(&path).unwrap();
-    c.execute_batch(include_str!("../src/schema_v0.sql"))
-        .unwrap();
-    c.execute("INSERT INTO schema_meta VALUES('schema_version',0)", [])
-        .unwrap();
-    drop(c);
-    let original = std::fs::read(&path).unwrap();
-    assert!(Database::open(&path).is_err());
-    assert_eq!(std::fs::read(&path).unwrap(), original);
-}
-
-#[test]
 fn metadata_field_names_cannot_hide_foreign_or_dangling_references() {
     use universe_domain::value::{RecordRef, Value};
     for key in [

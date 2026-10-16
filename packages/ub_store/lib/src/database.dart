@@ -24,7 +24,7 @@ final class SqliteDatabase {
               .single['populated'] ==
           1;
       // Inspect before journal-mode changes. Incompatible existing packages
-      // require separately authorized conversion; opening never converts them.
+      // are refused without modifying their contents.
       if (populated) _checkSchema(db);
       _policy(db);
       db.execute('PRAGMA journal_mode=WAL');
@@ -53,7 +53,7 @@ final class SqliteDatabase {
     if (columns.join(',') !=
         'universe_id,id,record_id,kind,payload_row,digest') {
       throw const FormatException(
-        'Package requires explicit relational conversion; original preserved',
+        'Package schema is incompatible with the current v0 format',
       );
     }
     final workflow = db
@@ -62,17 +62,17 @@ final class SqliteDatabase {
         .toList();
     if (workflow.contains('payload') || !workflow.contains('StoredProposal')) {
       throw const FormatException(
-        'Package requires explicit workflow conversion; original preserved',
+        'Package schema is incompatible with the current v0 format',
       );
     }
     final boundary = db
         .select(
-          "SELECT count(*) AS n FROM sqlite_master WHERE name IN ('historical_workflow','historical_receipt','active_workflow_index','import_workflow_digest')",
+          "SELECT count(*) AS n FROM sqlite_master WHERE name IN ('historical_workflow','historical_receipt','active_workflow_index')",
         )
         .single['n'];
-    if (boundary != 4) {
+    if (boundary != 3) {
       throw const FormatException(
-        'Package requires explicit historical-authority conversion; original preserved',
+        'Package schema is incompatible with the current v0 format',
       );
     }
   }

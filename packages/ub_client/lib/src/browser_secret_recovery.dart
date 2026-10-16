@@ -81,7 +81,6 @@ extension type _SecretRow._(JSObject _) implements JSObject {
   external String? get targetUniverse;
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external String? get draftVersion;
 }
 
@@ -100,9 +99,8 @@ extension type _ReferenceRow._(JSObject _) implements JSObject {
 SavedSecretForm _decodeSecret(
   _SecretRow row,
   Iterable<ExpressionReferenceInput> scopeRefs,
-  Iterable<ExpressionReferenceInput> knowerRefs, {
-  bool legacy = false,
-}) {
+  Iterable<ExpressionReferenceInput> knowerRefs,
+) {
   return SavedSecretForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedSecretForm(
@@ -130,13 +128,7 @@ SavedSecretForm _decodeSecret(
       expectedRecordVersion: row.expectedRecordVersion == null
           ? null
           : RecordVersionId.parse(row.expectedRecordVersion!),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : SecretRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : SecretRecord.fromWire(decodeBrowserInput(row.originalFields!)),
       draftVersion: row.draftVersion == null
@@ -192,36 +184,13 @@ final class BrowserSecretFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            for (final table in _tables) {
-              db.createObjectStore(table);
-            }
-          } else {
-            final scan = tx.objectStore(_tables.first).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeSecret(
-                    _decodeSecret(
-                      cursor.value as _SecretRow,
-                      [],
-                      [],
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

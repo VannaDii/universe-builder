@@ -11,8 +11,6 @@ pub fn Transfer(root: String, profile: String, universe: String) -> Element {
     let mut history = use_signal(|| false);
     let mut selected_ids = use_signal(String::new);
     let mut source = use_signal(String::new);
-    let mut legacy_source = use_signal(String::new);
-    let mut legacy_output = use_signal(String::new);
     let mut maintenance = use_signal(Value::default);
     let mut name = use_signal(String::new);
     let mut mode = use_signal(|| "clone".to_string());
@@ -34,12 +32,6 @@ pub fn Transfer(root: String, profile: String, universe: String) -> Element {
         if !preview().is_null(){
             super::readable::ReadValue{value:preview()}
             button{disabled:busy()||preview()["conflicts"].as_array().is_none_or(|c|!c.is_empty()),onclick:{let(root,profile)=(root.clone(),profile.clone());move|_|{busy.set(true);let(r,p,v)=(root.clone(),profile.clone(),preview());spawn(async move{let result=async{super::author::send(r,p,EngineRequest::AcceptImport{preview_id:serde_json::from_value(v["preview_id"].clone()).map_err(|e|e.to_string())?,digest:v["digest"].as_str().ok_or("Missing preview digest")?.into()}).await}.await;match result{Ok(_)=>{preview.set(Value::Null);status.set("Reviewed archive imported. Reconnect the library to open it.".into());},Err(e)=>status.set(e)}busy.set(false);});}},"Import this reviewed archive"}
-        }
-        details{summary{"Convert a legacy package"}
-            p{"Conversion writes a new logical archive. Record and version identities are preserved; old revision and continuity identifiers receive a visible mapping. Unsupported source or workflow data is rejected. The original file is retained. Import still requires an exact preview."}
-            label{r#for:"legacy-source","Legacy v0.3 package path"}input{id:"legacy-source",disabled:busy(),value:legacy_source,oninput:move|e|legacy_source.set(e.value())}
-            label{r#for:"legacy-output","New converted archive path"}input{id:"legacy-output",disabled:busy(),value:legacy_output,oninput:move|e|legacy_output.set(e.value())}
-            button{disabled:busy()||legacy_source().is_empty()||legacy_output().is_empty(),onclick:{let(root,profile)=(root.clone(),profile.clone());move|_|{busy.set(true);let(r,p,source,destination)=(root.clone(),profile.clone(),legacy_source(),legacy_output());spawn(async move{match super::author::send(r,p,EngineRequest::ConvertLegacy{source:source.into(),destination:destination.into()}).await{Ok(v)=>{maintenance.set(v);status.set("Legacy copy converted. Review the identity mapping, then validate an import preview.".into());},Err(e)=>status.set(e)}busy.set(false);});}},"Convert a copy"}
         }
         details{summary{"Retention and storage maintenance"}
             p{"All canon history, source bytes, proposals, drafts and retry receipts are retained. Maintenance only collects rebuildable snapshot caches and unused SQLite pages. Every whole-package backup contains its own pinned source bytes."}

@@ -80,15 +80,11 @@ extension type _CommunicationRow._(JSObject _) implements JSObject {
   external String get rationale;
   external String? get draftVersion;
   external JSAny? get originalFields;
-  external String? get original;
   external JSAny? get correctionTarget;
   external String? get expectedRecordVersion;
 }
 
-SavedCommunicationForm _decodeCommunication(
-  _CommunicationRow row, {
-  bool legacy = false,
-}) {
+SavedCommunicationForm _decodeCommunication(_CommunicationRow row) {
   return SavedCommunicationForm(
     generation: BigInt.parse(row.generation),
     form: UnfinishedCommunicationForm(
@@ -113,13 +109,7 @@ SavedCommunicationForm _decodeCommunication(
       receivedAt: TemporalValidityInput.fromWire(
         decodeBrowserInput(row.receivedAt),
       ),
-      original: legacy
-          ? (row.original == null
-                ? null
-                : CommunicationRecord.fromWire(
-                    CanonicalValue.parseWireJson(row.original!),
-                  ))
-          : row.originalFields == null
+      original: row.originalFields == null
           ? null
           : CommunicationRecord.fromWire(
               decodeBrowserInput(row.originalFields!),
@@ -199,32 +189,13 @@ final class BrowserCommunicationFormRecoveryStore {
       }
 
       request.onupgradeneeded = ((web.Event event) {
-        final db = request.result as web.IDBDatabase, tx = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = tx.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeCommunication(
-                    _decodeCommunication(
-                      cursor.value as _CommunicationRow,
-                      legacy: true,
-                    ),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                tx.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          tx.abort();
+        final db = request.result as web.IDBDatabase;
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

@@ -8,7 +8,6 @@ import 'package:ub_domain/ub_domain.dart';
 import 'ownership.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
-const _legacyColumns = '$_keys,generation,form_input';
 const _fields =
     'generation,base_revision,client_ref,label,source_text,rationale,anchor_record,anchor_version,anchor_universe,draft_version';
 const _operationFields =
@@ -92,36 +91,6 @@ final class SourceFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
-          db.execute('ALTER TABLE source_form RENAME TO legacy_source_form');
-          db.execute(_schema);
-          final store = SourceFormRecoveryStore._(db);
-          for (final row in db.select(
-            'SELECT ${_projection(_legacyColumns)} FROM legacy_source_form',
-          )) {
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(row, 'instance')),
-              profile: ProfileId.parse(_text(row, 'profile')),
-              universe: UniverseId.parse(_text(row, 'universe')),
-              continuity: ContinuityId.parse(_text(row, 'continuity')),
-              representedContext: RecordId.parse(_text(row, 'context')),
-              typeClientRef: _text(row, 'editor_key').isEmpty
-                  ? null
-                  : _text(row, 'editor_key'),
-            );
-            final form = UnfinishedSourceForm.fromWire(
-              CanonicalValue.parseWireJson(_text(row, 'form_input')),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedSourceForm(
-                generation: BigInt.parse(_text(row, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          db.execute('DROP TABLE legacy_source_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -151,10 +120,6 @@ final class SourceFormRecoveryStore {
     final version = db.select('PRAGMA user_version').single.values.single;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacy =
-        version == 1 &&
-        tables.length == 1 &&
-        columns('source_form') == _legacyColumns;
     final current =
         version == 2 &&
         tables.length == 3 &&
@@ -162,7 +127,7 @@ final class SourceFormRecoveryStore {
         columns('source_operation') == '$_keys,$_operationFields' &&
         columns('source_operation_item') ==
             '$_keys,operation_ordinal,list_kind,ordinal,item';
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

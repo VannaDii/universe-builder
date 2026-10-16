@@ -1443,28 +1443,26 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `SourceBinding_passage_id_v0` | `r_source_binding_passage_id_v0` (scalar column) | string |
 | `SourceBinding_passage_id_v1` | `r_source_binding_passage_id_v1` (scalar column) | null |
 | `SubmittedInput_v2_kind` | `r_submitted_input_v2_kind` (scalar column) | string |
-| `AssessmentState` | `r_assessment_state` | AssessmentState_v0, AssessmentState_v1, AssessmentState_v2, AssessmentState_v3, AssessmentState_v4 |
+| `AssessmentState` | `r_assessment_state` | AssessmentState_v0, AssessmentState_v1, AssessmentState_v2, AssessmentState_v3 |
 | `AssessmentState_v0` | `r_assessment_state_v0` | kind → AssessmentState_v0_kind |
 | `AssessmentState_v0_kind` | `r_assessment_state_v0_kind` (scalar column) | string |
-| `AssessmentState_v1` | `r_assessment_state_v1` | kind → AssessmentState_v1_kind |
-| `AssessmentState_v1_kind` | `r_assessment_state_v1_kind` (scalar column) | string |
-| `AssessmentState_v2` | `r_assessment_state_v2` | reason → UnavailableReason, kind → AssessmentState_v2_kind |
+| `AssessmentState_v1` | `r_assessment_state_v1` | reason → UnavailableReason, kind → AssessmentState_v1_kind |
 | `UnavailableReason` | `r_unavailable_reason` (scalar column) | string |
-| `AssessmentState_v2_kind` | `r_assessment_state_v2_kind` (scalar column) | string |
-| `AssessmentState_v3` | `r_assessment_state_v3` | assessment_reference → AssessmentRef, reasons → AssessmentState_v3_reasons, kind → AssessmentState_v3_kind |
+| `AssessmentState_v1_kind` | `r_assessment_state_v1_kind` (scalar column) | string |
+| `AssessmentState_v2` | `r_assessment_state_v2` | assessment_reference → AssessmentRef, reasons → AssessmentState_v2_reasons, kind → AssessmentState_v2_kind |
 | `AssessmentRef` | `r_assessment_ref` | assessment_id → AssessmentId, digest → Sha256Hex |
 | `AssessmentId` | `r_assessment_id` (scalar column) | string |
-| `AssessmentState_v3_reasons` | `r_assessment_state_v3_reasons` | StaleReason |
+| `AssessmentState_v2_reasons` | `r_assessment_state_v2_reasons` | StaleReason |
 | `StaleReason` | `r_stale_reason` (scalar column) | string |
-| `AssessmentState_v3_kind` | `r_assessment_state_v3_kind` (scalar column) | string |
-| `AssessmentState_v4` | `r_assessment_state_v4` | assessment_reference → AssessmentRef, selection_generation → AssessmentState_v4_selection_generation, byte_verification → ByteVerification, declared_conclusion → DeclaredConclusion, inventory_count → AssessmentState_v4_inventory_count, mapping_count → AssessmentState_v4_mapping_count, unresolved_count → AssessmentState_v4_unresolved_count, inventory_digest → Sha256Hex, kind → AssessmentState_v4_kind |
-| `AssessmentState_v4_selection_generation` | `r_assessment_state_v4_selection_generation` (scalar column) | integer |
+| `AssessmentState_v2_kind` | `r_assessment_state_v2_kind` (scalar column) | string |
+| `AssessmentState_v3` | `r_assessment_state_v3` | assessment_reference → AssessmentRef, selection_generation → AssessmentState_v3_selection_generation, byte_verification → ByteVerification, declared_conclusion → DeclaredConclusion, inventory_count → AssessmentState_v3_inventory_count, mapping_count → AssessmentState_v3_mapping_count, unresolved_count → AssessmentState_v3_unresolved_count, inventory_digest → Sha256Hex, kind → AssessmentState_v3_kind |
+| `AssessmentState_v3_selection_generation` | `r_assessment_state_v3_selection_generation` (scalar column) | integer |
 | `ByteVerification` | `r_byte_verification` (scalar column) | string |
 | `DeclaredConclusion` | `r_declared_conclusion` (scalar column) | string |
-| `AssessmentState_v4_inventory_count` | `r_assessment_state_v4_inventory_count` (scalar column) | integer |
-| `AssessmentState_v4_mapping_count` | `r_assessment_state_v4_mapping_count` (scalar column) | integer |
-| `AssessmentState_v4_unresolved_count` | `r_assessment_state_v4_unresolved_count` (scalar column) | integer |
-| `AssessmentState_v4_kind` | `r_assessment_state_v4_kind` (scalar column) | string |
+| `AssessmentState_v3_inventory_count` | `r_assessment_state_v3_inventory_count` (scalar column) | integer |
+| `AssessmentState_v3_mapping_count` | `r_assessment_state_v3_mapping_count` (scalar column) | integer |
+| `AssessmentState_v3_unresolved_count` | `r_assessment_state_v3_unresolved_count` (scalar column) | integer |
+| `AssessmentState_v3_kind` | `r_assessment_state_v3_kind` (scalar column) | string |
 | `ValidationReport_v0_final_binding_digest` | `r_validation_report_v0_final_binding_digest` | Sha256Hex, ValidationReport_v0_final_binding_digest_v1 |
 | `ValidationReport_v0_final_binding_digest_v1` | `r_validation_report_v0_final_binding_digest_v1` (scalar column) | null |
 | `ValidationReport_v0_kind` | `r_validation_report_v0_kind` (scalar column) | string |

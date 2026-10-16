@@ -205,16 +205,6 @@ final class NativeSqliteRuntime {
         );
       }
       if (request is DoctorEngineRequest) return await _doctor(principal);
-      if (request is ConvertLegacyEngineRequest) {
-        return await authority.coordinate(principal, () {
-          authority.requireAuthor(principal);
-          return convertLegacy(
-            request.source,
-            request.destination,
-            authority.universeDirectory(principal),
-          );
-        });
-      }
       if (request is PreviewImportEngineRequest ||
           request is ReviewArchiveUploadEngineRequest ||
           request is AcceptImportEngineRequest) {
@@ -672,7 +662,7 @@ final class NativeSqliteRuntime {
           ),
           MapEntry('backend', CanonicalString('sqlite')),
           MapEntry('max_requests_per_principal', CanonicalNumber('8')),
-          // Global request admission is tighter than this legacy queue bound.
+          // Global request admission is tighter than the per-worker queue bound.
           MapEntry('universe_queue_capacity', CanonicalNumber('16')),
         ]);
       case BeginArchiveUploadEngineRequest():

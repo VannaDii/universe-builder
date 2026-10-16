@@ -11,16 +11,12 @@ import 'relational.dart';
 import 'recovery_domain_rows.dart';
 import 'recovery_value_inputs.dart';
 
-const _legacyColumns =
-    'instance,profile,universe,continuity,context,generation,base_revision,client_ref,name,classification,world_role,rationale';
-const _v2Columns =
+const _baseColumns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,name,classification,world_role,rationale,draft_version';
-const _v6Columns = '$_v2Columns,association_edits_present';
-const _v7Columns = '$_v6Columns,name_input';
-const _v8Columns = '$_v7Columns,expected_record_version';
+const _inputColumns = '$_baseColumns,association_edits_present';
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
 const _columns =
-    '$_v6Columns,expected_record_version,name_present,name_language,name_community,name_role,name_validity,name_temporal';
+    '$_inputColumns,expected_record_version,name_present,name_language,name_community,name_role,name_validity,name_temporal';
 const _fields =
     'generation,base_revision,client_ref,name,classification,world_role,rationale,draft_version,association_edits_present,expected_record_version,name_present,name_language,name_community,name_role,name_validity,name_temporal';
 const _associationColumns =
@@ -64,17 +60,6 @@ String _projection(String columns) => columns
     .join(',');
 String _text(Row row, String column) =>
     decodeExactUtf8(row[column] as List<int>);
-String _oldRootColumns(int version) => version == 1
-    ? _legacyColumns
-    : version == 2
-    ? _v2Columns
-    : version <= 6
-    ? _v6Columns
-    : version == 7
-    ? _v7Columns
-    : _v8Columns;
-String _oldAssociationColumns(int version) =>
-    '$_keys,ordinal,world,role,original_ordinal${version >= 4 ? ',validity' : ''}${version >= 5 ? ',temporal_input' : ''}${version >= 6 ? ',qualifier_input' : ''}';
 
 /// Device-private incomplete entity input, separate from canon and other editors.
 final class EntityFormRecoveryStore {
@@ -108,129 +93,6 @@ final class EntityFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version < 9) {
-          if (version >= 3) {
-            db.execute(
-              'ALTER TABLE entity_form_association RENAME TO legacy_entity_form_association',
-            );
-          }
-          db.execute(
-            'ALTER TABLE entity_form_world RENAME TO legacy_entity_form_world',
-          );
-          db.execute('ALTER TABLE entity_form RENAME TO legacy_entity_form');
-          db.execute(_schema);
-          final store = EntityFormRecoveryStore._(db);
-          for (final r in db.select(
-            'SELECT ${_projection(_oldRootColumns(version))} FROM legacy_entity_form',
-          )) {
-            final key = version == 1 ? '' : _text(r, 'editor_key'),
-                clientRef = _text(r, 'client_ref');
-            final match = RegExp(
-              r'^(name|classification):(rec_[^:]+)(?::edit:([0-9]+))?$',
-            ).firstMatch(key);
-            final published = match != null && clientRef == match.group(2);
-            final scope = EditorFormScope(
-              instance: OperationId.parse(_text(r, 'instance')),
-              profile: ProfileId.parse(_text(r, 'profile')),
-              universe: UniverseId.parse(_text(r, 'universe')),
-              continuity: ContinuityId.parse(_text(r, 'continuity')),
-              representedContext: RecordId.parse(_text(r, 'context')),
-              entityClientRef: published || key.isEmpty ? null : key,
-              entityNameRecord: published && match.group(1) == 'name'
-                  ? RecordId.parse(match.group(2)!)
-                  : null,
-              entityClassificationRecord:
-                  published && match.group(1) == 'classification'
-                  ? RecordId.parse(match.group(2)!)
-                  : null,
-              entityOperationIndex: published && match.group(3) != null
-                  ? int.parse(match.group(3)!)
-                  : null,
-            );
-            final where = version == 1
-                ? 'instance=? AND profile=? AND universe=? AND continuity=? AND context=?'
-                : _where;
-            final binding = version == 1
-                ? store._binding(scope).sublist(0, 5)
-                : store._binding(scope);
-            final form = UnfinishedEntityForm(
-              baseRevision: RevisionId.parse(_text(r, 'base_revision')),
-              representedContext: scope.representedContext!,
-              clientRef: clientRef,
-              name: _text(r, 'name'),
-              classification: _text(r, 'classification'),
-              worldRole: _text(r, 'world_role'),
-              rationale: _text(r, 'rationale'),
-              draftVersion: version == 1 || r['draft_version'] == null
-                  ? null
-                  : BigInt.parse(_text(r, 'draft_version')),
-              expectedRecordVersion:
-                  version < 8 || r['expected_record_version'] == null
-                  ? null
-                  : RecordVersionId.parse(_text(r, 'expected_record_version')),
-              nameDetails: version < 7 || r['name_input'] == null
-                  ? null
-                  : EntityNameForm.fromWire(
-                      CanonicalValue.parseWireJson(_text(r, 'name_input')),
-                    ),
-              worlds: db
-                  .select(
-                    'SELECT ${_projection('world')} FROM legacy_entity_form_world WHERE $where ORDER BY ordinal',
-                    binding,
-                  )
-                  .map((w) => WorldId.parse(_text(w, 'world'))),
-              associations: version < 3 || r['association_edits_present'] == 0
-                  ? null
-                  : db
-                        .select(
-                          'SELECT ${_projection(_oldAssociationColumns(version))} FROM legacy_entity_form_association WHERE $where ORDER BY ordinal',
-                          binding,
-                        )
-                        .map(
-                          (a) => EntityAssociationForm(
-                            world: _text(a, 'world'),
-                            role: _text(a, 'role'),
-                            originalOrdinal: a['original_ordinal'] as int?,
-                            validity: version < 4 || a['validity'] == null
-                                ? null
-                                : Validity.fromWire(
-                                    CanonicalValue.parseWireJson(
-                                      _text(a, 'validity'),
-                                    ),
-                                  ),
-                            temporalValidity:
-                                version < 5 || a['temporal_input'] == null
-                                ? null
-                                : TemporalValidityInput.fromWire(
-                                    CanonicalValue.parseWireJson(
-                                      _text(a, 'temporal_input'),
-                                    ),
-                                  ),
-                            qualifiers:
-                                version < 6 || a['qualifier_input'] == null
-                                ? null
-                                : (CanonicalValue.parseWireJson(
-                                        _text(a, 'qualifier_input'),
-                                      ) as CanonicalArray).items
-                                      .map(QualifierInput.fromWire)
-                                      .toList(),
-                          ),
-                        ),
-            );
-            store._validate(scope, form);
-            store._write(
-              scope,
-              SavedEntityForm(
-                generation: BigInt.parse(_text(r, 'generation')),
-                form: form,
-              ),
-            );
-          }
-          if (version >= 3) {
-            db.execute('DROP TABLE legacy_entity_form_association');
-          }
-          db.execute('DROP TABLE legacy_entity_form_world');
-          db.execute('DROP TABLE legacy_entity_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -261,18 +123,6 @@ final class EntityFormRecoveryStore {
         db.select('PRAGMA user_version').single.values.single as int;
     String columns(String table) =>
         db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
-    final legacy =
-        version >= 1 &&
-        version <= 8 &&
-        tables.length == (version >= 3 ? 3 : 2) &&
-        columns('entity_form') == _oldRootColumns(version) &&
-        columns('entity_form_world') ==
-            (version == 1
-                ? 'instance,profile,universe,continuity,context,ordinal,world'
-                : '$_keys,ordinal,world') &&
-        (version < 3 ||
-            columns('entity_form_association') ==
-                _oldAssociationColumns(version));
     final expected = {
       'entity_form': _columns,
       'entity_form_world': '$_keys,ordinal,world',
@@ -285,7 +135,7 @@ final class EntityFormRecoveryStore {
         tables.length == expected.length + _domains.statements.length &&
         expected.entries.every((e) => columns(e.key) == e.value) &&
         _domains.matches(db);
-    if (!legacy && !current) {
+    if (!current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );

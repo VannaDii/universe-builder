@@ -26,9 +26,6 @@ extension type _ImportRow._(JSObject _) implements JSObject {
   external String get fileName;
   external _ReviewFields? get reviewFields;
   external _ReceiptFields? get receiptFields;
-  // Version-one values are read only within the upgrade transaction.
-  external String? get review;
-  external String? get receipt;
 }
 
 @JS()
@@ -280,10 +277,7 @@ _ImportRow _encodeRow(SavedPackageImport saved) => _ImportRow(
   reviewFields: _encodeReview(saved.form.review),
   receiptFields: _encodeReceipt(saved.form.receipt),
 );
-SavedPackageImport _decodeRow(
-  _ImportRow row, {
-  bool legacy = false,
-}) => SavedPackageImport(
+SavedPackageImport _decodeRow(_ImportRow row) => SavedPackageImport(
   generation: BigInt.parse(row.generation),
   form: PackageImportDraft(
     operation: OperationId.parse(row.operation),
@@ -291,16 +285,8 @@ SavedPackageImport _decodeRow(
     mode: ImportMode.fromName(row.mode),
     phase: PackageImportPhase.values.byName(row.phase),
     fileName: row.fileName,
-    review: legacy
-        ? (row.review == null
-              ? null
-              : CanonicalValue.parseWireJson(row.review!) as CanonicalObject)
-        : _decodeReview(row.reviewFields),
-    receipt: legacy
-        ? (row.receipt == null
-              ? null
-              : CanonicalValue.parseWireJson(row.receipt!) as CanonicalObject)
-        : _decodeReceipt(row.receiptFields),
+    review: _decodeReview(row.reviewFields),
+    receipt: _decodeReceipt(row.receiptFields),
   ),
 );
 
@@ -329,29 +315,12 @@ final class BrowserPackageImportFormRecoveryStore {
 
       request.onupgradeneeded = ((web.Event event) {
         final db = request.result as web.IDBDatabase;
-        final transaction = request.transaction!;
-        try {
-          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
-            db.createObjectStore(_tables.single);
-          } else {
-            final scan = transaction.objectStore(_tables.single).openCursor();
-            scan.onsuccess = ((web.Event _) {
-              try {
-                if (scan.result == null || scan.result.isUndefined) return;
-                final cursor = scan.result as web.IDBCursorWithValue;
-                cursor.update(
-                  _encodeRow(
-                    _decodeRow(cursor.value as _ImportRow, legacy: true),
-                  ),
-                );
-                cursor.continue_();
-              } catch (_) {
-                transaction.abort();
-              }
-            }).toJS;
-          }
-        } catch (_) {
-          transaction.abort();
+        if ((event as web.IDBVersionChangeEvent).oldVersion != 0) {
+          request.transaction!.abort();
+          return;
+        }
+        for (final table in _tables) {
+          db.createObjectStore(table);
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;

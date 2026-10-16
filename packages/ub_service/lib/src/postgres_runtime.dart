@@ -492,12 +492,6 @@ final class NativePostgresRuntime {
                 id: request.previewId,
                 digest: request.digest,
               );
-            case ConvertLegacyEngineRequest():
-              return session.convertLegacyPackage(
-                actor: principal.id,
-                source: request.source,
-                destination: request.destination,
-              );
             case RegisterUniverseEngineRequest():
               final universe = await session.registerNamespace(
                 actor: principal.id,

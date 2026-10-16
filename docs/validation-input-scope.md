@@ -21,7 +21,6 @@ Protocol 3 validation returns `ValidationV3`. Evaluated results contain `executi
 | Source-only writes | `record_candidate`, `includes_sources=true` | `absent` |
 | Mixed structured/source writes | `record_candidate`, `includes_sources=true` | `absent` |
 | Inline check without frozen proposal authority | `query`, exact frame/check scope | `absent` |
-| Stored protocol-2 validation | Scope reconstructed from its frozen compiled writes | `unavailable_legacy` |
 | Restricted evaluation | Undisclosed | Restricted |
 
 The service derives source inclusion from compiled source/source-version/anchor/work-edition writes. Sources merely present elsewhere in canon do not change the submitted scope. Caller rationale, claims of whole-manuscript assessment and caller scope hints cannot create assessment evidence. Complete engine execution still describes finite structured checks; a source-only canonical commit archives records without establishing manuscript continuity.
@@ -30,6 +29,5 @@ The typed output contract includes the approved source-assessed, bound, stale an
 
 Completed proposal validation binds the exact frozen proposal/frame, explicit absent selection at generation zero, submitted scope, absent assessment, fully serialized execution digest and evaluator using the approved `source-validation:v1:` hash domain. The existing candidate digest/domain operations are unchanged. Exact author approval binds the expanded Checked evidence. Approval and commit independently verify the scope/binding against the stored candidate; legacy, query, pending and restricted evidence has no usable final binding. Existing admissibility, partial-coverage author authority, delegation and head/version controls remain authoritative.
 
-Historical workflow entries retain their original bytes/hashes. Public operation views wrap old execution as `unavailable_legacy` without authorizing fresh publication. A fresh protocol-3 run and applicable approval are required. Wire version mismatch fails explicitly; no live v2 bridge is supplied. Queued/polled/retried results retain the reporting axes and completed binding. Scoped operation reads suppress private findings, proposal details, failure reasons and pagination metadata.
 
 Rust clients re-export the scope types; MCP schemas/guidance and native author result reads use the nested execution. Native author review exposes all axes and requires a final binding before approval. Native code compilation is checked; native UI interaction/accessibility qualification remains excluded.

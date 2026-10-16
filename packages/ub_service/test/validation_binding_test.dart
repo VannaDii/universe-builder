@@ -109,7 +109,6 @@ void main() {
       capture(latest: null),
       capture(reference: nextProposal),
       capture(generation: 1),
-      capture(assessment: const LegacyUnavailableAssessment()),
       capture(authority: 'changed-rights'),
     ]) {
       expect(
@@ -146,7 +145,6 @@ void main() {
         finished: true,
       );
       for (final current in [
-        capture(assessment: const LegacyUnavailableAssessment()),
         capture(
           input: RecordCandidateInput(
             proposal: proposal,
@@ -203,10 +201,14 @@ void main() {
         expect(() => capture(sequence: sequence), throwsFormatException);
       }
       final wire = capture().toWire();
-      final legacy = CanonicalObject(
-        wire.fields.where((e) => e.key != 'authority_sequence'),
+      expect(
+        () => ValidationCapture.fromWire(
+          CanonicalObject(
+            wire.fields.where((e) => e.key != 'authority_sequence'),
+          ),
+        ),
+        throwsFormatException,
       );
-      expect(ValidationCapture.fromWire(legacy).authoritySequence, isNull);
       final malformed = CanonicalObject(
         wire.fields.map(
           (e) => MapEntry(
@@ -284,7 +286,7 @@ void main() {
       );
     },
   );
-  test('legacy Checked evidence decodes without inventing a final binding', () {
+  test('unfinished checks cannot supply a publication binding', () {
     final checked = CheckedValidation(
       proposalDigest: proposal.digest,
       validation: execution(),
@@ -292,8 +294,7 @@ void main() {
     );
     final wire = checked.toWire();
     expect(wire.fields.any((e) => e.key == 'capture'), isFalse);
-    final legacy = CanonicalObject(wire.fields.where((e) => e.key != 'report'));
-    final read = CheckedValidation.fromWire(legacy);
+    final read = CheckedValidation.fromWire(wire);
     expect(read.capture, isNull);
     expect(read.report, isNull);
     expect(read.admissible, isTrue);
