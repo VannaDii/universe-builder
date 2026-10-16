@@ -11,6 +11,21 @@ cutover remain in scope; provider selection does not establish their completion.
 stubbing these adapters while comparing Square, Stripe and app-store options; no
 provider, pricing or commercial policy is selected by the stubs.
 
+October 16 delivery instruction: complete the v0 conversion without further
+polish qualification. Detailed screen-reader, text-scaling, tablet and repeated
+platform-interruption exercises are deferred until the UX is ready for that work.
+Use focused functional regressions and ordinary build/package checks for migration
+changes. This changes the testing scope, not the domain, storage, permissions or
+publication requirements. Provider adapters remain stubbed and Windows remains
+deferred as directed above; production deployment, distribution signing and
+release publication still require separate authorization.
+
+Delivery status: the v0 Dart/Flutter conversion is implemented under that revised
+scope. The application runtime, domain/service, SQLite and PostgreSQL adapters,
+MCP/CLI, author workflows, transfer and local packaging use the Dart workspace.
+The UX remains in development; this status does not establish production or
+distribution readiness.
+
 ## 1. Intended outcome
 
 Convert all project-owned runtime application logic to Dart, deliver a Flutter application for macOS, Windows, Linux, iOS, Android and web, and run the same factual service against either SQLite or PostgreSQL.
