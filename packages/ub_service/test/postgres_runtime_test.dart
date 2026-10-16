@@ -3415,8 +3415,25 @@ void main() {
           dependencies.addAll(page.result.requiredDependencies);
           cursor = page.delivery.cursor;
         }
-        expect(briefIds, [...ids, publicWorld]);
-        expect(dependencies, [publicWorld]);
+        final retainedPolicy = await store.transaction((s) async {
+          final journal = s.kernel(universe).journal;
+          final membership = await journal.snapshot(continuity, revision);
+          return UniversePolicySelection.fromRecords(universe, [
+            for (final version in membership.values)
+              RecordVersion.fromWire((await journal.load(version)).toCanonical()),
+          ]);
+        });
+        expect(briefIds, [
+          retainedPolicy.selection.identity.recordId,
+          retainedPolicy.definition.identity.recordId,
+          ...ids,
+          publicWorld,
+        ]);
+        expect(dependencies, [
+          retainedPolicy.selection.identity.recordId,
+          retainedPolicy.definition.identity.recordId,
+          publicWorld,
+        ]);
         expect(
           (await tool(
             author,
