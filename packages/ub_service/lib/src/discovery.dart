@@ -124,7 +124,7 @@ List<Capability> serviceCapabilities() => List.unmodifiable([
   Capability(
     id: "history.v1",
     status: CapabilityStatus.partial,
-    limitation: "Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native reviewed restoration remains unported.",
+    limitation: "Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native restoration prepares a reviewed compensating change; earlier revisions remain intact.",
   ),
   Capability(
     id: "knowledge.inference",
@@ -154,7 +154,7 @@ List<Capability> serviceCapabilities() => List.unmodifiable([
   Capability(
     id: "continuities.packs.v1",
     status: CapabilityStatus.partial,
-    limitation: "Exact-version data-pack dependencies and internal pinned fork storage are available. Service commands for fork and reviewed historical adoption remain unported. No automatic parent propagation.",
+    limitation: "Exact-version data-pack dependencies and named forks pin their revisions. Service comparison and author-reviewed selection prepare explicit adoption. No automatic parent propagation.",
   ),
   Capability(
     id: "cross_calendar.causality",
@@ -164,7 +164,7 @@ List<Capability> serviceCapabilities() => List.unmodifiable([
   Capability(
     id: "appearance.references.v1",
     status: CapabilityStatus.partial,
-    limitation: "Optional typed appearance records and image content storage are available. Text and metadata accompany context briefs; native image staging and pixel retrieval remain unported. Pixels do not imply facts or executable rules.",
+    limitation: "Optional typed appearance records and image content storage are available. Text and metadata accompany context briefs. Native image staging, retained original bytes and pinned previews use current service permissions. Pixels do not imply facts or executable rules.",
   ),
   Capability(
     id: "descriptive.domain_records",
