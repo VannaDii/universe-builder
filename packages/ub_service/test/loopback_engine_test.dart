@@ -137,6 +137,7 @@ void main() {
       clientName: 'Disposable HTTP client',
     );
     final writer = authority.enroll(authority.authenticateHello(hello(author)));
+    final universeName = 'Memoir / Family \\ * "Zoë" %2F ? # & + ${'界' * 100}';
     store.close();
     final server = await LocalSqliteEngineServer.start(
       root.path,
@@ -228,7 +229,7 @@ void main() {
       final created = await native.call(
         CreateUniverseEngineRequest(
           realWorld: false,
-          name: 'HTTP universe',
+          name: universeName,
           start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),
       );
@@ -250,7 +251,7 @@ void main() {
         await call(
           author,
           StageSourceEngineRequest(
-            universe: const Selector('HTTP universe'),
+            universe: Selector(universeName),
             label: 'Exact source',
             text: 'é😀\r\n',
           ),
@@ -261,12 +262,11 @@ void main() {
         await call(
           author,
           ToolEngineRequest(
-            request: DescribeSummaryRequest(
-              universe: const Selector('HTTP universe'),
-            ),
+            request: DescribeSummaryRequest(universe: Selector(universeName)),
           ),
         ),
       );
+      expect(wireString(field(summary, 'universe')), universeName);
       expect(
         (field(summary, 'request_id') as CanonicalNumber).digits,
         '${next - BigInt.one}',

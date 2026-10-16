@@ -125,15 +125,14 @@ sealed class Request {
       final value = args[key];
       if (value != null) {
         final text = wireString(value);
-        final first = text.runes.firstOrNull;
-        if (!hasRustText(text) ||
-            utf8.encode(text).length > 256 ||
-            (text.contains('*') || text.contains('/') || text.contains('\\')) ||
-            text.runes.any((r) => r <= 0x1f || (r >= 0x7f && r <= 0x9f)) ||
-            (first != null && !hasRustText(String.fromCharCode(first)))) {
+        // Selectors are literal JSON strings, not paths or wildcard patterns.
+        // Use the same name contract as creation, rename and import.
+        try {
+          selectorKey(text);
+        } on FormatException {
           throw InvalidArgumentError(
             field: key,
-            message: 'expected an exact nonblank selector',
+            message: 'expected a valid literal selector name',
           );
         }
       }

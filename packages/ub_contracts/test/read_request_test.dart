@@ -101,19 +101,20 @@ void main() {
       );
     });
   }
-  test('selectors enforce exact routing UTF-8 bounds and Rust whitespace', () {
+  test('literal selectors round trip JSON using catalog name bounds', () {
     final args = reads.first.toArgs();
     for (final text in [
       '',
       ' ',
-      '\u0085name',
-      ' name',
       '*',
-      'a/b',
-      r'a\b',
+      'all',
+      '.',
       'a\u0000b',
       'a\u009fb',
-      'é' * 129,
+      '\u0085name',
+      'a\u202eb',
+      'é' * 161,
+      '😀' * 161,
     ]) {
       expect(
         () => ReadRequest.fromTool(
@@ -124,11 +125,21 @@ void main() {
         reason: text,
       );
     }
-    for (final text in ['é' * 128, 'name ', '\ufeff']) {
-      ReadRequest.fromTool(
+    for (final text in [
+      'Memoir / Family',
+      r'a\b',
+      'a*b',
+      'é' * 160,
+      '😀' * 160,
+      ' name ',
+      '\ufeff',
+      'Zoë / 東京 "quoted" %2F ? # & +',
+    ]) {
+      final request = ReadRequest.fromTool(
         'universe_describe',
         fields(args, {'universe': CanonicalString(text)}),
       );
+      expect(Request.decode(request.toWire().toBytes()).universe.value, text);
     }
   });
   test('world ID and event side guards never imply missing scope', () {
