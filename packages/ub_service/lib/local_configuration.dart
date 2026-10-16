@@ -2,6 +2,7 @@
 library;
 
 export 'src/local_configuration.dart';
+export 'src/hosted_account_configuration.dart';
 export 'src/local_backend_setup.dart';
 
 export 'src/postgres_open.dart';

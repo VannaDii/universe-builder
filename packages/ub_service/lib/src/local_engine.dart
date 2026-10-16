@@ -9,6 +9,7 @@ import 'package:ub_store/local_socket.dart';
 import 'package:ub_store/local_http_endpoint.dart';
 
 import 'hosted_providers.dart';
+import 'hosted_account_configuration.dart';
 import 'installation_authority.dart';
 import 'sqlite_runtime.dart';
 import 'loopback_engine.dart';
@@ -58,7 +59,8 @@ final class LocalSqliteEngineServer {
     Uri? httpsOrigin,
     SecurityContext? tlsContext,
     InternetAddress? bindAddress,
-    HostedAccountAccess? hostedAccount,
+    HostedAccountAccess? Function(String root) hostedAccountLoader =
+        loadHostedAccountAccess,
   }) async {
     SqliteInstallationStore? store;
     ServerSocket? listener;
@@ -82,6 +84,7 @@ final class LocalSqliteEngineServer {
         protectLocalSocketEndpoint(endpoint);
       }
       runtime = NativeSqliteRuntime(authority: InstallationAuthority(store));
+      final hostedAccount = hostedAccountLoader(store.root);
       http = await LoopbackEngineServer.sqlite(
         runtime,
         now: httpNow,

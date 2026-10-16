@@ -660,7 +660,7 @@ Measure startup, universe provisioning, pinned dossier reads, search/pagination,
 
 Start with a headless Dart service, HTTPS termination, PostgreSQL, persistent storage/backup and ordinary deployment automation. No microservice fleet, Kubernetes requirement, vector store, Redis coordination or object-storage dependency is justified by this plan.
 
-Use one installation/account authority boundary initially. Customers may enroll bounded contributors; multiple independent approval owners inside an installation remain a separate design question. Hosted “account” is a commercial identity mapped to an app principal/installation, not a replacement for grants.
+Use one installation/account authority boundary initially. Customers may enroll bounded contributors; multiple independent approval owners inside an installation remain a separate design question. Hosted “account” is a commercial identity mapped to an app principal/installation, not a replacement for grants. Operator provisioning uses existing initialization/enrollment and `configure-hosting` to persist exact identity-to-profile bindings in protected installation-local `hosting.sqlite`. Both backends load these bindings at startup; sign-in and billing providers remain stubbed pending selection. Account configuration stays outside canon, logical exports and backend selection.
 
 Before offering the paid service:
 

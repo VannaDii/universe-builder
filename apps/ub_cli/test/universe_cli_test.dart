@@ -13,6 +13,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/hosted_account.dart';
 import 'package:ub_store/profile_credentials.dart';
 
 void main() {
@@ -65,6 +66,31 @@ void main() {
   CanonicalValue field(CanonicalValue object, String key) =>
       (object as CanonicalObject).fields.singleWhere((f) => f.key == key).value;
   CanonicalValue result() => CanonicalValue.parseWireJson(output.last);
+
+  test('operator account configuration requires a stopped engine and binds only an existing profile', () async {
+    final command = ['configure-hosting', 'account-a', 'issuer-a', 'author'];
+    expect(await run(command), 1);
+    expect(File('${root.path}/hosting.sqlite').existsSync(), isFalse);
+    await server.close();
+    expect(await run(command, principal: ProfileId.generate()), 1);
+    expect(File('${root.path}/hosting.sqlite').existsSync(), isFalse);
+    expect(await run(command), 0);
+    expect(await run(command), 0);
+    var hosted = HostedAccountStore.open(root.path);
+    try {
+      expect(hosted.read()!.accountId, 'account-a');
+      expect(hosted.read()!.bindings.single.profile, author);
+    } finally {
+      hosted.close();
+    }
+    expect(await run([...command, '--remove']), 0);
+    hosted = HostedAccountStore.open(root.path);
+    try {
+      expect(hosted.read()!.bindings, isEmpty);
+    } finally {
+      hosted.close();
+    }
+  });
 
   test('CLI prepares and approves a retained move between authenticated installations', () async {
     final targetRoot = '${root.path}/target';

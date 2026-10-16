@@ -272,9 +272,26 @@ The authenticated owner's `POST /engine/browser/billing` reports
 `{"provider":"stub","status":"not_configured"}`. Billing observations do not grant
 canon permissions or define pricing, quotas, cancellation or retention. These
 stubs do not process payments or qualify the service for paid operation.
-Service integrations can supply `HostedAccountAccess` to the existing SQLite or
-PostgreSQL server; identities are bound by issuer and subject to existing profiles,
-and current credentials/grants are checked on sign-in and each session request.
+For operator provisioning, initialize the chosen backend and enroll the desired
+profile using the existing commands, then stop the engine before binding it:
+
+```sh
+universe --installation /absolute/installation --profile prf_000000000000000000000001 \
+  configure-hosting account-id https://issuer.example subject-id
+```
+
+Use the actual enrolled profile ID. This records one stable account per installation
+and exact issuer/subject-to-profile bindings in protected `hosting.sqlite`, outside
+canon and logical exports. Repeating the same binding is harmless; a different
+profile requires removing the exact old binding with `--remove` first. A running
+engine refuses configuration changes. Preserve this file with the installation's
+profile credentials for full installation recovery. It does not change backend
+selection or store another copy of those credentials.
+
+The SQLite and PostgreSQL servers load these bindings at startup with stub providers.
+Integrations can supply a `hostedAccountLoader` using `loadHostedAccountAccess`
+with selected provider adapters. Current credentials/grants are checked on sign-in
+and each session request; signing in never provisions an account or grants rights.
 
 Native apps offer **Connect to a service** with an HTTPS address, profile ID and
 access key supplied by the instance owner. The key stays in memory for the session

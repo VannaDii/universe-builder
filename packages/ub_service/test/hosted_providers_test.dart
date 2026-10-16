@@ -9,6 +9,7 @@ import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/hosted_providers.dart';
+import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/local_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
@@ -68,6 +69,68 @@ EngineHello _hello(String root, ProfileId id) => EngineHello(
 );
 
 void main() {
+  test(
+    'saved account bindings load under engine ownership and survive restart',
+    () async {
+      final root = Directory('/tmp').createTempSync('ub-hosted-saved-');
+      final store = SqliteInstallationStore.create(root.path);
+      final owner = InstallationAuthority(store).initializeAuthor();
+      store.close();
+      void configure({bool remove = false}) => configureHostedAccount(
+        root: root.path,
+        accountId: 'account-a',
+        issuer: 'issuer-a',
+        subject: 'owner',
+        profile: owner,
+        remove: remove,
+      );
+      configure();
+      final identity = HostedIdentity(issuer: 'issuer-a', subject: 'owner');
+      final provider = _SignIn({'assertion': identity});
+      Future<LocalSqliteEngineServer> start() => LocalSqliteEngineServer.start(
+        root.path,
+        compatibilitySocket: false,
+        hostedAccountLoader: (directory) =>
+            loadHostedAccountAccess(directory, signIn: provider),
+      );
+      var server = await LocalSqliteEngineServer.start(
+        root.path,
+        compatibilitySocket: false,
+      );
+      final http = HttpClient();
+      Future<_Reply> signIn() => _post(
+        http,
+        server.httpEndpoint,
+        '/engine/browser/sign-in',
+        body: {'assertion': 'assertion'},
+      );
+      try {
+        // Persistent metadata never enables a pretend provider in production.
+        expect((await signIn()).status, HttpStatus.serviceUnavailable);
+        expect(() => configure(), throwsA(isA<FileSystemException>()));
+        await server.close();
+        server = await start();
+        final first = await signIn();
+        expect(first.status, HttpStatus.ok);
+        expect(
+          (jsonDecode(first.body) as Map)['welcome']['principal'],
+          owner.value,
+        );
+        await server.close();
+        server = await start();
+        expect((await signIn()).status, HttpStatus.ok);
+        await server.close();
+        configure(remove: true);
+        server = await start();
+        expect((await signIn()).status, HttpStatus.unauthorized);
+      } finally {
+        http.close(force: true);
+        await server.close();
+        root.deleteSync(recursive: true);
+      }
+    },
+  );
+
   test('default hosted sign-in is unavailable and issues no session', () async {
     final root = Directory('/tmp').createTempSync('ub-hosted-stub-');
     final store = SqliteInstallationStore.create(root.path);
@@ -77,7 +140,8 @@ void main() {
     final server = await LocalSqliteEngineServer.start(
       root.path,
       compatibilitySocket: false,
-      hostedAccount: HostedAccountAccess(accountId: 'account-a', profiles: {}),
+      hostedAccountLoader: (_) =>
+          HostedAccountAccess(accountId: 'account-a', profiles: {}),
     );
     final http = HttpClient();
     final native = await LoopbackEngineClient.connect(
@@ -156,7 +220,7 @@ void main() {
       final server = await LocalSqliteEngineServer.start(
         root.path,
         compatibilitySocket: false,
-        hostedAccount: HostedAccountAccess(
+        hostedAccountLoader: (_) => HostedAccountAccess(
           accountId: 'account-a',
           signIn: _SignIn({
             'owner-assertion': ownerIdentity,

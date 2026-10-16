@@ -13,9 +13,12 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/postgres_runtime.dart';
 import 'package:ub_service/local_engine.dart';
+import 'package:ub_service/hosted_providers.dart';
+import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/loopback_engine.dart';
 import 'package:ub_service/ub_service.dart' show PostgresConfiguration;
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/local_http_endpoint.dart';
 import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/postgres_installation.dart';
@@ -28,6 +31,16 @@ import 'effective_objects_test.dart' as objects;
 import 'writing_units_test.dart' as units;
 import 'writing_event_edits_test.dart' as event_edits;
 import 'helpers/universe_creation.dart' as creation;
+
+final class _HostedSignIn implements HostedSignInProvider {
+  @override
+  Future<HostedIdentity> authenticate(String assertion) async {
+    if (assertion != 'test-assertion') {
+      throw const FormatException('Invalid assertion');
+    }
+    return HostedIdentity(issuer: 'test-issuer', subject: 'test-author');
+  }
+}
 
 void main() {
   final port = int.tryParse(
@@ -406,6 +419,20 @@ void main() {
         ),
         allowLoopbackDevelopment: true,
       );
+      ProfileCredentialStore.write(
+        root: root.path,
+        profile: authorId,
+        credential: secret,
+      );
+      configureHostedAccount(
+        root: root.path,
+        accountId: 'postgres-account',
+        issuer: 'test-issuer',
+        subject: 'test-author',
+        profile: authorId,
+      );
+      HostedAccountAccess? hostedAccountLoader(String directory) =>
+          loadHostedAccountAccess(directory, signIn: _HostedSignIn());
       LocalPostgresEngineServer? server;
       final http = HttpClient();
       var next = BigInt.one;
@@ -434,12 +461,31 @@ void main() {
         return reply.result;
       }
 
+      Future<void> checkHostedSignIn() async {
+        final request = await http.postUrl(
+          server!.httpEndpoint.resolve('/engine/browser/sign-in'),
+        );
+        request.headers.set('origin', server!.httpEndpoint.origin);
+        request.headers.contentType = ContentType.json;
+        request.write(jsonEncode({'assertion': 'test-assertion'}));
+        final response = await request.close();
+        expect(response.statusCode, HttpStatus.ok);
+        final body = await utf8.decoder.bind(response).join();
+        expect(
+          (jsonDecode(body) as Map)['welcome']['principal'],
+          authorId.value,
+        );
+        expect(body, isNot(contains(secret)));
+      }
+
       try {
         server = await LocalPostgresEngineServer.start(
           root.path,
           configuration,
+          hostedAccountLoader: hostedAccountLoader,
         );
         expect(readLocalHttpEndpoint(root.path), server.httpEndpoint);
+        await checkHostedSignIn();
         await expectLater(
           LocalPostgresEngineServer.start(root.path, configuration),
           throwsA(isA<LocalEngineServerException>()),
@@ -496,12 +542,14 @@ void main() {
         server = await LocalPostgresEngineServer.start(
           root.path,
           configuration,
+          hostedAccountLoader: hostedAccountLoader,
         );
         final reopened = (await call(
           authorId,
           const StatusEngineRequest(),
         ) as EngineSuccess).value;
         expect(reopened.toText(), contains(created.string('universe_id')));
+        await checkHostedSignIn();
       } finally {
         http.close(force: true);
         await server?.close();

@@ -14,6 +14,7 @@ const _usage = '''Usage: universe --installation <path> [--profile <id>] <comman
 
 init | status | doctor | enroll | shutdown | browser-session
 configure sqlite | configure postgres [--allow-loopback-postgres-development]
+configure-hosting <account-id> <issuer> <subject> [--remove]
 create <name> --first-time <value> [--real-world | --scratch-policy] [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
 register <path> <name> | rename <universe-id> <name> | revoke <profile-id>
 grant <profile-id> <universe-id> [--world <id>]... [--propose] [--edit] [--protected]
@@ -36,6 +37,8 @@ It neither transfers data nor restarts the engine; environment overrides still w
 New universes default to a Real World root clone; --scratch-policy explicitly
 creates an empty root. --real-world and --scratch-policy are mutually exclusive.
 Every service command requires --profile except init and configure.
+configure-hosting binds that existing profile while the engine is stopped;
+providers remain stubbed. --remove deletes only that exact identity binding.
 Review and approval use exact proposal versions; publication remains separate.''';
 
 Future<int> runUniverseCli(
@@ -151,6 +154,25 @@ Future<int> runUniverseCli(
     }
     if (profile == null) throw const _UsageError();
     final principal = ProfileId.parse(profile);
+    if (command == 'configure-hosting') {
+      final args = _Arguments(
+        tail,
+        values: {},
+        flags: {'remove'},
+        repeated: {},
+      );
+      args.count(3);
+      configureHostedAccount(
+        root: root,
+        accountId: args.positional[0],
+        issuer: args.positional[1],
+        subject: args.positional[2],
+        profile: principal,
+        remove: args.has('remove'),
+      );
+      output('Saved hosted account configuration. Providers remain stubbed.');
+      return 0;
+    }
     if (command == 'prepare-move' || command == 'accept-move') {
       final args = _Arguments(
         tail,
