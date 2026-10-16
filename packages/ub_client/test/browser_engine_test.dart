@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -32,6 +33,79 @@ void main() {
       'failure',
       expected,
     ),
+  );
+
+  test('hosted assertion opens the ordinary session and billing stays separate from canon', () async {
+    final paths = <String>[];
+    final client = await BrowserEngineClient.connect(
+      hostedAssertion: 'provider-assertion',
+      abort: () {},
+      post: (path, bytes, header) async {
+        paths.add(path);
+        if (path == '/engine/browser/sign-in') {
+          expect(header, isNull);
+          final fields = WireFields(
+            CanonicalValue.parseWireJson(utf8.decode(bytes)),
+            {'assertion'},
+          );
+          expect(fields.string('assertion'), 'provider-assertion');
+          return enrollment();
+        }
+        expect(path, '/engine/browser/billing');
+        expect(bytes, isEmpty);
+        expect(header, csrf);
+        return response(
+          CanonicalObject([
+            MapEntry('provider', CanonicalString('stub')),
+            MapEntry('status', CanonicalString('not_configured')),
+          ]),
+        );
+      },
+    );
+    expect(client.welcome.principal, principal);
+    expect(await client.billingStatus(), (
+      provider: 'stub',
+      status: 'not_configured',
+    ));
+    expect(paths, ['/engine/browser/sign-in', '/engine/browser/billing']);
+    await client.close();
+  });
+
+  test(
+    'unconfigured hosted sign-in never falls back to another session action',
+    () async {
+      var aborted = 0;
+      final paths = <String>[];
+      Future<BrowserEngineResponse> unavailable(
+        String path,
+        Uint8List bytes,
+        String? csrf,
+      ) async {
+        paths.add(path);
+        return BrowserEngineResponse(status: 503, bytes: Uint8List(0));
+      }
+
+      await expectLater(
+        BrowserEngineClient.connect(
+          post: unavailable,
+          abort: () => aborted++,
+          hostedAssertion: 'assertion',
+        ),
+        failure(LocalEngineFailure.handshakeFailed),
+      );
+      expect(paths, ['/engine/browser/sign-in']);
+      expect(aborted, 1);
+      await expectLater(
+        BrowserEngineClient.connect(
+          post: unavailable,
+          abort: () => aborted++,
+          hostedAssertion: 'assertion',
+          enrollmentToken: token,
+        ),
+        failure(LocalEngineFailure.handshakeFailed),
+      );
+      expect(paths, ['/engine/browser/sign-in']);
+    },
   );
 
   test('browser calls preserve exact integers and Unicode, keep errors usable, and resume without replay', () async {

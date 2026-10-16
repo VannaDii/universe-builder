@@ -36,22 +36,34 @@ final class BrowserEngineClient {
     required void Function() abort,
     String? enrollmentToken,
     String? resumeCsrf,
+    String? hostedAssertion,
   }) async {
     final client = BrowserEngineClient._(post, abort);
     try {
-      if ((enrollmentToken == null) == (resumeCsrf == null)) {
+      if ([
+            enrollmentToken,
+            resumeCsrf,
+            hostedAssertion,
+          ].where((value) => value != null).length !=
+          1) {
         throw const FormatException('One session action required');
       }
-      if (enrollmentToken != null) {
-        if (enrollmentToken.length != 43) {
+      if (enrollmentToken != null || hostedAssertion != null) {
+        if (enrollmentToken != null && enrollmentToken.length != 43 ||
+            hostedAssertion != null && hostedAssertion.isEmpty) {
           throw const FormatException('Invalid enrollment');
         }
         final value = CanonicalValue.parseWireJson(
           utf8.decode(
             await client._request(
-              '/engine/browser/exchange',
+              hostedAssertion == null
+                  ? '/engine/browser/exchange'
+                  : '/engine/browser/sign-in',
               CanonicalObject([
-                MapEntry('token', CanonicalString(enrollmentToken)),
+                if (hostedAssertion != null)
+                  MapEntry('assertion', CanonicalString(hostedAssertion))
+                else
+                  MapEntry('token', CanonicalString(enrollmentToken!)),
               ]).toBytes(),
               null,
             ),
@@ -87,6 +99,9 @@ final class BrowserEngineClient {
   }
 
   Future<Uint8List> _request(String path, Uint8List bytes, String? csrf) async {
+    if (bytes.length > maxFrameBytes) {
+      throw const FormatException('Frame too large');
+    }
     final response = await _post(
       path,
       bytes,
@@ -230,6 +245,40 @@ final class BrowserEngineClient {
       _broken = false;
       return prepared;
     } on Object {
+      _abort();
+      throw const LocalEngineException(LocalEngineFailure.interrupted);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// Provider observation for the installation owner; it does not alter grants.
+  Future<({String provider, String status})> billingStatus() async {
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
+    if (_broken) {
+      throw const LocalEngineException(LocalEngineFailure.reconnectRequired);
+    }
+    _busy = true;
+    try {
+      final fields = WireFields(
+        CanonicalValue.parseWireJson(
+          utf8.decode(
+            await _request('/engine/browser/billing', Uint8List(0), csrf),
+          ),
+        ),
+        {'provider', 'status'},
+      );
+      final provider = fields.string('provider'),
+          status = fields.string('status');
+      if (provider.isEmpty ||
+          !{'not_configured', 'none', 'active', 'inactive'}.contains(status) ||
+          _closed) {
+        throw const FormatException('Invalid billing response');
+      }
+      return (provider: provider, status: status);
+    } on Object {
+      _broken = true;
       _abort();
       throw const LocalEngineException(LocalEngineFailure.interrupted);
     } finally {

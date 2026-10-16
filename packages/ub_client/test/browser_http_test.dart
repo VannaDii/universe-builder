@@ -32,6 +32,30 @@ void main() {
     ),
   );
 
+  test('hosted provider stub uses same-origin transport without native credentials', () async {
+    final paths = <String>[];
+    browserFetch = ((JSAny input, web.RequestInit init) {
+      paths.add((input as JSString).toDart);
+      expect(init.credentials, 'same-origin');
+      expect(init.redirect, 'error');
+      final headers = init.headers as web.Headers;
+      expect(headers.has('authorization'), isFalse);
+      expect(headers.has('cookie'), isFalse);
+      return Future.value(web.Response(null, web.ResponseInit(status: 503)))
+          .toJS;
+    }).toJS;
+    final transport = SameOriginBrowserTransport();
+    await expectLater(
+      BrowserEngineClient.connect(
+        post: transport.post,
+        abort: transport.close,
+        hostedAssertion: 'provider-assertion',
+      ),
+      failure(LocalEngineFailure.handshakeFailed),
+    );
+    expect(paths, ['/engine/browser/sign-in']);
+  });
+
   test(
     'browser HTTP keeps requests same-origin, opaque cookies, and exact bytes',
     () async {

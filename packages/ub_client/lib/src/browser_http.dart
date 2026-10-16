@@ -38,6 +38,8 @@ final class SameOriginBrowserTransport {
     }
     if (!{
           '/engine/browser/exchange',
+          '/engine/browser/sign-in',
+          '/engine/browser/billing',
           '/engine/browser/hello',
           '/engine/browser/call',
           '/engine/browser/logout',
