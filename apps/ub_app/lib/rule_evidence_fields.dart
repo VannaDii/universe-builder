@@ -46,6 +46,9 @@ class _RuleEvidenceFieldsState extends State<RuleEvidenceFields> {
         reference: reference,
         kind: RecordKind.domainPack,
       );
+      if (isUniversePolicyRecord(row)) {
+        throw const FormatException('Choose a source category, not a root policy');
+      }
       if (!mounted || index >= widget.input.categories.length) return;
       final categories = [...widget.input.categories];
       categories[index] = RuleEvidenceCategoryInput(
@@ -98,6 +101,7 @@ class _RuleEvidenceFieldsState extends State<RuleEvidenceFields> {
                   changes: widget.changes,
                   draft: widget.draft,
                   kind: RecordKind.domainPack,
+                  excludeUniversePolicies: true,
                   label: 'Source category ${i + 1}',
                   record: input.categories[i].record,
                   universe: input.categories[i].universe,

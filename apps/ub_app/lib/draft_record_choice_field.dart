@@ -17,13 +17,14 @@ class DraftRecordChoiceField extends StatefulWidget {
     required this.disabled,
     required this.onChanged,
     this.version = '',
+    this.excludeUniversePolicies = false,
   });
   final SavedChanges changes;
   final SavedDraft draft;
   final RecordKind? kind;
   final String label, record, universe;
   final String version;
-  final bool disabled;
+  final bool disabled, excludeUniversePolicies;
   final ValueChanged<RecordRef> onChanged;
   @override
   State<DraftRecordChoiceField> createState() => _DraftRecordChoiceFieldState();
@@ -114,6 +115,7 @@ class _DraftRecordChoiceFieldState extends State<DraftRecordChoiceField> {
           draft: widget.draft,
           kind: widget.kind,
           label: widget.label,
+          excludeUniversePolicies: widget.excludeUniversePolicies,
         ),
       ),
     );
@@ -145,11 +147,13 @@ class _DraftRecordPicker extends StatefulWidget {
     required this.draft,
     required this.kind,
     required this.label,
+    required this.excludeUniversePolicies,
   });
   final SavedChanges changes;
   final SavedDraft draft;
   final RecordKind? kind;
   final String label;
+  final bool excludeUniversePolicies;
   @override
   State<_DraftRecordPicker> createState() => _DraftRecordPickerState();
 }
@@ -193,9 +197,16 @@ class _DraftRecordPickerState extends State<_DraftRecordPicker> {
         query: _searched,
         cursor: more ? _delivery?.cursor : null,
       );
+      final hits = widget.excludeUniversePolicies
+          ? await excludeUniversePolicyChoices(
+              changes: widget.changes,
+              context: _context!,
+              hits: found.result.hits,
+            )
+          : found.result.hits;
       if (mounted) {
         setState(() {
-          _hits.addAll(found.result.hits);
+          _hits.addAll(hits);
           _delivery = found.delivery;
         });
       }

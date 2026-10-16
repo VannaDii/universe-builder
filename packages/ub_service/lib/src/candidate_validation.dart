@@ -23,7 +23,7 @@ import 'structural_checks.dart';
 import 'validation_findings.dart';
 
 const candidateEvaluatorVersion =
-    'finite-policy-v19-scoped-fictional-departures';
+    'finite-policy-v20-universe-root-selection';
 
 /// Candidate assessment only. Approval, source staging, snapshot selection and
 /// durable publication remain the responsibility of the author workflow.
@@ -67,6 +67,18 @@ CandidateValidationResult evaluateCandidate({
     definitions.add(r);
   }
   definitions.validate();
+  // Historical rootless snapshots remain readable. Once a root is declared,
+  // publication cannot remove or break the universe's selection.
+  if (base.any(isUniversePolicyRecord) || candidate.any(isUniversePolicyRecord)) {
+    try {
+      UniversePolicySelection.fromRecords(frame.universe, candidate);
+    } on FormatException catch (error) {
+      throw protocol.InvalidArgumentError(
+        field: 'operations',
+        message: error.message,
+      );
+    }
+  }
   validateStructuralCandidate(
     candidate,
     evidenceCategories: evidenceCategories,

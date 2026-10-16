@@ -2576,6 +2576,13 @@ void main() {
             )
             .toList();
         expect(policies.length, item.realWorld ? 1 : 0);
+        final root = UniversePolicySelection.fromRecords(item.universe, rows);
+        expect(root.rules, policies);
+        expect(
+          (root.definition.payload as DomainPackRecord).key,
+          '$universePolicyDefinitionPrefix${item.realWorld ? 'real_world' : 'custom'}',
+        );
+
         if (item.realWorld) {
           final policy = policies.single.payload as RuleRecord;
           expect(policy.applicability, isA<UniverseApplicability>());
@@ -2705,7 +2712,7 @@ void main() {
         expect(kernel.journal.head(fixture.continuity), fixture.revision);
         expect(
           kernel.journal.snapshot(fixture.continuity, fixture.revision),
-          hasLength(2),
+          hasLength(4),
         );
         final version = kernel.journal.snapshot(
           fixture.continuity,

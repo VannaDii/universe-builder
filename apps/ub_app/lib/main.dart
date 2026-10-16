@@ -1588,7 +1588,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             ? 'Create your first universe to keep a campaign, novel or life story consistent. Give it a name and choose its starting calendar; you can add people, places and sources as you work.'
             : 'No universes are available to this profile. Ask the approval owner to grant access to the universe you need.'),
         const SizedBox(height: 12),
-        const Text('A fictional universe follows your authored canon. Real World uses scoped source requirements for factual claims, including attributed personal recollections where permitted.'),
+        const Text('Every universe has a root policy, inherited by its worlds. Start from scratch or clone Real World for scoped source requirements, including attributed personal recollections where permitted.'),
       ],
       for (final universe in _library!.universes)
         ListTile(

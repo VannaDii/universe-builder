@@ -320,14 +320,14 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
                 const SizedBox(height: 20),
               ],
               _field(_name, 'Universe name', autofocus: true),
-              const Text('Setting', style: TextStyle(fontSize: 20)),
+              const Text('Root policy', style: TextStyle(fontSize: 20)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
                 children: [
                   for (final realWorld in [false, true])
                     ChoiceChip(
-                      label: Text(realWorld ? 'Real World' : 'Fictional'),
+                      label: Text(realWorld ? 'Clone Real World policy' : 'Start from scratch'),
                       selected: _realWorld == realWorld,
                       onSelected: !_loaded || _busy || _uncertain
                           ? null
@@ -341,8 +341,8 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
               const SizedBox(height: 12),
               Text(
                 _realWorld
-                    ? 'Factual claims will need qualifying sources. You choose which sources qualify; private recollections can be included. Interpretation review is required only where a scoped policy requests it.'
-                    : 'Build your own canon and choose the continuity rules your story needs.',
+                    ? 'Create an independent Real World root policy. Factual claims need qualifying sources; private recollections can be included. Interpretation review is required only where a scoped policy requests it.'
+                    : 'Create an empty root policy and build your own canon. Add the requirements your campaign, novel or life story needs.',
               ),
               if (_realWorld)
                 const Padding(

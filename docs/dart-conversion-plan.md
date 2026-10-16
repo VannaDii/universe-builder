@@ -96,19 +96,47 @@ Real World means: apply the declared evidence requirements and supported reality
 
 It is not a claim that all facts have been independently verified. The UI must explain which constraints and source obligations were checked and which claims were interpreted by a person or external model.
 
-Offer Fictional and Real World as understandable creation choices. For historical fiction, offer Real World foundations with explicitly authored departures through existing scoped rules/exceptions or a distinct continuity. Do not silently downgrade a strict real-world rule because the project is fiction.
+Every universe has one selected root policy. Every world belongs to a universe
+and inherits that root; authored world-scoped deviations alter that baseline
+explicitly. A world is never an independent policy root. Other independently
+applicable rules remain in force.
 
-The universe-level choice establishes a reviewed default policy. World-level selections compile into explicit policy applicability. The author sees the effective policy and its inherited origin. A world override changes applicability explicitly; it is not “nearest setting wins” over overlapping contradictory rules. Adding a world requires an explicit choice to use the universe policy or another reviewed policy.
+Authors define a root by cloning the Real World policy or starting from scratch.
+Scratch is an explicitly defined policy with no requirements initially; it is
+not an absent policy. Cloning creates an independent editable definition, not a
+live alias to the original. An author may change the selected root only to
+another defined policy, through the normal reviewed Changes flow. Root selection
+and any changes to its managed rules must be published together. Scoped deviations
+continue to identify the exact rule they alter; changing the root must not silently
+retarget an old deviation to a different rule.
 
-The initial creation choice publishes the `real_world:default` evidence rule
-with universe-wide applicability and an exact pin to an empty
-`real_world.sources` category. Its review-method list is empty; scoped policies
-may require interpretation review later. The author explicitly selects qualifying
-source membership and reviews the resulting policy revision before those sources
-can satisfy new claims. The creation action establishes this default together
-with the authored context and calendar. Fictional creation adds no evidence
-policy. Creation input recovery retains the choice; older unfinished input
-defaults to its previous fictional behavior without replaying a request.
+Use existing typed DomainPack records for policy definitions and the selected
+root. The selection has key `universe.policy.root`, names exactly one definition
+record, and declares that definition's exact pack key/version dependency.
+Definitions have keys under `universe.policy.definition.` and contain their rule
+identities. The canonical snapshot fixes the exact versions of these records and
+rules. Policy selection is authored canon, not a local preference or a second
+configuration store. Defining or selecting a policy does not deactivate unrelated
+rules. Existing scoped exceptions/fictional departures remain the representation
+for deviations; the earlier choice between included-world lists and exclusions
+is superseded by Vanna's root/default/deviation instruction.
+
+Creation now publishes a definition and root selection in both modes. Real World
+creation also publishes the `real_world:default` evidence rule with universe-wide
+applicability and an exact pin to an empty `real_world.sources` category. Its
+review-method list is empty; scoped policies may require interpretation review
+later. The author explicitly selects qualifying source membership and reviews
+the resulting policy revision before those sources can satisfy new claims.
+Scratch creation publishes an empty custom definition and its selection. Creation
+input recovery retains the choice; older unfinished input retains its previous
+scratch choice without replaying a request.
+
+Previously retained rootless snapshots keep their original bodies and digests;
+reading history does not fabricate a past policy selection. Existing-universe
+adoption must publish an explicit root before treating that universe as converted
+to this policy model. New creation and later publications must never leave a
+declared root missing or broken. Root definition/cloning/switching controls and
+existing-universe adoption remain implementation work.
 
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 
@@ -117,8 +145,8 @@ visible universe-wide and matching world-specific requirements, identifies their
 origin, and retains unresolved applicability as unresolved. Reads paginate at one
 exact opened revision and show incomplete delivery explicitly. Each policy opens
 its normal published detail/revision flow. This display does not weaken overlapping
-policies or implement world overrides; their applicability representation still
-requires the design choice discussed with Vanna.
+policies or implement root definition, cloning, switching or world-deviation
+controls. Those flows must use the root/default/deviation design above.
 
 ### 4.2 Evidence flow
 
@@ -253,8 +281,8 @@ author approval cannot discharge these duties.
 Policies may cover assertions and occurrences together or select named predicates
 for assertions/effects. Arbitrary derivation chains remain explicitly unsupported.
 The Rust engine still rejects all required-evidence declarations. Delivery still
-requires world-level policy overrides and the
-remaining platform workflows specified above.
+requires root definition/cloning/switching, existing-universe adoption, world
+deviation controls and the remaining platform workflows specified above.
 
 ### 4.7 Explicit scoped fictional departures
 

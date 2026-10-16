@@ -4,13 +4,17 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 
 ## Dart conversion development
 
-Universe creation offers Fictional and Real World settings. Real World publishes
-a default evidence policy and an initially empty category of qualifying sources.
-Authors select the sources before publishing required factual claims; the
-default adds no compulsory interpretation review. The setting is retained with
-unfinished creation input on native and web clients. Existing universes and older
-unfinished forms keep their prior behavior.
-The equivalent CLI option is `universe create <name> --first-time <value> --real-world`.
+Every new universe has a selected root policy, inherited by its worlds. Creation
+offers **Start from scratch** (an explicitly defined empty policy) or **Clone
+Real World policy** (an independent definition with the existing scoped evidence
+requirement). Both SQLite and PostgreSQL publish the definition and selection
+with the initial context/calendar. Publication cannot remove or break a declared
+root. Existing historical snapshots retain their original bytes; adoption of a
+root for older universes and the definition/cloning/switching controls are still
+being implemented. See [the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
+Real World starts with no qualifying sources selected. The author chooses source
+membership explicitly; interpretation review is required only where a scoped
+policy asks for it.
 
 The rule editor offers **Required evidence** for new rules and published rule
 revisions. Choose published source categories and optionally accepted human or

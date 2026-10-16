@@ -101,7 +101,12 @@ void main() {
         context: choiceContext,
         kind: RecordKind.domainPack,
       );
-      final categoryHit = categories.result.hits.single;
+      expect(categories.result.hits, hasLength(3));
+      final categoryHit = (await excludeUniversePolicyChoices(
+        changes: changes(),
+        context: choiceContext,
+        hits: categories.result.hits,
+      )).single;
       final categoryRef = RecordRef(
         universe: scope.universe,
         record: categoryHit.recordId,

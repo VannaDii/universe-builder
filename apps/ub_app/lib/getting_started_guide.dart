@@ -92,7 +92,7 @@ class _GettingStartedGuideState extends State<GettingStartedGuide> {
           childrenPadding: const EdgeInsets.all(12),
           children: [
             Text(
-              'For strict real-world adherence, choose Real World when creating a universe or world. Import the sources researched by your writer, then choose qualifying sources in the world’s evidence policies. Required unresolved facts prevent publication; interpretation review is required only where the scoped policy requests it. Attributed personal recollections can qualify without public corroboration when the policy permits them.',
+              'For strict real-world adherence, clone the Real World root policy when creating a universe. Worlds inherit that policy, with explicitly authored scoped deviations. Import the sources researched by your writer, then choose qualifying sources in the inherited evidence policy. Required unresolved facts prevent publication; interpretation review is required only where the scoped policy requests it. Attributed personal recollections can qualify without public corroboration when the policy permits them.',
             ),
           ],
         ),

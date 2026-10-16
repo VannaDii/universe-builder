@@ -739,7 +739,7 @@ final class NativePostgresRuntime {
       ),
       (calendar.toRecordId(), definition as RecordPayload),
     ];
-    final evidence = initialEvidencePolicyRecords(universe, request.realWorld);
+    final evidence = initialUniversePolicyRecords(universe, request.realWorld);
     final revision = await session
         .kernel(universe)
         .commit(
@@ -750,8 +750,8 @@ final class NativePostgresRuntime {
             principal: actor,
             decision: 'create-universe',
             reason: request.realWorld
-                ? 'Author created objective context with Real World evidence policy'
-                : 'Author created objective context',
+                ? 'Author created objective context with Real World root policy'
+                : 'Author created objective context with scratch root policy',
             idempotencyKey: 'create-universe',
             changes: [
               for (final row in evidence)

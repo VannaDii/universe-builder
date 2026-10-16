@@ -824,7 +824,7 @@ final class NativeSqliteRuntime {
           ),
         ),
         record(calendar.toRecordId(), definition),
-        ...initialEvidencePolicyRecords(id, request.realWorld),
+        ...initialUniversePolicyRecords(id, request.realWorld),
       ];
       final revision = kernel.commit(
         CommitInput(
@@ -834,8 +834,8 @@ final class NativeSqliteRuntime {
           principal: actor,
           decision: 'create-universe',
           reason: request.realWorld
-              ? 'Author created objective context with Real World evidence policy'
-              : 'Author created objective context',
+              ? 'Author created objective context with Real World root policy'
+              : 'Author created objective context with scratch root policy',
           idempotencyKey: 'create-universe',
           changes: records.map(
             (row) => Assignment(

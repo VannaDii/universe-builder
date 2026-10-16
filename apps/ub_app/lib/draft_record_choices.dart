@@ -46,6 +46,32 @@ Future<Envelope<SearchResults>> searchDraftChoices({
   limit: limit,
 );
 
+/// Policy configuration packs are not qualifying-source categories. Reads use
+/// the same pinned context and normal access checks as the original search.
+Future<List<SearchHit>> excludeUniversePolicyChoices({
+  required SavedChanges changes,
+  required OpenedContext context,
+  required Iterable<SearchHit> hits,
+}) async {
+  final choices = <SearchHit>[];
+  for (final hit in hits) {
+    if (hit.kind != RecordKind.domainPack) {
+      choices.add(hit);
+      continue;
+    }
+    final row = await readDraftChoiceVersion(
+      changes: changes,
+      context: context,
+      reference: RecordRef(universe: changes.scope.universe, record: hit.recordId),
+      kind: RecordKind.domainPack,
+    );
+    if (!isUniversePolicyRecord(row)) {
+      choices.add(hit);
+    }
+  }
+  return List.unmodifiable(choices);
+}
+
 Future<RecordSummary> readDraftChoiceSummary({
   required SavedChanges changes,
   required OpenedContext context,
