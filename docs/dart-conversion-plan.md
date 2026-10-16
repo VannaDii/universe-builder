@@ -27,7 +27,7 @@ The complete application includes the headless engine, author UI, local and remo
 
 Universe Builder is unreleased v0. Maintain only the current data shapes; do not add prior-format readers, schema upgrades, or compatibility exceptions. Cross-backend transfer and backup/restore use the current format. Release compatibility policy starts after an adopted release.
 
-Source was inspected in this checkout on October 11. No application tests, installed author packages, credentials or running service were opened for this plan. Approximately 77,000 lines of Rust exist under crates, including tests. The typed schema has 886 CREATE TABLE declarations and its catalog contains 1,620 model entries. These are scope indicators, not migration progress or a schedule estimate.
+Source was inspected in this checkout on October 11. No application tests, installed author packages, credentials or running service were opened for this plan. At that planning baseline, approximately 77,000 lines of Rust existed under crates, including tests. The typed schema has 886 CREATE TABLE declarations and its catalog contains 1,620 model entries. These are scope indicators, not migration progress or a schedule estimate.
 
 Use these owners rather than reconstructing behavior from old plans:
 
@@ -41,7 +41,7 @@ Use these owners rather than reconstructing behavior from old plans:
 | Atomic publication and historical reads | [kernel](../crates/universe-store/src/kernel.rs), [workflow storage](../crates/universe-store/src/workflow_storage.rs) |
 | Installation identity and current grants | [registry](../crates/universe-service/src/registry.rs), [local client](../crates/universe-client/src/installation.rs) |
 | Transfer and conversion | [archives](../crates/universe-store/src/archive.rs), [row transfer](../crates/universe-store/src/transfer.rs) |
-| Current UX proposal | [UX redesign](ux-redesign-plan.md), existing universe-ui editors and workflows |
+| Current UX proposal | [UX redesign](ux-redesign-plan.md), the Flutter editors and workflows in apps/ub_app/lib |
 | Build and distribution | apps/ub_cli/tool/, tool/, scripts/, packaging/, .github/workflows/, [release runbook](release-runbook.md) |
 
 The current contracts contain 16 tool definitions; default MCP discovery advertises the ordinary subset. Port the actual discovery filtering and request variants, including private author operations. Tool totals in historical prose are not a specification.

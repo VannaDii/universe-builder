@@ -5,9 +5,9 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 ## Dart conversion development
 
 Every new universe has a selected root policy, inherited by its worlds. Creation
-offers **Start from scratch** (an explicitly defined empty policy) or **Clone
-Real World policy** (an independent definition with the existing scoped evidence
-requirement). Both SQLite and PostgreSQL publish the definition and selection
+defaults to **Clone Real World policy** (an independent definition with scoped
+evidence requirements). **Start from scratch** explicitly defines an empty
+policy instead. Both SQLite and PostgreSQL publish the definition and selection
 with the initial context/calendar. Publication cannot remove or break a declared
 root. Only the selected definition's rules execute; available replacements remain
 inactive and independently authored rules keep their applicability. The typed
@@ -17,18 +17,14 @@ historical snapshots retain their original bytes. Open **Universe policies** in
 a continuity to define replacements, inspect their rules, or add a root selection
 to Changes. Unfinished policy names and choices recover separately from ordinary
 pack declarations on native and web clients. Editing the selected definition
-updates its root dependency in the same reviewed proposal. Imported, restored or
-converted older continuities retain their original heads and records. For a
-continuity with a represented context and no root, the library shows **Finish
-policy setup**. Empty archives without a represented context remain read-only.
-Historical research stays
-available, but synchronous and queued publication checks require an explicitly
-defined and selected root in the candidate. Existing checks from an older
-evaluator need fresh validation before publication. See
+updates its root dependency in the same reviewed proposal. Import and restore
+require current-format universes with a defined, selected root. Synchronous and
+queued publication checks require that root in the candidate. Historical research
+retains its pinned records; new publication uses current validation bindings. See
 [the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
 Real World starts with no qualifying sources selected. When defining a clone,
 the author can choose existing source versions for its independent category,
-including during first root adoption. Source membership does not establish that
+with its exact source membership. Source membership does not establish that
 every claim is supported; interpretation review is required only where a scoped
 policy asks for it. Source-version choices show the accessible source title and
 import time, with exact references available in the selection details. On narrow

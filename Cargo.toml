@@ -8,11 +8,9 @@ members = [
     "crates/universe-service",
     "crates/universe-protocol",
     "crates/universe-client",
-    "crates/universe-ui",
     "crates/universe-mcp",
     "crates/universe-cli",
     "crates/universe-engine",
-    "apps/desktop",
 ]
 
 [workspace.package]
@@ -28,7 +26,6 @@ universe-store = { path = "crates/universe-store" }
 universe-service = { path = "crates/universe-service" }
 universe-protocol = { path = "crates/universe-protocol" }
 universe-client = { path = "crates/universe-client" }
-universe-ui = { path = "crates/universe-ui" }
 
 # Pinned dependency set (see docs/adr/ADR-0002-stack.md).
 serde = { version = "=1.0.228", features = ["derive"] }
@@ -37,7 +34,6 @@ serde_json = { version = "=1.0.145", features = [
     "arbitrary_precision",
 ] }
 thiserror = { version = "=2.0.16" }
-# =0.10.9 (not 0.10.8): dioxus-router-macro 0.7.9 requires sha2 ^0.10.9.
 sha2 = { version = "=0.10.9" }
 hex = { version = "=0.4.3" }
 base64 = "=0.22.1"
@@ -62,9 +58,6 @@ rmcp = { version = "=3.4.0", features = [
     "transport-io",
 ] }
 clap = { version = "=4.5.51", features = ["derive"] }
-dioxus = { version = "=0.7.9", features = ["desktop", "router"] }
-dioxus-hooks = "=0.7.9"
-dioxus-signals = "=0.7.9"
 
 [profile.release]
 lto = "thin"
