@@ -323,7 +323,7 @@ class _PackEditorPageState extends State<PackEditorPage> {
                 ],
                 if (_form case final f?) ...[
                   if (f.realWorldPolicy != null) ...[
-                    const Text('Real World clones start with no qualifying sources selected. You can keep a replacement available, configure its evidence requirements, then select it.'),
+                    const Text('Choose qualifying source versions explicitly for a Real World clone. You can also keep a replacement available, configure its requirements, then select it.'),
                     _text('policy-name', 'Policy name', f.key,
                       (v) => _change(f.copyWith(key: v))),
                     RadioGroup<bool>(
@@ -342,6 +342,40 @@ class _PackEditorPageState extends State<PackEditorPage> {
                           subtitle: const Text('Independent evidence requirements and source selections.')),
                       ]),
                     ),
+                    if (f.realWorldPolicy!) ...[
+                      const Text('Qualifying source versions'),
+                      const Text('Selecting a source allows its anchored evidence to qualify. It does not establish that every claim is supported.'),
+                      for (var i = 0; i < f.records.length; i++)
+                        Row(children: [
+                          Expanded(child: DraftRecordChoiceField(
+                            key: ValueKey((_fields, 'policy-source', i)),
+                            changes: widget.changes,
+                            draft: _choices,
+                            kind: RecordKind.sourceVersion,
+                            label: 'Qualifying source version',
+                            record: f.records[i],
+                            universe: _scope.universe.value,
+                            disabled: _disabled,
+                            onChanged: (ref) {
+                              final rows = [...f.records];
+                              rows[i] = ref.record.value;
+                              _change(f.copyWith(records: rows));
+                            },
+                          )),
+                          TextButton(
+                            onPressed: _disabled ? null : () {
+                              _fields++;
+                              _change(f.copyWith(records: [...f.records]..removeAt(i)));
+                            },
+                            child: const Text('Remove source'),
+                          ),
+                        ]),
+                      TextButton(
+                        onPressed: _disabled ? null : () =>
+                          _change(f.copyWith(records: [...f.records, ''])),
+                        child: const Text('Add qualifying source'),
+                      ),
+                    ],
                     CheckboxListTile(
                       value: f.activatePolicy,
                       title: const Text('Select as the universe root'),

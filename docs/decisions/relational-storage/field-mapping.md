@@ -1304,11 +1304,12 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Secret_concealment_v1` | `r_secret_concealment_v1` (scalar column) | null |
 | `DomainOperation_v68` | `r_domain_operation_v68` | kind → DomainOperation_v68_kind, record → RecordRef, expected_version → RecordVersionId, replacement → Secret |
 | `DomainOperation_v68_kind` | `r_domain_operation_v68_kind` (scalar column) | string |
-| `DomainOperation_v69` | `r_domain_operation_v69` | kind → DomainOperation_v69_kind, client_ref → RecordId, key → DomainOperation_v69_key, real_world → DomainOperation_v69_real_world, activate → DomainOperation_v69_activate, expected_root_version → RecordVersionId |
+| `DomainOperation_v69` | `r_domain_operation_v69` | kind → DomainOperation_v69_kind, client_ref → RecordId, key → DomainOperation_v69_key, real_world → DomainOperation_v69_real_world, activate → DomainOperation_v69_activate, expected_root_version → RecordVersionId, source_category_members → DomainOperation_v69_source_category_members |
 | `DomainOperation_v69_kind` | `r_domain_operation_v69_kind` (scalar column) | string |
 | `DomainOperation_v69_key` | `r_domain_operation_v69_key` (scalar column) | string |
 | `DomainOperation_v69_real_world` | `r_domain_operation_v69_real_world` (scalar column) | boolean |
 | `DomainOperation_v69_activate` | `r_domain_operation_v69_activate` (scalar column) | boolean |
+| `DomainOperation_v69_source_category_members` | `r_domain_operation_v69_source_category_members` | RecordId |
 | `StoredContext` | `r_stored_context` | owner → StoredContext_owner, scope → StoredContext_scope, expires → StoredContext_expires, frame → Frame |
 | `StoredContext_owner` | `r_stored_context_owner` (scalar column) | string |
 | `StoredContext_scope` | `r_stored_context_scope` (scalar column) | string |

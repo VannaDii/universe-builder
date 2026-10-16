@@ -26,8 +26,10 @@ available, but synchronous and queued publication checks require an explicitly
 defined and selected root in the candidate. Existing checks from an older
 evaluator need fresh validation before publication. See
 [the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
-Real World starts with no qualifying sources selected. The author chooses source
-membership explicitly; interpretation review is required only where a scoped
+Real World starts with no qualifying sources selected. When defining a clone,
+the author can choose existing source versions for its independent category,
+including during first root adoption. Source membership does not establish that
+every claim is supported; interpretation review is required only where a scoped
 policy asks for it.
 
 The rule editor offers **Required evidence** for new rules and published rule

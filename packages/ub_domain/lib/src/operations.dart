@@ -292,20 +292,22 @@ sealed class DomainOperation {
 /// Defines a replacement root from scratch or a fresh Real World template.
 /// Activation is still subject to exact proposal review and publication.
 final class DefineUniversePolicyOperation extends DomainOperation {
-  const DefineUniversePolicyOperation({
+  DefineUniversePolicyOperation({
     required this.clientRef,
     required this.key,
     required this.realWorld,
     required this.activate,
     this.expectedRootVersion,
-  });
+    Iterable<RecordId> sourceCategoryMembers = const [],
+  }) : sourceCategoryMembers = List.unmodifiable(sourceCategoryMembers);
   final String clientRef, key;
   final bool realWorld, activate;
   final RecordVersionId? expectedRootVersion;
+  final List<RecordId> sourceCategoryMembers;
   factory DefineUniversePolicyOperation.fromWire(CanonicalValue value) {
     final f = Fields(value)..allow({
       'kind', 'client_ref', 'key', 'real_world', 'activate',
-      'expected_root_version',
+      'expected_root_version', 'source_category_members',
     });
     if (f.string('kind') != 'define_universe_policy') {
       throw const FormatException('Wrong operation kind');
@@ -315,6 +317,8 @@ final class DefineUniversePolicyOperation extends DomainOperation {
       key: f.string('key'),
       realWorld: f.boolean('real_world'),
       activate: f.boolean('activate'),
+      sourceCategoryMembers: _array(f, 'source_category_members')
+          .map((v) => RecordId.parse(_string(v))),
       expectedRootVersion: f.optionalString('expected_root_version') == null
           ? null
           : RecordVersionId.parse(f.string('expected_root_version')),
@@ -328,6 +332,9 @@ final class DefineUniversePolicyOperation extends DomainOperation {
     MapEntry('key', CanonicalString(key)),
     MapEntry('real_world', CanonicalBool(realWorld)),
     MapEntry('activate', CanonicalBool(activate)),
+    if (sourceCategoryMembers.isNotEmpty)
+      MapEntry('source_category_members', CanonicalArray(
+        sourceCategoryMembers.map((id) => CanonicalString(id.value)))),
     if (expectedRootVersion != null)
       MapEntry('expected_root_version',
           CanonicalString(expectedRootVersion!.value)),

@@ -12,6 +12,8 @@ DefineUniversePolicyOperation universePolicyOperation(UnfinishedPackForm form) {
     realWorld: form.realWorldPolicy!,
     activate: form.activatePolicy,
     expectedRootVersion: form.activatePolicy ? form.expectedRootVersion : null,
+    sourceCategoryMembers: form.realWorldPolicy!
+        ? form.records.map(RecordId.parse) : const [],
   );
 }
 
@@ -98,6 +100,7 @@ UnfinishedPackForm packFormFromDraft(SavedDraft draft, int index) {
       clientRef: op.clientRef, key: op.key,
       realWorldPolicy: op.realWorld, activatePolicy: op.activate,
       expectedRootVersion: op.expectedRootVersion,
+      records: op.sourceCategoryMembers.map((id) => id.value),
       draftVersion: draft.version,
     );
   }

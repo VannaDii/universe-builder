@@ -162,6 +162,13 @@ An empty legacy archive has no represented context with which to open a Changes
 frame. Reusing creation as an explicit initialization action for that case is a
 pending design decision; do not silently create a context or root during import.
 
+The policy-definition form can select existing source versions for a Real World
+clone's initial qualifying-source category. The service binds the exact generated
+category version before review. This supports first adoption over already sourced
+claims without creating a temporary scratch root or rewriting their history.
+Selections recover with unfinished form input; scratch definitions do not apply
+them. Membership alone does not satisfy the separate anchored-evidence checks.
+
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 
 The shared world detail screen now links to **Evidence policies**. It lists

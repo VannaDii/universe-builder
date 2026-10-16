@@ -26,6 +26,27 @@ void main() {
     directory.deleteSync(recursive: true);
   });
 
+  test('policy definition sources retain exact typed operation bytes after restart', () {
+    final sources = [RecordId.generate(), RecordId.generate()];
+    final values = [
+      for (final members in [<RecordId>[], sources])
+        DefineUniversePolicyOperation(clientRef: RecordId.generate().value,
+          key: 'Memoir 記憶', realWorld: true, activate: true,
+          sourceCategoryMembers: members).toWire(),
+    ];
+    database.execute('BEGIN IMMEDIATE');
+    final pointers = [for (final value in values) codec.put('DomainOperation', value)];
+    database.execute('COMMIT');
+    database.close();
+    database = SqliteDatabase.open('${directory.path}/package.sqlite', existing: true);
+    codec = RelationalCodec(database);
+    for (var i = 0; i < values.length; i++) {
+      final restored = codec.get('DomainOperation', pointers[i]);
+      expect(restored.toText(), values[i].toText());
+      expect(DomainOperation.fromWire(restored).toWire().toText(), values[i].toText());
+    }
+  });
+
   test('bundled SQLite meets required version, WAL and FTS5 capabilities', () {
     expect(sqlite3.version.versionNumber, greaterThanOrEqualTo(3051003));
     expect(database.select('PRAGMA foreign_keys').single.values.single, 1);

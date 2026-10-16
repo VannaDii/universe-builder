@@ -61,6 +61,42 @@ RecordVersion selectPolicy(RecordVersion selection, RecordVersion definition) {
 
 void main() {
   final universe = candidate.fixture().first.identity.universeId;
+  test('first Real World adoption uses explicit sources without rewriting historical claims', () {
+    final legacy = evidence.fixture();
+    List<Assignment> define(List<RecordId> members) => operations.compile(legacy, [
+      DefineUniversePolicyOperation(clientRef: RecordId.generate().value,
+        key: 'Memoir root', realWorld: true, activate: true,
+        sourceCategoryMembers: members),
+    ]);
+    final empty = define([]);
+    expect(candidate.check([...legacy, ...empty.map(operations.decode)],
+      base: legacy, changes: empty, requireRootPolicy: true).admissible, isFalse);
+    final chosen = define([f.id(12)]);
+    final adopted = [...legacy, ...chosen.map(operations.decode)];
+    final policy = UniversePolicySelection.fromRecords(universe, adopted);
+    final requirement = (policy.rules.single.payload as RuleRecord).requiredEvidence!;
+    expect(requirement.reviewMethods, isEmpty);
+    final pin = requirement.sourceCategories.single;
+    final category = adopted.singleWhere((r) => r.recordVersionId == pin.version);
+    expect((category.payload as DomainPackRecord).records, [f.id(12)]);
+    expect(candidate.check(adopted, base: legacy, changes: chosen,
+      requireRootPolicy: true).admissible, isTrue);
+    expect(adopted.take(legacy.length).map((r) => r.toWire().toText()),
+      legacy.map((r) => r.toWire().toText()));
+  });
+  test('policy source selection rejects missing, non-source, duplicate and scratch members', () {
+    final legacy = evidence.fixture();
+    for (final members in [[f.id(1)], [RecordId.generate()], [f.id(12), f.id(12)]]) {
+      expect(() => operations.compile(legacy, [DefineUniversePolicyOperation(
+        clientRef: RecordId.generate().value, key: 'Real World',
+        realWorld: true, activate: true, sourceCategoryMembers: members)]),
+        throwsA(isA<protocol.InvalidArgumentError>()));
+    }
+    expect(() => operations.compile(legacy, [DefineUniversePolicyOperation(
+      clientRef: RecordId.generate().value, key: 'Scratch',
+      realWorld: false, activate: true, sourceCategoryMembers: [f.id(12)])]),
+      throwsA(isA<protocol.InvalidArgumentError>()));
+  });
   test('legacy analysis stays readable but publication requires explicit root adoption', () {
     final legacy = candidate.fixture();
     expect(candidate.check(legacy).admissible, isTrue);

@@ -7,6 +7,40 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
 
 void main() {
+  test('unfinished policy sources survive recovery and editing without applying to scratch', () {
+    final directory = Directory.systemTemp.createTempSync('ub-policy-sources-');
+    final universe = UniverseId.generate(), context = RecordId.generate();
+    final sources = [RecordId.generate(), RecordId.generate()];
+    final form = UnfinishedPackForm(baseRevision: RevisionId.generate(),
+      representedContext: context, clientRef: RecordId.generate().value,
+      key: 'Memoir 記憶', realWorldPolicy: true,
+      records: sources.map((id) => id.value));
+    final scope = EditorFormScope(instance: OperationId.generate(),
+      profile: ProfileId.generate(), universe: universe,
+      continuity: ContinuityId.generate(), representedContext: context,
+      typeClientRef: 'universe-policy');
+    var store = PackFormRecoveryStore.open('${directory.path}/forms.sqlite');
+    try {
+      store.save(scope, form, BigInt.zero);
+      store.close();
+      store = PackFormRecoveryStore.open('${directory.path}/forms.sqlite');
+      final recovered = store.load(scope)!.form;
+      final operation = universePolicyOperation(recovered);
+      expect(operation.sourceCategoryMembers, sources);
+      final draft = SavedDraft(version: BigInt.one,
+        content: DraftContent(baseRevision: form.baseRevision,
+          representedContext: context, operations: [operation], rationale: ''));
+      expect(packFormFromDraft(draft, 0).records, form.records);
+      final scratch = recovered.copyWith(realWorldPolicy: false);
+      expect(universePolicyOperation(scratch).sourceCategoryMembers, isEmpty);
+      expect(scratch.copyWith(realWorldPolicy: true).records, form.records);
+      expect(() => universePolicyOperation(recovered.copyWith(records: ['unfinished'])),
+        throwsFormatException);
+    } finally {
+      store.close();
+      directory.deleteSync(recursive: true);
+    }
+  });
   test('pack upgrade preserves exact dependency versions, ordered members and private recovery', () {
     final root = Directory('/tmp').createTempSync('ub-pack-revision-'),
         universe = UniverseId.generate(),

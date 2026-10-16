@@ -11877,6 +11877,10 @@
         "expected_root_version": {
           "model": "RecordVersionId",
           "required": false
+        },
+        "source_category_members": {
+          "model": "DomainOperation_v69_source_category_members",
+          "required": false
         }
       }
     },
@@ -11896,6 +11900,11 @@
     "DomainOperation_v69_activate": {
       "table": "r_domain_operation_v69_activate",
       "kind": "boolean"
+    },
+    "DomainOperation_v69_source_category_members": {
+      "table": "r_domain_operation_v69_source_category_members",
+      "kind": "array",
+      "item": "RecordId"
     },
     "StoredContext": {
       "table": "r_stored_context",

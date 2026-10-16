@@ -9,6 +9,7 @@ List<RecordVersion> initialUniversePolicyRecords(
   RecordId? definitionId,
   String? definitionKey,
   String evidenceNamespace = 'real_world',
+  Iterable<RecordId> sourceCategoryMembers = const [],
 }) {
   RecordVersion record(RecordPayload payload, {RecordId? id}) => RecordVersion.build(
     recordVersionId: RecordVersionId.generate(),
@@ -27,7 +28,7 @@ List<RecordVersion> initialUniversePolicyRecords(
         version: '1',
         dependencies: {},
         capabilities: [],
-        records: [],
+        records: sourceCategoryMembers,
       ),
     );
     final policy = record(

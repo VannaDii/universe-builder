@@ -96,7 +96,7 @@ void main() {
               'SELECT count(*) FROM pg_tables WHERE schemaname=\$1',
               parameters: [schema.substring(1, schema.length - 1)],
             )).single.single,
-            903,
+            906,
           );
           final interrupted = UniverseId.generate();
           final namespace = postgresUniverseSchema(interrupted);
@@ -125,6 +125,32 @@ void main() {
           );
         },
       );
+
+      test('policy source membership retains exact operation bytes on a new connection', () async {
+        final sources = [RecordId.generate(), RecordId.generate()];
+        final values = [
+          for (final members in [<RecordId>[], sources])
+            DefineUniversePolicyOperation(clientRef: RecordId.generate().value,
+              key: 'Memoir 記憶', realWorld: true, activate: true,
+              sourceCategoryMembers: members).toWire(),
+        ];
+        final pointers = await connection.runTx((tx) async {
+          final codec = PostgresRelationalCodec(tx, universe);
+          return [for (final value in values) await codec.put('DomainOperation', value)];
+        });
+        await connection.close();
+        connection = await Connection.open(Endpoint(host: '127.0.0.1', port: port!,
+          database: 'ub_disposable', username: role),
+          settings: const ConnectionSettings(sslMode: SslMode.disable));
+        await connection.runTx((tx) async {
+          final codec = PostgresRelationalCodec(tx, universe);
+          for (var i = 0; i < values.length; i++) {
+            final restored = await codec.get('DomainOperation', pointers[i]);
+            expect(restored.toText(), values[i].toText());
+            expect(DomainOperation.fromWire(restored).toWire().toText(), values[i].toText());
+          }
+        });
+      });
 
       test(
         'all frozen payloads survive a new connection with unchanged digests',

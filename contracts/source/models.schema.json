@@ -3604,6 +3604,12 @@
             },
             "expected_root_version": {
               "$ref": "#/$defs/RecordVersionId"
+            },
+            "source_category_members": {
+              "description": "Explicit existing source-version identities qualifying for the independent Real World clone. Omit for scratch policies. The candidate snapshot and exact category version pin membership.",
+              "type": "array",
+              "items": { "$ref": "#/$defs/RecordId" },
+              "uniqueItems": true
             }
           },
           "additionalProperties": false,

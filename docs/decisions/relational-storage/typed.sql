@@ -7870,6 +7870,8 @@ CREATE TABLE "r_domain_operation_v69" (
   "activate" INTEGER,
   "expected_root_version__state" INTEGER NOT NULL CHECK("expected_root_version__state" IN (0,2)),
   "expected_root_version" TEXT,
+  "source_category_members__state" INTEGER NOT NULL CHECK("source_category_members__state" IN (0,2)),
+  "source_category_members" INTEGER REFERENCES "r_domain_operation_v69_source_category_members"(__row_id),
   CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
   CHECK("kind"='define_universe_policy'),
   CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
@@ -7878,8 +7880,15 @@ CREATE TABLE "r_domain_operation_v69" (
   CHECK("real_world" IN (0,1)),
   CHECK(("activate__state"=2 AND "activate" IS NOT NULL) OR ("activate__state" IN (0,1) AND "activate" IS NULL)),
   CHECK("activate" IN (0,1)),
-  CHECK(("expected_root_version__state"=2 AND "expected_root_version" IS NOT NULL) OR ("expected_root_version__state" IN (0,1) AND "expected_root_version" IS NULL))
+  CHECK(("expected_root_version__state"=2 AND "expected_root_version" IS NOT NULL) OR ("expected_root_version__state" IN (0,1) AND "expected_root_version" IS NULL)),
+  CHECK(("source_category_members__state"=2 AND "source_category_members" IS NOT NULL) OR ("source_category_members__state" IN (0,1) AND "source_category_members" IS NULL))
 ) STRICT;
+
+CREATE TABLE "r_domain_operation_v69_source_category_members" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v69_source_category_members_items" (owner INTEGER NOT NULL REFERENCES "r_domain_operation_v69_source_category_members"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
 
 CREATE TABLE "r_stored_context" (
   __row_id INTEGER PRIMARY KEY,
@@ -12778,6 +12787,14 @@ CREATE TRIGGER "r_domain_operation_v68_no_delete" BEFORE DELETE ON "r_domain_ope
 CREATE TRIGGER "r_domain_operation_v69_no_update" BEFORE UPDATE ON "r_domain_operation_v69" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v69_no_delete" BEFORE DELETE ON "r_domain_operation_v69" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v69_source_category_members_no_update" BEFORE UPDATE ON "r_domain_operation_v69_source_category_members" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v69_source_category_members_no_delete" BEFORE DELETE ON "r_domain_operation_v69_source_category_members" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v69_source_category_members_items_no_update" BEFORE UPDATE ON "r_domain_operation_v69_source_category_members_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v69_source_category_members_items_no_delete" BEFORE DELETE ON "r_domain_operation_v69_source_category_members_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

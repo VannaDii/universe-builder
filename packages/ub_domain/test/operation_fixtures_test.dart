@@ -68,7 +68,8 @@ void main() {
       "kind":"define_universe_policy",
       "client_ref":"rec_000000000000000000000005",
       "key":"Historical fiction","real_world":true,"activate":true,
-      "expected_root_version":"ver_000000000000000000000006"
+      "expected_root_version":"ver_000000000000000000000006",
+      "source_category_members":["rec_000000000000000000000007"]
     }
   ]''') as CanonicalArray;
   for (final input in extensions.items.cast<CanonicalObject>()) {

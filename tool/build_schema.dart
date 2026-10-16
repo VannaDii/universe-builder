@@ -412,8 +412,10 @@ Json _contracts(Directory root, Directory source) {
     'real_world': _boolean,
     'activate': _boolean,
     'expected_root_version': _ref('RecordVersionId'),
+    'source_category_members': _array('RecordId'),
   });
   _asList(definePolicy['required']).remove('expected_root_version');
+  _asList(definePolicy['required']).remove('source_category_members');
   operations.add(definePolicy);
   return definitions;
 }

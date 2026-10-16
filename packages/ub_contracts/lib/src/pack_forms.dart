@@ -47,7 +47,9 @@ final class UnfinishedPackForm {
   final RecordId representedContext;
   final String clientRef, key, version, rationale;
   final List<PackDependencyInput> dependencies;
-  final List<String> capabilities, records;
+  final List<String> capabilities;
+  /// Pack members, or qualifying source-version IDs in policy-definition mode.
+  final List<String> records;
   final ExpressionReferenceInput? revisionTarget;
   final RecordVersionId? expectedRecordVersion;
   final DomainPackRecord? original;
