@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_contracts/mcp.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_mcp/session.dart';
 
@@ -27,45 +28,63 @@ McpSession session(McpToolBackend backend, {bool advanced = false}) =>
     );
 
 void main() {
-  test(
-    'advanced discovery and protocol errors do not invoke the backend',
-    () async {
-      var called = false;
-      final server = session((_, _) async {
-        called = true;
-        return object('{}');
-      }, advanced: true);
-      await server.handle(initialize);
-      final response = await server.handle(
-        object('{"jsonrpc":"2.0","id":1,"method":"tools/list"}'),
+  test('advanced discovery and protocol errors do not invoke the backend', () async {
+    var called = false;
+    final server = session((_, _) async {
+      called = true;
+      return object('{}');
+    }, advanced: true);
+    await server.handle(initialize);
+    final discovered = <CanonicalValue>[];
+    String? cursor;
+    var pages = 0;
+    do {
+      final response = (await server.handle(
+        object(
+          '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":'
+          '${CanonicalObject([if (cursor != null) MapEntry('cursor', CanonicalString(cursor))]).toText()}}',
+        ),
+      ))!;
+      expect(
+        encodeMcpStdio(response).length,
+        lessThanOrEqualTo(maxFrameBytes + 1),
+      );
+      final result = field(response, 'result') as CanonicalObject;
+      discovered.addAll((field(result, 'tools') as CanonicalArray).items);
+      cursor = switch (result.fields
+          .where((e) => e.key == 'nextCursor')
+          .singleOrNull
+          ?.value) {
+        CanonicalString(:final value) => value,
+        _ => null,
+      };
+      pages++;
+    } while (cursor != null);
+    expect(discovered, hasLength(16));
+    expect(pages, greaterThan(1));
+    expect(
+      CanonicalArray(discovered).toText(),
+      field(mcpToolsListResult(advanced: true), 'tools').toText(),
+    );
+    for (final (method, params, code) in [
+      ('unknown/method', '{}', '-32601'),
+      ('tools/list', '{"cursor":3}', '-32602'),
+      ('tools/list', '{"cursor":"invalid"}', '-32602'),
+      ('tools/list', '{"cursor":"tools:ordinary:1"}', '-32602'),
+      ('tools/call', '{"name":false}', '-32602'),
+      ('tools/call', '{"name":"universe_describe","arguments":[]}', '-32602'),
+    ]) {
+      final result = await server.handle(
+        object('{"jsonrpc":"2.0","id":1,"method":"$method","params":$params}'),
       );
       expect(
-        (field(
-          field(response!, 'result') as CanonicalObject,
-          'tools',
-        ) as CanonicalArray).items.length,
-        16,
+        field(field(result!, 'error') as CanonicalObject, 'code').toText(),
+        code,
       );
-      for (final (method, params, code) in [
-        ('unknown/method', '{}', '-32601'),
-        ('tools/list', '{"cursor":3}', '-32602'),
-        ('tools/call', '{"name":false}', '-32602'),
-        ('tools/call', '{"name":"universe_describe","arguments":[]}', '-32602'),
-      ]) {
-        final result = await server.handle(
-          object(
-            '{"jsonrpc":"2.0","id":1,"method":"$method","params":$params}',
-          ),
-        );
-        expect(
-          field(field(result!, 'error') as CanonicalObject, 'code').toText(),
-          code,
-        );
-      }
-      expect(called, isFalse);
-      server.close();
-    },
-  );
+    }
+    expect(called, isFalse);
+    server.close();
+  });
   test(
     'pre-init ping, initialize then direct discovery without notification gate',
     () async {
@@ -83,7 +102,7 @@ void main() {
       );
       final listed = await server.handle(
         object(
-          '{"jsonrpc":"2.0","id":"list","method":"tools/list","params":{"cursor":"ignored"}}',
+          '{"jsonrpc":"2.0","id":"list","method":"tools/list","params":{}}',
         ),
       );
       final result = field(listed!, 'result') as CanonicalObject;

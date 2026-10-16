@@ -627,6 +627,17 @@ Stdio keeps stdout exclusively for protocol frames and bounds line/frame buffers
 
 Remote MCP uses Streamable HTTP and the applicable MCP authorization contract, with resource/audience-bound credentials. App human sign-in and MCP agent authorization may share an identity provider while retaining separate privileges. Author approval is never advertised as a model tool. [MCP transports](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports), [MCP authorization](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
 
+The Dart Streamable HTTP adapter now reuses the stdio dispatcher with bounded
+JSON POSTs, authenticated principal-bound sessions, explicit cancellation,
+deletion, idle expiry, origin/host checks and protected-resource discovery. The
+host must mount it on its HTTPS listener and supply resource-bound token
+verification and the current service backend. No default HTTP listener or
+identity provider is enabled. This is the integration boundary for Vanna's
+sign-in work; provider integration and externally hosted operation remain
+unverified. Shared tool discovery pages the complete catalog within the existing
+frame bound on both transports. SSE streaming/replay remains optional and is not
+offered by this adapter.
+
 The private HTTP command adapter shares service DTOs and returns instance/capability identity. Hosted commands referencing files use bounded upload/download content operations, not paths on the client's computer. Owner-only backup/purge/conversion cannot become arbitrary server filesystem APIs.
 
 Contributor GUI support uses a permission-filtered catalog/read/draft contract. Do not remove require_author from current owner-wide Library/LoadDraft/SaveDraft branches and expose their results wholesale. Count, title, graph neighbour, thumbnail, validation and error disclosures need the same scope rules as direct reads.

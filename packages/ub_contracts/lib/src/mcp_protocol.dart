@@ -64,7 +64,8 @@ final class McpInvocation {
 }
 
 /// Initialize over stdio uses the maintained legacy negotiation: honor a known
-/// handshake version, otherwise return 2025-11-25, including stateless versions.
+/// handshake version, otherwise return 2025-11-25. Streamable HTTP excludes the
+/// older 2024-11-05 transport while preserving the stdio negotiation contract.
 /// Lifecycle admission belongs to the adapter, not these result constructors.
 CanonicalObject mcpInitializeResult(
   CanonicalObject params, {
@@ -72,6 +73,7 @@ CanonicalObject mcpInitializeResult(
   required String serverVersion,
   bool fixture = false,
   bool advanced = false,
+  bool streamableHttp = false,
 }) {
   final fields = _fields(params);
   final requested = _string(fields['protocolVersion']);
@@ -83,7 +85,8 @@ CanonicalObject mcpInitializeResult(
     MapEntry(
       'protocolVersion',
       CanonicalString(
-        _legacyVersions.contains(requested)
+        _legacyVersions.contains(requested) &&
+                (!streamableHttp || requested != '2024-11-05')
             ? requested
             : mcpStdioProtocolVersion,
       ),

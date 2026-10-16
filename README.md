@@ -2905,6 +2905,27 @@ Fixture data is discarded on exit. The former Rust `xtask package-fixture` and
 building or replacing a bundle. Existing legacy bundles are left in place; use
 the Flutter bundle path above for current development.
 
+## MCP over HTTP
+
+The Dart `McpHttpHandler` in `apps/ub_mcp/lib/http.dart` provides the
+Streamable HTTP adapter for a host's existing HTTPS listener. It requires an
+authentication callback and the configured resource and authorization-server
+URLs. The callback must validate token issuer, expiry, permitted scope and the
+exact resource audience, then return the server-owned installation/profile key
+and its ordinary service backend. It runs on every request; an MCP session ID
+does not replace authentication or current service grants. The adapter serves
+protected-resource metadata and a Bearer challenge, rejects unapproved origins,
+and binds sessions to the authenticated principal. The sign-in integration must
+mount it explicitly; the current CLI does not expose an unauthenticated MCP HTTP
+listener or select an identity provider.
+
+HTTP requests carry one bounded JSON object. JSON responses, explicit
+cancellation, session deletion and 15-minute idle expiry are supported. GET
+streams return 405; SSE replay is not offered. A disconnected POST does not
+cancel or replay admitted work. Both MCP transports page tool discovery when the
+catalog would exceed the 1 MiB frame bound; clients follow `nextCursor` until it
+is absent. Invalid cursors return the standard invalid-parameters error.
+
 ## Standalone MCP fixture
 
 The Dart helpers now support the same disposable mode on macOS/Linux Unix

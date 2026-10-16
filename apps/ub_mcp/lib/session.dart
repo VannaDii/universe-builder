@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:ub_contracts/mcp.dart';
 import 'package:ub_contracts/ub_contracts.dart';
@@ -12,8 +13,8 @@ typedef McpToolBackend = Future<CanonicalValue> Function(
 );
 
 /// UB's legacy MCP lifecycle/dispatch, independent of byte transport. This is
-/// application behavior, not a general MCP SDK. Stateless negotiation and HTTP
-/// authorization require a separate adapter; no authority is granted here.
+/// application behavior, not a general MCP SDK. HTTP authorization and session
+/// lifetime belong to its transport adapter; no authority is granted here.
 final class McpSession {
   McpSession({
     required this.backend,
@@ -21,17 +22,23 @@ final class McpSession {
     required this.serverVersion,
     this.fixture = false,
     this.advanced = false,
+    this.streamableHttp = false,
   });
   final McpToolBackend backend;
   final String serverName, serverVersion;
   final bool fixture, advanced;
+  final bool streamableHttp;
   final _active = <McpRequestId, Completer<void>>{};
   bool _initialized = false, _closed = false;
 
   /// Calls may run concurrently so pings and cancellation remain responsive.
-  /// The byte transport must serialize complete output frames and close this
-  /// session on EOF, malformed input, or failed output, without replaying calls.
-  Future<CanonicalObject?> handle(CanonicalObject frame) async {
+  /// The byte transport serializes complete output frames. Stdio closes this
+  /// session on EOF or failed framing/output. HTTP retains it across requests
+  /// and disconnections, until explicit deletion, expiry or server shutdown.
+  Future<CanonicalObject?> handle(
+    CanonicalObject frame, {
+    McpToolBackend? authenticatedBackend,
+  }) async {
     if (_closed) throw const FormatException('MCP session closed');
     final invocation = McpInvocation.fromWire(frame);
     final id = invocation.id;
@@ -71,6 +78,7 @@ final class McpSession {
           serverVersion: serverVersion,
           fixture: fixture,
           advanced: advanced,
+          streamableHttp: streamableHttp,
         );
         _initialized = true;
         return mcpResultResponse(id, result);
@@ -88,7 +96,7 @@ final class McpSession {
           cursor is! CanonicalString) {
         return _error(id, -32602, 'Invalid cursor');
       }
-      return mcpResultResponse(id, mcpToolsListResult(advanced: advanced));
+      return _listTools(id, cursor is CanonicalString ? cursor.value : null);
     }
     if (invocation.method != 'tools/call') {
       return _error(id, -32601, invocation.method);
@@ -114,7 +122,7 @@ final class McpSession {
     Future<CanonicalObject> execute() async {
       try {
         return mcpStructuredToolResult(
-          await backend(request, cancellation.future),
+          await (authenticatedBackend ?? backend)(request, cancellation.future),
         );
       } on ProtocolError catch (error) {
         return mcpProtocolToolError(error);
@@ -140,6 +148,46 @@ final class McpSession {
     } finally {
       if (identical(_active[id], cancellation)) _active.remove(id);
     }
+  }
+
+  CanonicalObject _listTools(McpRequestId id, String? cursor) {
+    final tools =
+        (mcpToolsListResult(advanced: advanced).fields
+                    .singleWhere((entry) => entry.key == 'tools')
+                    .value
+                as CanonicalArray)
+            .items;
+    final prefix = 'tools:${advanced ? 'advanced' : 'ordinary'}:';
+    var start = 0;
+    if (cursor != null) {
+      final parsed = cursor.startsWith(prefix)
+          ? int.tryParse(cursor.substring(prefix.length))
+          : null;
+      if (parsed == null ||
+          parsed <= 0 ||
+          parsed >= tools.length ||
+          cursor != '$prefix$parsed') {
+        return _error(id, -32602, 'Invalid cursor');
+      }
+      start = parsed;
+    }
+    CanonicalObject page(int end) => mcpResultResponse(
+      id,
+      CanonicalObject([
+        MapEntry('tools', CanonicalArray(tools.sublist(start, end))),
+        if (end < tools.length)
+          MapEntry('nextCursor', CanonicalString('$prefix$end')),
+      ]),
+    );
+    var end = start;
+    while (end < tools.length &&
+        utf8.encode(page(end + 1).toText()).length <= maxFrameBytes) {
+      end++;
+    }
+    if (end == start) {
+      return _error(id, -32603, 'Tool metadata exceeds the response limit');
+    }
+    return page(end);
   }
 
   /// No output is produced after close; backend cleanup is signalled once.
