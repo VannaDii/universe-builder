@@ -2554,7 +2554,11 @@ void main() {
       final response = WireFields(
         await engine(
           connection,
-          CreateUniverseEngineRequest(name: name, start: starts[i]),
+          CreateUniverseEngineRequest(
+            realWorld: false,
+            name: name,
+            start: starts[i],
+          ),
         ),
         {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
       );
@@ -2686,14 +2690,18 @@ void main() {
     await expectLater(
       engine(
         writerConnection,
-        CreateUniverseEngineRequest(name: 'Denied', start: start),
+        CreateUniverseEngineRequest(
+          realWorld: false,
+          name: 'Denied',
+          start: start,
+        ),
       ),
       throwsA(isA<NotFoundOrNotAccessibleError>()),
     );
     await expectLater(
       engine(
         authorConnection,
-        CreateUniverseEngineRequest(name: '  ', start: start),
+        CreateUniverseEngineRequest(realWorld: false, name: '  ', start: start),
       ),
       throwsFormatException,
     );
@@ -2701,6 +2709,7 @@ void main() {
       engine(
         authorConnection,
         CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Invalid clock',
           start: const GregorianUniverseStart('not a date'),
         ),
@@ -2711,6 +2720,7 @@ void main() {
       engine(
         authorConnection,
         CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Invalid month',
           start: FictionalUniverseStart(
             calendarName: 'Aurora',

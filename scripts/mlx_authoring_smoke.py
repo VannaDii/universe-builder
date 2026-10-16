@@ -212,7 +212,7 @@ def evaluate(args, report):
 
         try:
             author = cli("init").stdout.strip()
-            u = admin("create", NAME, "--first-time", "16", "--calendar", "Story days",
+            u = admin("create","--scratch-policy", NAME, "--first-time", "16", "--calendar", "Story days",
                       "--tick-label", "days")
             agent = admin("enroll")["profile_id"]
             admin("grant", agent, u["universe_id"], "--propose", "--edit", "--protected")

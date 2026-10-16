@@ -59,6 +59,7 @@ void main() {
       final created = WireFields(
         await client.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Mobile local',
             start: GregorianUniverseStart('2042-01-01T00:00:00Z'),
           ),

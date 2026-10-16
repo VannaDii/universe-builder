@@ -42,6 +42,7 @@ void main() {
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Classification',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -354,6 +355,7 @@ void main() {
         final created = WireFields(
           await session.call(
             const CreateUniverseEngineRequest(
+              realWorld: false,
               name: 'Names',
               start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),
@@ -1533,6 +1535,7 @@ void main() {
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Entity history',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

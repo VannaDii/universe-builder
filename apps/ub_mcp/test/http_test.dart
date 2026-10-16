@@ -134,6 +134,7 @@ void main() {
         try {
           await owner.call(
             const CreateUniverseEngineRequest(
+              realWorld: false,
               name: 'Test',
               start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),

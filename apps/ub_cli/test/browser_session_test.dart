@@ -239,6 +239,7 @@ void main() {
       final created = await call(
         session,
         const CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Browser universe',
           start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),
@@ -728,6 +729,7 @@ void main() {
         expect(source, isA<CanonicalObject>());
         final exact = await browserClient.call(
           CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Exact browser time',
             start: FictionalUniverseStart(
               calendarName: 'Author calendar',
@@ -787,6 +789,7 @@ void main() {
         await call(
           writerSession,
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Denied',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

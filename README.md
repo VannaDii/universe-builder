@@ -2885,6 +2885,12 @@ author=$(./target/headless/development/bin/universe --installation "$installatio
 ./target/headless/development/bin/universe --installation "$installation" --profile "$author" doctor
 ```
 
+New universes default to an independent clone of the Real World root policy.
+Use `create ... --scratch-policy` or choose **Start from scratch** in the app to
+explicitly define an empty root instead. Every universe has a root policy; worlds
+inherit it with authored scoped deviations. Real World claims need qualifying
+sources, and interpretation review applies only where a scoped policy requires it.
+
 `init` prints a profile ID, never its credential. Keep that ID for subsequent
 launches; initialization is a one-time operation. Credentials remain in the
 protected installation directory. The Flutter workspace provides the library,

@@ -40,6 +40,7 @@ void main() {
       final created = WireFields(
         await session.call(
           CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Clock',
             start: FictionalUniverseStart(
               calendarName: 'Campaign days',

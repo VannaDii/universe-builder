@@ -248,7 +248,7 @@ class ConnectedWritingTests(unittest.TestCase):
                 return result.stdout.strip()
             author=cli("init");client=None
             try:
-                universe=json.loads(cli("create","Story","--first-time","0","--calendar","Days","--tick-label","days",profile=author))
+                universe=json.loads(cli("create","--scratch-policy","Story","--first-time","0","--calendar","Days","--tick-label","days",profile=author))
                 agent=json.loads(cli("enroll",profile=author))["profile_id"]
                 cli("grant",agent,universe["universe_id"],"--propose","--edit","--protected",profile=author)
                 client=MCP(binaries/"universe-mcp",installation=installation,profile=agent)
@@ -799,7 +799,7 @@ class ConnectedWritingTests(unittest.TestCase):
                 missing=check(context(),event_withdrawals=[{"event_handle":final["event_edit_handle"],"reason":"Withdrawn handle is no longer current."}])
                 self.assertIsNone(missing["candidate_handle"],missing)
                 # Date-only ordinary calls are validated against the advertised schemas.
-                dated=json.loads(cli("create","Dates","--first-time","1970-01-01T00:00:00+00:00",profile=author))
+                dated=json.loads(cli("create","--scratch-policy","Dates","--first-time","1970-01-01T00:00:00+00:00",profile=author))
                 cli("grant",agent,dated["universe_id"],"--propose","--edit","--protected",profile=author)
                 decisions=AuthorDecisions(SimpleNamespace(universe="Dates"),binaries/"universe",installation,author,output=lambda _:None)
                 def date_context(tick=None,revision=None):
@@ -871,7 +871,7 @@ class ConnectedWritingTests(unittest.TestCase):
                 # Silver Gate premises use named changes and explicit knowledge records.
                 silver=json.loads((Path(__file__).resolve().parents[1]/"fixtures/silver-gate.json").read_text())
                 self.assertEqual([s["id"] for s in silver["scenarios"]],[f"S{n:02d}" for n in range(1,11)])
-                gate=json.loads(cli("create",silver["universe"],"--first-time","16","--calendar","Gate days","--tick-label","events",profile=author))
+                gate=json.loads(cli("create","--scratch-policy",silver["universe"],"--first-time","16","--calendar","Gate days","--tick-label","events",profile=author))
                 agent=json.loads(cli("enroll",profile=author))["profile_id"]
                 cli("grant",agent,gate["universe_id"],"--propose","--edit","--protected",profile=author)
                 client=MCP(binaries/"universe-mcp",installation=installation,profile=agent)
@@ -1025,7 +1025,7 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual(missing["status"],"needs_clarification");self.assertIsNone(missing["candidate_handle"])
                 # Explicit private author authority still cannot waive an independent boundary.
                 silver["universe"]="Author boundary"
-                gate=json.loads(cli("create",silver["universe"],"--first-time","0","--calendar","Author days","--tick-label","days",profile=author))
+                gate=json.loads(cli("create","--scratch-policy",silver["universe"],"--first-time","0","--calendar","Author days","--tick-label","days",profile=author))
                 cli("grant",agent,gate["universe_id"],"--propose","--edit","--protected",profile=author)
                 decisions=AuthorDecisions(SimpleNamespace(universe=silver["universe"]),binaries/"universe",installation,author,output=lambda _:None)
                 gate_calendar=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(),"object_names":["Iven"]})["result"]["clocks"][0]["calendar_id"]

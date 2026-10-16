@@ -88,6 +88,7 @@ void main() {
     final original = await client(author);
     final created = await original.call(
       CreateUniverseEngineRequest(
+        realWorld: false,
         name: 'Recoverable move',
         start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
       ),
@@ -263,6 +264,7 @@ void main() {
       final source = await client(author);
       final created = await source.call(
         CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Transfer source',
           start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),
@@ -664,6 +666,7 @@ void main() {
     final human = await client(author);
     final created = await human.call(
       const CreateUniverseEngineRequest(
+        realWorld: false,
         name: 'Transport world',
         start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
       ),

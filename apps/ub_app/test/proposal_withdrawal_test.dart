@@ -26,6 +26,7 @@ void main() {
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Withdrawal',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

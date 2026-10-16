@@ -128,7 +128,8 @@ rules. Existing scoped exceptions/fictional departures remain the representation
 for deviations; the earlier choice between included-world lists and exclusions
 is superseded by Vanna's root/default/deviation instruction.
 
-Creation now publishes a definition and root selection in both modes. Real World
+Creation defaults to an independent Real World clone; scratch requires an explicit
+author choice. Both modes publish a definition and root selection. Real World
 creation also publishes the `real_world:default` evidence rule with universe-wide
 applicability and an exact pin to an empty `real_world.sources` category. Its
 review-method list is empty; scoped policies may require interpretation review

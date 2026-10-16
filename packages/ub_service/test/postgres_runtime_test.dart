@@ -239,6 +239,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -472,6 +473,7 @@ void main() {
           (await call(
             authorId,
             const CreateUniverseEngineRequest(
+              realWorld: false,
               name: 'PostgreSQL local server universe',
               start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),
@@ -511,6 +513,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -822,6 +825,7 @@ void main() {
         final fields = WireFields(
           await author.execute(
             CreateUniverseEngineRequest(
+              realWorld: false,
               name: name,
               start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),
@@ -1042,6 +1046,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -1371,6 +1376,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -1471,6 +1477,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -1615,6 +1622,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -1737,6 +1745,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -2188,6 +2197,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -2449,6 +2459,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -2630,6 +2641,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -2824,6 +2836,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
           ),
@@ -3246,6 +3259,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -3598,6 +3612,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -3937,6 +3952,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -4127,6 +4143,7 @@ void main() {
       final created = WireFields(
         await author.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable engine universe',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -4484,6 +4501,7 @@ void main() {
         final created = WireFields(
           await author.execute(
             const CreateUniverseEngineRequest(
+              realWorld: false,
               name: 'Disposable engine universe',
               start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),
@@ -4678,6 +4696,7 @@ void main() {
         final created = WireFields(
           await author.execute(
             const CreateUniverseEngineRequest(
+              realWorld: false,
               name: 'Disposable engine universe',
               start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),
@@ -4826,6 +4845,7 @@ void main() {
       await expectLater(
         writer.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Denied',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

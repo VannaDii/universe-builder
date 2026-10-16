@@ -58,6 +58,7 @@ void main() {
       ) async {
         final result = await author.execute(
           CreateUniverseEngineRequest(
+            realWorld: false,
             name: name,
             start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

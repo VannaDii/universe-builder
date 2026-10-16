@@ -1384,7 +1384,7 @@ final class CreateUniverseEngineRequest extends EngineRequest {
   const CreateUniverseEngineRequest({
     required this.name,
     required this.start,
-    this.realWorld = false,
+    required this.realWorld,
   });
   final String name;
   final UniverseStart start;
@@ -1399,9 +1399,7 @@ final class CreateUniverseEngineRequest extends EngineRequest {
     return CreateUniverseEngineRequest(
       name: f.string('name'),
       start: UniverseStart.fromWire(f.require('start')),
-      realWorld: f.values.containsKey('real_world')
-          ? f.boolean('real_world')
-          : false,
+      realWorld: f.boolean('real_world'),
     );
   }
   @override
@@ -1409,7 +1407,7 @@ final class CreateUniverseEngineRequest extends EngineRequest {
     MapEntry('method', CanonicalString('create_universe')),
     MapEntry('name', CanonicalString(name)),
     MapEntry('start', start.toWire()),
-    if (realWorld) MapEntry('real_world', CanonicalBool(true)),
+    MapEntry('real_world', CanonicalBool(realWorld)),
   ]);
 }
 

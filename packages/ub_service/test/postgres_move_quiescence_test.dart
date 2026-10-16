@@ -55,6 +55,7 @@ void main() {
       ) async {
         final result = await author.execute(
           CreateUniverseEngineRequest(
+            realWorld: false,
             name: name,
             start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -286,6 +287,7 @@ void main() {
           final client = sourceRuntime.connect(sourceHello());
           final created = await client.execute(
             CreateUniverseEngineRequest(
+              realWorld: false,
               name: 'SQLite original',
               start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
             ),

@@ -60,6 +60,7 @@ void main() {
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'On device',
             start: GregorianUniverseStart('2042-01-01T00:00:00Z'),
           ),

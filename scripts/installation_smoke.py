@@ -36,7 +36,7 @@ def run(bin_dir):
                 statuses = list(pool.map(lambda _: admin('status'), range(6)))
             instance = statuses[0]['service_instance']
             assert all(s['service_instance'] == instance for s in statuses)
-            universe = admin('create', 'The Ashen Cycle', '--first-time', '0', '--calendar', 'Ashen days', '--tick-label', 'days')
+            universe = admin('create',"--scratch-policy", 'The Ashen Cycle', '--first-time', '0', '--calendar', 'Ashen days', '--tick-label', 'days')
             agent = admin('enroll')['profile_id']
             uid = universe['universe_id']
             client = MCP(bin_dir / 'universe-mcp', installation=root, profile=agent)

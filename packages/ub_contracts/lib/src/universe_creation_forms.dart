@@ -17,7 +17,7 @@ final class UniverseCreationForm {
     this.tickLabel = '',
     this.ticksPerMonth = '',
     this.creationPending = false,
-    this.realWorld = false,
+    this.realWorld = true,
   });
   final String name,
       date,

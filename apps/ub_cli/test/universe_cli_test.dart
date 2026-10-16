@@ -198,6 +198,7 @@ void main() {
       await run([
         'create',
         'CLI world',
+        '--scratch-policy',
         '--first-time=2040-03-15T12:30:00+02:00',
       ]),
       0,
@@ -313,6 +314,19 @@ void main() {
         '--first-time',
         '2040-01-01T00:00:00Z',
       ]) as CreateUniverseEngineRequest).realWorld,
+      isTrue,
+    );
+    expect(
+      (await parseAuthorCommand('create', [
+        'Fantasy',
+        '--first-time',
+        '0',
+        '--calendar',
+        'Era',
+        '--tick-label',
+        'days',
+        '--scratch-policy',
+      ]) as CreateUniverseEngineRequest).realWorld,
       isFalse,
     );
   });
@@ -335,6 +349,14 @@ void main() {
       ],
       ['status', 'extra'],
       ['create', 'World'],
+      [
+        'create',
+        'World',
+        '--first-time',
+        '0',
+        '--real-world',
+        '--scratch-policy',
+      ],
       [
         'create',
         'World',
@@ -428,7 +450,8 @@ void main() {
     final prefix = <String>[];
     if (packaged != null || binDirectory != null) {
       final bin =
-          binDirectory ?? '${Directory(packaged!).absolute.path}/Contents/MacOS';
+          binDirectory ??
+          '${Directory(packaged!).absolute.path}/Contents/MacOS';
       binary = '${Directory(bin).absolute.path}/multiverse-mcp';
       prefix.add('admin');
       expect(File(binary).existsSync(), isTrue);

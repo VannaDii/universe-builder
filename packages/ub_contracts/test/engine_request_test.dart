@@ -165,7 +165,20 @@ void main() {
       tickLabel: 'day',
       ticksPerMonth: 4294967295,
     );
-    final request = CreateUniverseEngineRequest(name: 'Campaign', start: start);
+    final request = CreateUniverseEngineRequest(
+      realWorld: false,
+      name: 'Campaign',
+      start: start,
+    );
+    expect(request.toWire().toText(), contains('"real_world":false'));
+    expect(
+      () => EngineRequest.fromWire(
+        CanonicalObject(
+          request.toWire().fields.where((entry) => entry.key != 'real_world'),
+        ),
+      ),
+      throwsFormatException,
+    );
     final back =
         (EngineRequest.fromWire(
               request.toWire(),

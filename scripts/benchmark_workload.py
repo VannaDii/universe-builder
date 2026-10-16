@@ -22,8 +22,8 @@ def run(bin_dir, batches):
         clients = []
         try:
             start = time.perf_counter(); admin('status'); cold_ms = (time.perf_counter()-start)*1000
-            alpha = admin('create', 'Workload', '--first-time', '0', '--calendar', 'Days', '--tick-label', 'days')
-            beta = admin('create', 'Independent', '--first-time', '0', '--calendar', 'Days', '--tick-label', 'days')
+            alpha = admin('create',"--scratch-policy", 'Workload', '--first-time', '0', '--calendar', 'Days', '--tick-label', 'days')
+            beta = admin('create',"--scratch-policy", 'Independent', '--first-time', '0', '--calendar', 'Days', '--tick-label', 'days')
             client = MCP(bin_dir/'universe-mcp', installation=root, profile=author); clients.append(client)
             other = MCP(bin_dir/'universe-mcp', installation=root, profile=author); clients.append(other)
             def context(c, name, u):

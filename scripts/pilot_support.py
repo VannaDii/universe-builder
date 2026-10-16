@@ -57,7 +57,7 @@ class PilotSession:
 
     def start(self):
         self.author = self.cli("init").stdout.strip()
-        self.u = self.admin("create", NAME, "--first-time", "10", "--calendar", "Archive days", "--tick-label", "days")
+        self.u = self.admin("create","--scratch-policy", NAME, "--first-time", "10", "--calendar", "Archive days", "--tick-label", "days")
         self.agent = self.admin("enroll")["profile_id"]
         self.admin("grant", self.agent, self.u["universe_id"], "--propose", "--edit", "--protected")
         self.connect()

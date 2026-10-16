@@ -5,41 +5,54 @@ import 'package:ub_contracts/ub_contracts.dart'
     show EngineRequest, CreateUniverseEngineRequest;
 
 void main() {
-  test('Real World creation remains an explicit recovered request choice', () {
-    const form = UniverseCreationForm(
-      name: 'Memoir',
-      calendar: CreationCalendar.gregorian,
-      date: '2040-01-01',
-      time: '00:00:00',
-      offset: 'Z',
-      realWorld: true,
-    );
-    final recovered = UniverseCreationForm.fromWire(
-      form.withPending(true).toWire(),
-    );
-    expect(recovered.realWorld, isTrue);
-    expect(recovered.request, throwsFormatException);
-    final request = recovered.withPending(false).request();
-    expect(
-      (EngineRequest.fromWire(
-        request.toWire(),
-      ) as CreateUniverseEngineRequest).realWorld,
-      isTrue,
-    );
-    expect(
-      () => EngineRequest.fromWire(
-        CanonicalObject(
-          request.toWire().fields.map(
-            (e) => MapEntry(
-              e.key,
-              e.key == 'real_world' ? CanonicalString('true') : e.value,
+  test(
+    'Real World is the creation default and remains explicit after recovery',
+    () {
+      const form = UniverseCreationForm(
+        name: 'Memoir',
+        calendar: CreationCalendar.gregorian,
+        date: '2040-01-01',
+        time: '00:00:00',
+        offset: 'Z',
+      );
+      final recovered = UniverseCreationForm.fromWire(
+        form.withPending(true).toWire(),
+      );
+      expect(recovered.realWorld, isTrue);
+      final scratch = UniverseCreationForm.fromWire(
+        const UniverseCreationForm(
+          name: 'Fantasy',
+          realWorld: false,
+          calendar: CreationCalendar.gregorian,
+          date: '2040-01-01',
+          time: '00:00:00',
+          offset: 'Z',
+        ).toWire(),
+      );
+      expect(scratch.request().realWorld, isFalse);
+      expect(recovered.request, throwsFormatException);
+      final request = recovered.withPending(false).request();
+      expect(
+        (EngineRequest.fromWire(
+          request.toWire(),
+        ) as CreateUniverseEngineRequest).realWorld,
+        isTrue,
+      );
+      expect(
+        () => EngineRequest.fromWire(
+          CanonicalObject(
+            request.toWire().fields.map(
+              (e) => MapEntry(
+                e.key,
+                e.key == 'real_world' ? CanonicalString('true') : e.value,
+              ),
             ),
           ),
         ),
-      ),
-      throwsFormatException,
-    );
-  });
+        throwsFormatException,
+      );
+    },
+  );
   test('recovered creation attempt cannot become another request before a library check', () {
     const form = UniverseCreationForm(
       name: 'History',

@@ -14,7 +14,7 @@ const _usage = '''Usage: universe --installation <path> [--profile <id>] <comman
 
 init | status | doctor | enroll | shutdown | browser-session
 configure sqlite | configure postgres [--allow-loopback-postgres-development]
-create <name> --first-time <value> [--real-world] [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
+create <name> --first-time <value> [--real-world | --scratch-policy] [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
 register <path> <name> | rename <universe-id> <name> | revoke <profile-id>
 grant <profile-id> <universe-id> [--world <id>]... [--propose] [--edit] [--protected]
 tool <file> | library <universe>
@@ -33,6 +33,8 @@ accept-move <operation-id> <preview-id> <digest> --target-installation <path> --
 configure tests an existing backend and saves protected local settings while the
 engine is stopped. PostgreSQL reads its connection URI from stdin, never arguments.
 It neither transfers data nor restarts the engine; environment overrides still win.
+New universes default to a Real World root clone; --scratch-policy explicitly
+creates an empty root. --real-world and --scratch-policy are mutually exclusive.
 Every service command requires --profile except init and configure.
 Review and approval use exact proposal versions; publication remains separate.''';
 
@@ -330,7 +332,7 @@ Future<EngineRequest> parseAuthorCommand(
     _ => <String>{},
   };
   final flags = switch (command) {
-    'create' => {'real-world'},
+    'create' => {'real-world', 'scratch-policy'},
     'grant' => {'propose', 'edit', 'protected'},
     'export' => {'complete-history'},
     'maintain' => {'collect'},
@@ -381,6 +383,9 @@ Future<EngineRequest> parseAuthorCommand(
       return const ShutdownEngineRequest();
     case 'create':
       args.count(1);
+      if (args.has('real-world') && args.has('scratch-policy')) {
+        throw const _UsageError();
+      }
       final time = args.requiredValue('first-time');
       final calendar = args.value('calendar') ?? 'gregorian';
       final UniverseStart start;
@@ -403,7 +408,7 @@ Future<EngineRequest> parseAuthorCommand(
       return CreateUniverseEngineRequest(
         name: args.positional[0],
         start: start,
-        realWorld: args.has('real-world'),
+        realWorld: !args.has('scratch-policy'),
       );
     case 'register':
       args.count(2);

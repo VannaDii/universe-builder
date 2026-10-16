@@ -49,6 +49,7 @@ void main() {
       Future<UniverseId> unregistered(NativePostgresConnection author) async {
         final created = await author.execute(
           CreateUniverseEngineRequest(
+            realWorld: false,
             name: OperationId.generate().value,
             start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

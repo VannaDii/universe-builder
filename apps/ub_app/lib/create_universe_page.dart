@@ -26,7 +26,7 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
       _tickLabel = TextEditingController(),
       _month = TextEditingController();
   CreationCalendar _calendar = CreationCalendar.gregorian;
-  bool _realWorld = false;
+  bool _realWorld = true;
   bool _busy = false,
       _uncertain = false,
       _loading = true,
@@ -325,9 +325,13 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
               Wrap(
                 spacing: 12,
                 children: [
-                  for (final realWorld in [false, true])
+                  for (final realWorld in [true, false])
                     ChoiceChip(
-                      label: Text(realWorld ? 'Clone Real World policy' : 'Start from scratch'),
+                      label: Text(
+                        realWorld
+                            ? 'Clone Real World policy'
+                            : 'Start from scratch',
+                      ),
                       selected: _realWorld == realWorld,
                       onSelected: !_loaded || _busy || _uncertain
                           ? null

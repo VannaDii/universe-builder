@@ -227,6 +227,7 @@ void main() {
       expect(native.welcome.principal, author);
       final created = await native.call(
         CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'HTTP universe',
           start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),
@@ -238,6 +239,7 @@ void main() {
         await call(
           writer,
           CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Denied',
             start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

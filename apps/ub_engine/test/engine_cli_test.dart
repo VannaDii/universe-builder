@@ -180,6 +180,7 @@ void main() {
       );
       await remote.call(
         const CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Shared hosted universe',
           start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),

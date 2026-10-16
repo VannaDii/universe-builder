@@ -103,6 +103,7 @@ void main() {
       clients.add(native);
       final created = await native.call(
         const CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Hosted campaign',
           start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),
@@ -159,6 +160,7 @@ void main() {
       await expectLater(
         contributor.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Unapproved',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

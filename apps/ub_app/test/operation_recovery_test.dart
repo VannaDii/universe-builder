@@ -142,6 +142,7 @@ void main() {
       final created = WireFields(
         await connection.execute(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Operations',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),

@@ -27,6 +27,7 @@ void main() {
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Café campaign',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -35,6 +36,7 @@ void main() {
       );
       await session.call(
         const CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Reserved',
           start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),

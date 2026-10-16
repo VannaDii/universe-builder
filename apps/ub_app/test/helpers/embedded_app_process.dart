@@ -28,6 +28,7 @@ Future<void> main(List<String> arguments) async {
     );
     final created = await session.call(
       const CreateUniverseEngineRequest(
+        realWorld: false,
         name: 'Mobile interruption',
         start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
       ),

@@ -23,6 +23,7 @@ void main() {
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Disposable 記憶 😀',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
@@ -31,6 +32,7 @@ void main() {
       );
       await session.call(
         const CreateUniverseEngineRequest(
+          realWorld: false,
           name: 'Retained universe',
           start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),

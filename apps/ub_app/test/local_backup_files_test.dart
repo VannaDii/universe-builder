@@ -49,6 +49,7 @@ void main() {
       final created = WireFields(
         await source.call(
           const CreateUniverseEngineRequest(
+            realWorld: false,
             name: 'Campaign',
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
