@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'helpers/universe_creation.dart' as creation;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -226,6 +228,7 @@ void main() {
               PrincipalId.generate(),
             );
             package.database.execute('COMMIT');
+            creation.addFixtureRoot(package);
           } finally {
             package.close();
           }

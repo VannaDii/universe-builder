@@ -15,7 +15,7 @@ void main() {
   for (final (index, raw) in cases.items.indexed) {
     final f = {for (final e in (raw as CanonicalObject).fields) e.key: e.value};
     final type = (f['type']! as CanonicalString).value;
-    test('owning Rust private command $index:$type', () {
+    test('private command contract $index:$type', () {
       final input = CanonicalValue.parseWireJson(
         (f['input_raw']! as CanonicalString).value,
       );

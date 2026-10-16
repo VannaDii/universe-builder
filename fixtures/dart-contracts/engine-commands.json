@@ -126,8 +126,8 @@
   },
   {
     "type": "EngineRequest",
-    "input_raw": "{\"method\":\"create_universe\",\"name\":\"Authored name\",\"start\":{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295}}",
-    "expected_wire": "{\"method\":\"create_universe\",\"name\":\"Authored name\",\"start\":{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295}}"
+    "input_raw": "{\"method\":\"create_universe\",\"name\":\"Authored name\",\"start\":{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295},\"real_world\":false}",
+    "expected_wire": "{\"method\":\"create_universe\",\"name\":\"Authored name\",\"start\":{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295},\"real_world\":false}"
   },
   {
     "type": "EngineRequest",
@@ -166,8 +166,8 @@
   },
   {
     "type": "EngineRequest",
-    "input_raw": "{\"method\":\"create_universe\",\"name\":\"Real-world account\",\"start\":{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"}}",
-    "expected_wire": "{\"method\":\"create_universe\",\"name\":\"Real-world account\",\"start\":{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"}}"
+    "input_raw": "{\"method\":\"create_universe\",\"name\":\"Real-world account\",\"start\":{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"},\"real_world\":true}",
+    "expected_wire": "{\"method\":\"create_universe\",\"name\":\"Real-world account\",\"start\":{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"},\"real_world\":true}"
   },
   {
     "type": "UniverseStart",

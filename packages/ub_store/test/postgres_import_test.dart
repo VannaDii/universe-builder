@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/postgres_installation.dart';
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/sqlite.dart' as local;
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
@@ -48,6 +49,53 @@ void main() {
         final journal = local.SqliteJournal(source.database, universe);
         final principal = PrincipalId.generate();
         genesis = journal.initialize('Transfer é😀', continuity, principal);
+        source.database.execute('COMMIT');
+        final definitionId = RecordId.generate();
+        final selectionId = RecordId.generate();
+        final definitionKey = '${universePolicyDefinitionPrefix}custom';
+        final roots = [
+          DomainPackRecord(
+            key: definitionKey,
+            version: '1',
+            dependencies: {},
+            capabilities: [],
+            records: [],
+          ),
+          DomainPackRecord(
+            key: universePolicySelectionKey,
+            version: '1',
+            dependencies: {definitionKey: '1'},
+            capabilities: [],
+            records: [definitionId],
+          ),
+        ];
+        genesis = local.SqliteKernel(source.database, universe).commit(
+          CommitInput(
+            universe: universe,
+            continuity: continuity,
+            expectedHead: genesis,
+            principal: principal,
+            decision: 'Define scratch root',
+            reason: 'Current-format archive fixture',
+            idempotencyKey: 'fixture-root',
+            changes: [
+              for (var i = 0; i < roots.length; i++)
+                Assignment(
+                  recordId: i == 0 ? definitionId : selectionId,
+                  next: StoredVersion.build(
+                    RecordVersionId.generate(),
+                    RecordIdentity(
+                      universeId: universe,
+                      recordId: i == 0 ? definitionId : selectionId,
+                      recordKind: RecordKind.domainPack,
+                    ),
+                    roots[i].toWire(),
+                  ),
+                ),
+            ],
+          ),
+        );
+        source.database.execute('BEGIN IMMEDIATE');
         branchHead = journal.branch(branch, continuity, genesis, principal);
         local.WorkflowStorage(source.database).put(cursor, evidence);
         source.database.execute('COMMIT');

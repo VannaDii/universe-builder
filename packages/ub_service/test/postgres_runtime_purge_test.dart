@@ -135,7 +135,7 @@ void main() {
         expect(wireString(impact['universe_id']!), universe.value);
         expect((impact['heads'] as CanonicalArray).items, hasLength(1));
         expect(impact['revisions']!.toText(), '2');
-        expect(impact['record_versions']!.toText(), '2');
+        expect(impact['record_versions']!.toText(), '4');
         expect(
           (await preview(author, 'Campaign é😀')).toText(),
           reviewed.toText(),

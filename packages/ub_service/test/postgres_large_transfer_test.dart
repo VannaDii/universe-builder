@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'helpers/universe_creation.dart' as creation;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -62,7 +64,7 @@ void main() {
         source = local.OwnedSqliteDatabase.create('${root.path}/source.sqlite');
         final kernel = local.SqliteKernel(source.database, universe);
         source.database.execute('BEGIN IMMEDIATE');
-        final genesis = kernel.journal.initialize(
+        kernel.journal.initialize(
           'Large source universe',
           continuity,
           principal,
@@ -76,6 +78,8 @@ void main() {
           workflow.put('source:$digest', CanonicalString(content));
         }
         source.database.execute('COMMIT');
+        creation.addFixtureRoot(source);
+        final genesis = kernel.journal.head(continuity);
         final record = RecordId.generate();
         StoredVersion version(String label) => StoredVersion.build(
           RecordVersionId.generate(),

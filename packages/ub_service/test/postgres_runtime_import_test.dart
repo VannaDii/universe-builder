@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'helpers/universe_creation.dart' as creation;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -94,6 +96,7 @@ void main() {
             );
           }
           package.database.execute('COMMIT');
+          creation.addFixtureRoot(package);
           if (canonOnly) {
             package.exportLogical(path);
           } else {

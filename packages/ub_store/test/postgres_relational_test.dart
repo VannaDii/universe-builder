@@ -96,7 +96,7 @@ void main() {
               'SELECT count(*) FROM pg_tables WHERE schemaname=\$1',
               parameters: [schema.substring(1, schema.length - 1)],
             )).single.single,
-            906,
+            905,
           );
           final interrupted = UniverseId.generate();
           final namespace = postgresUniverseSchema(interrupted);

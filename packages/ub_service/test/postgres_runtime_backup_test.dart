@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'helpers/universe_creation.dart' as creation;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -93,6 +95,9 @@ void main() {
           );
           workflow.put('source:$sourceDigest', CanonicalString(sourceText));
           source.database.execute('COMMIT');
+          creation.addFixtureRoot(source);
+          genesis = journal.head(continuity);
+          branchHead = journal.head(branch);
           source.backup(backup);
         } finally {
           source.close();
