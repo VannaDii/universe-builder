@@ -106,10 +106,11 @@ Future<void> _runEmbedded((String, SendPort) input) async {
     server = await LocalSqliteEngineServer.start(
       root,
       compatibilitySocket: false,
+      shutdownWhenIdle: false,
     );
     events.send(('ready', server.httpEndpoint.toString(), stop.sendPort));
-    // A graceful close drains admitted work. Idle/transport shutdown uses
-    // the same existing server lifecycle; suspension does not publish work.
+    // A graceful close drains admitted work. The app owns this worker until
+    // close; desktop idle shutdown must not invalidate its retained connection.
     await Future.any([stop.first, server.done]);
     await server.close();
   } on Object {

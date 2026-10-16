@@ -40,7 +40,7 @@ final class LocalSqliteEngineServer {
   final LoopbackEngineServer _http;
   final LoopbackEngineServer? _https;
   StreamSubscription<Socket>? _subscription;
-  late final Timer _idle;
+  Timer? _idle;
   final _clients = <Socket, Future<void>>{};
   final _done = Completer<void>();
   DateTime _lastActive = DateTime.now();
@@ -54,6 +54,7 @@ final class LocalSqliteEngineServer {
   static Future<LocalSqliteEngineServer> start(
     String root, {
     bool compatibilitySocket = true,
+    bool shutdownWhenIdle = true,
     DateTime Function()? httpNow,
     String? webAssets,
     Uri? httpsOrigin,
@@ -117,17 +118,19 @@ final class LocalSqliteEngineServer {
         server._accept,
         onError: (Object _) => server.close().ignore(),
       );
-      server._idle = Timer.periodic(const Duration(seconds: 60), (_) {
-        if (server._https == null &&
-            server._clients.isEmpty &&
-            server._http.isIdle &&
-            DateTime.now().difference(server._http.lastActive) >=
-                const Duration(minutes: 15) &&
-            DateTime.now().difference(server._lastActive) >=
-                const Duration(minutes: 15)) {
-          server.close().ignore();
-        }
-      });
+      if (shutdownWhenIdle) {
+        server._idle = Timer.periodic(const Duration(seconds: 60), (_) {
+          if (server._https == null &&
+              server._clients.isEmpty &&
+              server._http.isIdle &&
+              DateTime.now().difference(server._http.lastActive) >=
+                  const Duration(minutes: 15) &&
+              DateTime.now().difference(server._lastActive) >=
+                  const Duration(minutes: 15)) {
+            server.close().ignore();
+          }
+        });
+      }
       return server;
     } on Object {
       try {
@@ -253,7 +256,7 @@ final class LocalSqliteEngineServer {
   Future<void> close() => _shutdown ??= _close();
   Future<void> _close() async {
     _stopping = true;
-    _idle.cancel();
+    _idle?.cancel();
     try {
       try {
         await _subscription?.cancel();
