@@ -57,8 +57,7 @@ An event's optional `basis` names its source; the declared action supplies its
 context and realm. Verified generated effects can use that source, while a
 required effect review must still identify the exact effect claim. Plans and
 reports retain their existing occurrence distinctions. Arbitrary derived
-evidence and world-level policy overrides remain unfinished. The Rust engine still rejects
-all `requiredEvidence` declarations explicitly.
+evidence and world-level policy overrides remain unfinished.
 
 The exception editor offers **Fictional departure** for deliberate fiction in an
 exact rule, context, world and time scope. It retains the existing authorizing
@@ -67,7 +66,7 @@ publication under an evidence policy while the check still reports missing or
 unresolved factual support, identifies the departure, and retains its exact
 dependencies. Other worlds and uncovered scopes remain strict. Unsupported checks
 and `always_block` expressions still block. Ordinary exceptions keep their prior
-behavior; the Rust engine explicitly rejects marked fictional departures.
+behavior.
 
 Changes shows readable policy and affected-fact names alongside each check's
 outcome, coverage and message. Evidence policies also show their scope, optional
@@ -807,7 +806,6 @@ multilingual labels, parent selection and explicit root/resolved/ambiguous paren
 resolution, applicability and executable classification remain editable through
 `revise_definition`. Reopening does not infer parent resolution or replace labels.
 Pending revisions can be edited in Changes; reviewed publication retains history.
-Existing unfinished type forms upgrade locally without completing missing choices.
 
 A published unit definition’s dossier offers **Revise unit definition**. Its
 recoverable form retains identity, expected version, namespace and key while
@@ -1131,8 +1129,7 @@ the operation reference, aliases, other languages, metadata and rationale.
 Unfinished edits autosave in separate typed recovery slots for each world
 operation, leaving the completed draft intact. Reopening retains the draft
 generation; edits from an older draft remain visible but require review before
-replacing pending fields with the current saved world. Existing unfinished
-new-world fields are retained when the recovery schema is upgraded. Draft changes
+replacing pending fields with the current saved world. Draft changes
 use expected generations; **Undo draft change** and **Redo draft change** save
 the selected prior content without changing canon. Undo/redo history stays within
 the current Changes page and resets on reload. **Continue editing separately**

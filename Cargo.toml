@@ -8,9 +8,6 @@ members = [
     "crates/universe-service",
     "crates/universe-protocol",
     "crates/universe-client",
-    "crates/universe-mcp",
-    "crates/universe-cli",
-    "crates/universe-engine",
 ]
 
 [workspace.package]
@@ -44,20 +41,12 @@ chrono = { version = "=0.4.42", default-features = false, features = ["clock"] }
 unicode-casefold = "=0.2.0"
 unicode-normalization = { version = "=0.1.22" }
 tracing = { version = "=0.1.41" }
-tracing-subscriber = { version = "=0.3.20", features = ["env-filter", "fmt"] }
 anyhow = { version = "=1.0.100" }
 tokio = { version = "=1.48.0", features = ["full"] }
 tokio-util = { version = "=0.7.16", features = ["io", "codec", "rt"] }
 futures = { version = "=0.3.31" }
 rusqlite = { version = "=0.40.2", features = ["bundled", "functions"] }
 schemars = { version = "=1.2.1", features = ["derive"] }
-rmcp = { version = "=3.4.0", features = [
-    "server",
-    "macros",
-    "schemars",
-    "transport-io",
-] }
-clap = { version = "=4.5.51", features = ["derive"] }
 
 [profile.release]
 lto = "thin"
