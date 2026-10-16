@@ -31,10 +31,12 @@ CandidateValidationResult check(
   Frame? frame,
   WriteFootprint? footprint,
   bool authorOrigin = true,
+  bool requireRootPolicy = false,
   ProfileId? approvalAuthor,
   void Function()? cancelled,
 }) => evaluateCandidate(
   candidate: rows,
+  requireRootPolicy: requireRootPolicy,
   base: base ?? rows,
   changes: changes,
   frame: frame ?? f.frame(),

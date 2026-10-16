@@ -49,6 +49,7 @@ final class PreparedValidationTask {
       );
     }
     final result = evaluateCandidate(
+      requireRootPolicy: true,
       candidate: candidate,
       base: base,
       changes: proposal.changes,

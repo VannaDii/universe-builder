@@ -238,6 +238,10 @@ class _ChangesPageState extends State<ChangesPage> {
           _findingRecords = findingRecords;
         });
       }
+    } on InvalidArgumentError catch (error) {
+      if (mounted) {
+        setState(() => _error = error.message);
+      }
     } on Object {
       if (mounted) {
         setState(() {

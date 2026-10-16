@@ -151,8 +151,16 @@ rules in pages, and open the existing rule editor. Unfinished policy input uses
 the existing pack recovery store with explicit policy fields and a separate editor
 slot; older native pack input upgrades without changing its entered values.
 Editing the selected definition updates the root's exact dependency in the same
-compiled proposal. Explicit adoption enforcement across older-universe import
-and conversion remains implementation work.
+compiled proposal. Import, restore, registration and conversion preserve existing
+heads and historical records. Continuity discovery reports `root_policy_defined`
+when unrestricted access can establish it; the library offers **Finish policy
+setup** for a missing root. Synchronous and queued publication validation requires
+the root in the candidate. An author adopts it through the existing Changes flow,
+creating a new revision while earlier snapshots keep their exact records. A
+missing or scoped-out discovery field does not establish policy readiness.
+An empty legacy archive has no represented context with which to open a Changes
+frame. Reusing creation as an explicit initialization action for that case is a
+pending design decision; do not silently create a context or root during import.
 
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 
@@ -161,8 +169,9 @@ visible universe-wide and matching world-specific requirements, identifies their
 origin, and retains unresolved applicability as unresolved. Reads paginate at one
 exact opened revision and show incomplete delivery explicitly. Each policy opens
 its normal published detail/revision flow. This display does not weaken overlapping
-policies or implement root definition, cloning, switching or world-deviation
-controls. Those flows must use the root/default/deviation design above.
+policies. Root definition, cloning, switching and rule editing use the separate
+Universe policies flow; world deviations continue to use explicit scoped
+exceptions and fictional departures.
 
 ### 4.2 Evidence flow
 
@@ -297,8 +306,8 @@ author approval cannot discharge these duties.
 Policies may cover assertions and occurrences together or select named predicates
 for assertions/effects. Arbitrary derivation chains remain explicitly unsupported.
 The Rust engine still rejects all required-evidence declarations. Delivery still
-requires root definition/cloning/switching, existing-universe adoption, world
-deviation controls and the remaining platform workflows specified above.
+requires completion of the remaining authoring and platform workflows specified
+above; a passing source check alone does not establish complete migration.
 
 ### 4.7 Explicit scoped fictional departures
 

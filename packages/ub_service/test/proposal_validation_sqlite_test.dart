@@ -15,6 +15,7 @@ import 'package:ub_store/src/kernel.dart';
 import 'package:ub_store/src/workflow_storage.dart';
 
 import 'candidate_validation_test.dart' as policies;
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
 import 'rule_checks_test.dart' as frames;
@@ -64,7 +65,7 @@ void main() {
               Assignment(recordId: row.identity.recordId, next: stored(row)),
         ),
       );
-      final first = kernel.commit(fixtureInput('context', genesis, [context]));
+      final first = kernel.commit(fixtureInput('context', genesis, [context, ...initialUniversePolicyRecords(f.u, false)]));
       Frame frame(RevisionId head) => Frame(
         universe: f.u,
         continuity: continuity,

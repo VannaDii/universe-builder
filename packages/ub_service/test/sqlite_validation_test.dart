@@ -22,6 +22,7 @@ import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
 
 import 'operation_compilation_test.dart' as f;
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'proposal_state_test.dart' as proposals;
 import 'proposal_authorization_test.dart' as permissions;
 import 'rule_checks_test.dart' as frames;
@@ -108,7 +109,8 @@ void main() {
       PrincipalId.generate(),
     );
     package.database.execute('COMMIT');
-    kernel.commit(input('context', [structure.context(99)]));
+    kernel.commit(input('context', [structure.context(99),
+      ...initialUniversePolicyRecords(f.u, false)]));
     package.close();
     authority.registerUniverse(author, name: 'World', path: path);
     authority.grant(author, grant());
@@ -3108,13 +3110,16 @@ void main() {
     final rows = [for (var n = 20; n < 24; n++) f.row(n, f.entity())];
     kernel.commit(input('brief-records', rows));
     final opened = await service.openContext(contextRequest());
-    final budget =
+    final selected = UniversePolicySelection.fromRecords(f.u,
+        canon(continuity, kernel.journal.head(continuity)));
+    final ordered = [selected.selection, selected.definition, ...rows];
+    final budget = ordered.map((row) =>
         ContextBrief(
-          records: [rows.first],
-          requiredDependencies: [],
+          records: [row],
+          requiredDependencies: [row.identity.recordId],
           coverage: Coverage.partial,
         ).toWire().toBytes().length +
-        30;
+        30).reduce((a, b) => a > b ? a : b);
     GetContextRequest request({String? cursor, String purpose = 'Research'}) =>
         GetContextRequest(
           universe: const Selector('World'),
@@ -3156,7 +3161,7 @@ void main() {
     }
     expect(
       collected.map((r) => r.identity.recordId),
-      rows.map((r) => r.identity.recordId),
+      ordered.map((r) => r.identity.recordId),
     );
     final full = await service.getContextRequest(
       GetContextRequest(
@@ -3967,7 +3972,8 @@ void main() {
       isValidationActive: (_) => false,
     ))!;
     expect(task.operationId, queuedStatus.operationId);
-    expect(task.base.map((r) => r.identity.recordId), [f.id(99)]);
+    expect(task.base.map((r) => r.recordVersionId),
+      canon(continuity, head).map((r) => r.recordVersionId));
     expect(task.candidate.map((r) => r.identity.recordId), contains(f.id(10)));
     expect(task.capture!.authoritySequence, checked.capture!.authoritySequence);
     final result = task.evaluate();

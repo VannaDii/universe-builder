@@ -17,8 +17,14 @@ historical snapshots retain their original bytes. Open **Universe policies** in
 a continuity to define replacements, inspect their rules, or add a root selection
 to Changes. Unfinished policy names and choices recover separately from ordinary
 pack declarations on native and web clients. Editing the selected definition
-updates its root dependency in the same reviewed proposal. Enforcing explicit
-root adoption throughout older-universe import and conversion remains pending. See
+updates its root dependency in the same reviewed proposal. Imported, restored or
+converted older continuities retain their original heads and records. For a
+continuity with a represented context and no root, the library shows **Finish
+policy setup**. Empty archives without a represented context remain read-only.
+Historical research stays
+available, but synchronous and queued publication checks require an explicitly
+defined and selected root in the candidate. Existing checks from an older
+evaluator need fresh validation before publication. See
 [the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
 Real World starts with no qualifying sources selected. The author chooses source
 membership explicitly; interpretation review is required only where a scoped

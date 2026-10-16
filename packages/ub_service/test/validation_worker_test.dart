@@ -8,11 +8,12 @@ import 'package:ub_service/validation_task.dart';
 import 'package:ub_service/validation_worker.dart';
 
 import 'proposal_state_test.dart' as proposals;
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'operation_compilation_test.dart' as f;
 import 'structural_checks_test.dart' as structure;
 
 PreparedValidationTask task() {
-  final base = [structure.context(99)];
+  final base = [structure.context(99), ...initialUniversePolicyRecords(f.u, false)];
   return PreparedValidationTask(
     operationId: OperationId.generate(),
     proposal: proposals.prepare(base: base),

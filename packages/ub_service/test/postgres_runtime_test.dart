@@ -313,6 +313,82 @@ void main() {
             prior.definition.recordVersionId);
       });
 
+      test('rootless archive import requires reviewed policy adoption on PostgreSQL', () async {
+        final directory = Directory('/tmp').createTempSync('ub-pg-policy-adoption-');
+        try {
+          final context = f.row(99, RepresentedContextRecord(universe: f.u,
+            kind: const ObjectiveContext(), labels: {'en': 'Legacy reality'}));
+          final continuity = ContinuityId.generate();
+          final archive = '${directory.path}/legacy.sqlite';
+          final source = local.OwnedSqliteDatabase.create('${directory.path}/source/package.sqlite');
+          try {
+            final kernel = local.SqliteKernel(source.database, f.u);
+            source.database.execute('BEGIN IMMEDIATE');
+            kernel.journal.initialize('Legacy policy', continuity, PrincipalId.generate());
+            source.database.execute('COMMIT');
+            kernel.commit(CommitInput(universe: f.u, continuity: continuity,
+              expectedHead: kernel.journal.head(continuity), principal: PrincipalId.generate(),
+              decision: 'Admitted legacy context', reason: 'Legacy fixture',
+              idempotencyKey: 'legacy-context', changes: [Assignment(
+                recordId: context.identity.recordId, next: StoredVersion.build(
+                  context.recordVersionId, context.identity, context.payload.toWire()))]));
+            source.exportCompleteHistory(archive);
+          } finally {
+            source.close();
+          }
+          final author = await runtime.connect(hello(authorId));
+          const name = Selector('Legacy policy');
+          final review = Map.fromEntries((await author.execute(PreviewImportEngineRequest(
+            source: archive, name: name.value, mode: ImportMode.restore)) as CanonicalObject).fields);
+          universes.add(f.u);
+          await author.execute(AcceptImportEngineRequest(
+            previewId: OperationId.parse(wireString(review['preview_id']!)),
+            digest: wireString(review['digest']!)));
+          final before = await tool(author, OpenContextRequest(universe: name,
+            continuityId: continuity, revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(context.identity.recordId),
+            temporalQuery: const TimelessFrameTime(), temporalSystems: [],
+            perspective: const AuthorPerspective()), OpenedContext.fromWire);
+          expect((await tool(author, DescribeSummaryRequest(universe: name),
+            Description.fromWire)).continuities.single.rootPolicyDefined, isFalse);
+          final blocked = await tool(author, CreateProposalRequest(universe: name,
+            contextId: before.contextId, operations: [CreateEntityOperation(
+              clientRef: RecordId.generate().value, record: f.entity())],
+            submission: Submission.submitted, rationale: 'Needs explicit policy.',
+            idempotencyKey: 'without-root'), Proposal.fromWire);
+          ProposalRef ref(Proposal p) => ProposalRef(proposalId: p.proposalId,
+            version: p.version, digest: p.digest);
+          await expectLater(tool(author, ProposalValidationRequest(universe: name,
+            contextId: before.contextId, proposalReference: ref(blocked),
+            checkScope: CheckScope.candidate), ValidationV3.fromWire),
+            throwsA(isA<InvalidArgumentError>().having((e) => e.message,
+              'root requirement', contains('root policy'))));
+          final adopted = await tool(author, CreateProposalRequest(universe: name,
+            contextId: before.contextId, operations: [DefineUniversePolicyOperation(
+              clientRef: RecordId.generate().value, key: 'Adopted root',
+              realWorld: false, activate: true)], submission: Submission.submitted,
+            rationale: 'Define a root while retaining legacy history.',
+            idempotencyKey: 'adopt-root'), Proposal.fromWire);
+          final validation = await tool(author, ProposalValidationRequest(universe: name,
+            contextId: before.contextId, proposalReference: ref(adopted),
+            checkScope: CheckScope.candidate), ValidationV3.fromWire) as EvaluatedValidation;
+          await author.execute(ApproveEngineRequest(universe: name,
+            proposalReference: ref(adopted), validationRun: validation.execution.runId));
+          await tool(author, CommitRequest(universe: name,
+            proposalReference: ref(adopted), expectedBaseRevision: before.frame.revision,
+            validationRun: validation.execution.runId,
+            idempotencyKey: 'publish-root'), CommitReceipt.fromWire);
+          expect((await tool(author, DescribeSummaryRequest(universe: name),
+            Description.fromWire)).continuities.single.rootPolicyDefined, isTrue);
+          final retained = await tool(author, GetRequest(universe: name,
+            contextId: before.contextId, recordIds: [context.identity.recordId],
+            fieldGroups: [FieldGroup.payload]), Records.fromWire);
+          expect(retained.records.single.toWire().toText(), context.toWire().toText());
+        } finally {
+          directory.deleteSync(recursive: true);
+        }
+      });
+
       test('local PostgreSQL server owns discovery and drains on author shutdown without SQLite fallback', () async {
       await runtime.close();
       await store.close();

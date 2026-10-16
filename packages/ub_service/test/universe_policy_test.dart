@@ -61,6 +61,20 @@ RecordVersion selectPolicy(RecordVersion selection, RecordVersion definition) {
 
 void main() {
   final universe = candidate.fixture().first.identity.universeId;
+  test('legacy analysis stays readable but publication requires explicit root adoption', () {
+    final legacy = candidate.fixture();
+    expect(candidate.check(legacy).admissible, isTrue);
+    expect(() => candidate.check(legacy, requireRootPolicy: true),
+      throwsA(isA<protocol.InvalidArgumentError>()));
+    final changes = operations.compile(legacy, [DefineUniversePolicyOperation(
+      clientRef: RecordId.generate().value, key: 'Adopted policy',
+      realWorld: false, activate: true)]);
+    final adopted = [...legacy, ...changes.map(operations.decode)];
+    expect(candidate.check(adopted, base: legacy, changes: changes,
+      requireRootPolicy: true).admissible, isTrue);
+    expect(adopted.take(legacy.length).map((r) => r.toWire().toText()),
+      legacy.map((r) => r.toWire().toText()));
+  });
   for (final realWorld in [false, true]) {
     test(
       'creation defines and selects ${realWorld ? 'Real World' : 'scratch'} root',

@@ -35,6 +35,18 @@ Description discoveryDescription({
   capabilities: serviceCapabilities(),
 );
 
+bool? _rootPolicyDefined(List<RecordVersion> records) {
+  if (!records.any(isUniversePolicyRecord)) {
+    return false;
+  }
+  try {
+    UniversePolicySelection.fromRecords(records.first.identity.universeId, records);
+    return true;
+  } on FormatException {
+    return null;
+  }
+}
+
 /// A continuity with no accessible represented context is not discoverable.
 ContinuitySummary? discoveryContinuity({
   required ContinuityId id,
@@ -60,6 +72,9 @@ ContinuitySummary? discoveryContinuity({
     revisionId: revision,
     name: name,
     representedContexts: contexts,
+    rootPolicyDefined: worldScope == null
+        ? _rootPolicyDefined(records)
+        : null,
   );
 }
 

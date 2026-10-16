@@ -268,7 +268,7 @@ class _PackageImportPageState extends State<PackageImportPage> {
               padding: const EdgeInsets.all(24),
               children: [
                 const Text(
-                  'Choose a Universe Builder relational archive. Review its contents before admitting it into this instance.',
+                  'Choose a Universe Builder relational archive. Review its contents before admitting it into this instance. Older continuities without a root policy require explicit policy setup before publication; their historical records stay unchanged.',
                 ),
                 if (disabled) const LinearProgressIndicator(),
                 if (_busy &&
