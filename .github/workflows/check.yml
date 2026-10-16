@@ -78,7 +78,9 @@ jobs:
           dart test test/distribution_test.dart test/mcp_config_test.dart
         working-directory: apps/ub_cli
       - name: Assemble standalone Linux helpers
-        run: dart run apps/ub_cli/tool/package_headless.dart --output target/headless/linux
+        run: |
+          umask 077
+          dart run apps/ub_cli/tool/package_headless.dart --output target/headless/linux
       - name: Exercise standalone Linux CLI and engine
         working-directory: apps/ub_cli
         env:
@@ -96,9 +98,11 @@ jobs:
       - name: Build headless runtime image
         run: |
           docker build --file packaging/Dockerfile.headless --tag universe-builder-mcp-headless:ci target/headless/linux
-          docker run --rm --name universe-builder-mcp-container-ci universe-builder-mcp-headless:ci --help
+          docker run --rm --name universe-builder-mcp-container-ci universe-builder-mcp-headless:ci --installation /data/installation --initialize
       - name: Build Linux desktop and bundled web
-        run: dart run apps/ub_cli/tool/package_linux.dart --output target/linux-desktop/package
+        run: |
+          umask 077
+          dart run apps/ub_cli/tool/package_linux.dart --output target/linux-desktop/package
       - name: Check Linux menu entries
         working-directory: apps/ub_cli
         run: |

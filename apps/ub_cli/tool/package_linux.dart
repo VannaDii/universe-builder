@@ -75,6 +75,11 @@ Future<void> main(List<String> arguments) async {
           .create(recursive: true);
       await File('${root.path}/assets/branding/universe-builder-symbol-4k.png')
           .copy('${icons.path}/universe-builder.png');
+      await _run('/bin/chmod', ['755', icons.path], root.path);
+      await _run('/bin/chmod', [
+        '644',
+        '${icons.path}/universe-builder.png',
+      ], root.path);
       final manifestFile = File('${assembled.path}/release-manifest.json');
       final manifest =
           jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
@@ -123,6 +128,8 @@ Future<void> _run(String executable, List<String> arguments, String cwd) async {
 
 Future<void> _copy(Directory source, Directory destination) async {
   await destination.create(recursive: true);
+  await _run('/bin/chmod', ['755', destination.path], source.path);
+  final files = <String>[];
   await for (final entry in source.list(followLinks: false)) {
     final path =
         '${destination.path}/${entry.uri.pathSegments.where((p) => p.isNotEmpty).last}';
@@ -130,8 +137,12 @@ Future<void> _copy(Directory source, Directory destination) async {
       await _copy(entry, Directory(path));
     } else if (entry is File) {
       await entry.copy(path);
+      files.add(path);
     } else {
       throw const FileSystemException('Unexpected nonregular build asset');
     }
+  }
+  if (files.isNotEmpty) {
+    await _run('/bin/chmod', ['644', ...files], source.path);
   }
 }

@@ -126,6 +126,23 @@ Future<void> main(List<String> arguments) async {
       await File('${bundle.path}/release-manifest.json').writeAsString(
         '${const JsonEncoder.withIndent('  ').convert(manifest)}\n',
       );
+      // These are distributable software assets, not installation data. Their
+      // permissions must work for the runtime user regardless of build umask.
+      for (final mode in {
+        '755': [bundle.path, '${bundle.path}/bin', '${bundle.path}/lib'],
+        '644': [
+          '${bundle.path}/release-manifest.json',
+          for (final name in libraries.keys) '${bundle.path}/lib/$name',
+        ],
+      }.entries) {
+        final permissions = await Process.run('/bin/chmod', [
+          mode.key,
+          ...mode.value,
+        ]);
+        if (permissions.exitCode != 0) {
+          throw StateError('Could not set software asset permissions');
+        }
+      }
       // Publish a complete fresh directory only after every helper is assembled.
       await output.parent.create(recursive: true);
       if (FileSystemEntity.typeSync(output.path, followLinks: false) !=
