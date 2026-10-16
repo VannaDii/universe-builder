@@ -8,7 +8,8 @@ import 'desktop_launcher.dart';
 const _usage =
     'Usage: multiverse-mcp <serve|admin|ux|shortcut> [arguments]\n'
     'serve forwards to the installed universe-mcp; admin forwards to universe.\n'
-    'ux [--installation <path> --profile <id> | --fixture] opens the desktop.\n'
+    'ux [--installation <path> --profile <id>] [--link <URI>] opens the desktop.\n'
+    'ux --fixture opens the disposable fixture.\n'
     'shortcut [--destination <directory>] [--launcher <absolute path>] '
     '[--installation <path> --profile <id>] creates a Finder app on macOS or a menu entry on Linux.';
 

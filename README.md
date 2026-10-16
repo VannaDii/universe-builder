@@ -88,13 +88,16 @@ Its native connection adapter accepts `--installation`, `--profile` and optional
 `--engine` arguments and reads the accessible library and universe summaries
 through authenticated loopback HTTP. CLI and MCP startup also request HTTP-only
 service mode so ordinary long installation paths do not require a Unix socket.
-On iOS and Android, `universe-builder:///library` and the same scheme followed by
+On macOS, iOS and Android, `universe-builder:///library` and the same scheme followed by
 an existing universe, record or editor path open the corresponding location.
 Links use the current authenticated connection; connect first if needed. They
 cannot select a server/profile, contain credentials, approve or publish changes.
 Current access and unfinished-input navigation guards still apply. Shared text
 and document URLs continue through explicit source intake. Browser links keep
-their existing relative paths. Native desktop URL registration remains pending.
+their existing relative paths. Linux desktop entries register the same scheme and
+open links through a new workspace window. macOS forwards links to its running
+window, retaining a cold-start link until navigation is ready. All production
+platforms use the shared guarded Router.
 A disposable service regression covers
 owner access and the empty library of a contributor without universe grants.
 The packaged macOS app's **Use this device** action sets up its app-private
@@ -1285,6 +1288,9 @@ PATH. Explicit launcher help/version and MCP help do not start an engine. Dart
 <id>` pair selects an existing connection. `shortcut` creates a Finder app in
 `~/Applications`, or `--destination <directory>`, using the approved icon and a
 literal `ux` invocation. It refuses an existing application or symlink.
+`ux --link universe-builder:///help` opens a native location; an optional paired
+installation/profile selects its existing connection. Linux menu entries accept
+one trailing application URI, preserving it as a literal argument.
 `--launcher <absolute path>` can retain a stable installed command path across
 upgrades. Without it, the shortcut uses the current command path. Optional
 installation/profile options have the same paired meaning. Shortcuts contain no

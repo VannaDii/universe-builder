@@ -602,12 +602,15 @@ Review remains usable on a phone: exact old/new values, scope/time, source inter
 
 Platform integration includes keyboard shortcuts, focus/selection, mouse/touch/stylus, native menus/context menus, file/share pickers, desktop window persistence, clipboard, deep links, screen readers, reduced motion and text scaling. Verify the changed workflows with real platform accessibility tooling; Flutter widgets alone do not establish accessibility. [Flutter accessibility](https://docs.flutter.dev/ui/accessibility).
 
-iOS and Android register hostless `universe-builder:///…` links for the same typed
+macOS, iOS and Android register hostless `universe-builder:///…` links for the same typed
 locations as browser paths. The shared router validates IDs/revisions and retains
 its existing draft-save and access guards. A link uses the current connection;
 it does not change backend/account or carry credentials, queries or fragments.
-Mobile file/content URLs remain source-intake input. Native desktop URL handlers
-and mobile OS interaction checks remain required.
+Mobile file/content URLs remain source-intake input. Linux desktop entries register
+the scheme and pass one literal URI to a new workspace window. Desktop startup
+links wait for the shared Router to be ready; macOS also delivers links to the
+running window. A macOS warm OS link has opened Help; Linux and mobile OS
+interaction checks remain required.
 
 Web is an authenticated application, suitable for Flutter's app-oriented rendering. Use a separate ordinary website for public marketing/search discovery if needed; it is not part of converting the factual workspace.
 

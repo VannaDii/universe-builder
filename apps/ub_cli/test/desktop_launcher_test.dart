@@ -51,6 +51,67 @@ void main() {
   });
 
   test(
+    'desktop application links preserve literal routes and reject unsafe URLs',
+    () {
+      const link = 'universe-builder:///help';
+      for (final args in [
+        ['--link', link],
+        ['--link=$link'],
+        [link],
+      ]) {
+        expect(DesktopOptions.parse(args, shortcut: false).arguments, [
+          '--link',
+          link,
+        ]);
+      }
+      final profile = ProfileId.generate().value;
+      expect(
+        DesktopOptions.parse([
+          '--installation',
+          '/tmp/linked instance',
+          '--profile',
+          profile,
+          link,
+        ], shortcut: false).arguments,
+        [
+          '--installation',
+          '/tmp/linked instance',
+          '--profile',
+          profile,
+          '--link',
+          link,
+        ],
+      );
+      for (final args in [
+        ['--link'],
+        ['--link', link, link],
+        ['--link', link, '--link', link],
+        ['--fixture', '--link', link],
+        for (final url in [
+          'https:///help',
+          'universe-builder://host/help',
+          'universe-builder://user:password@host/help',
+          'universe-builder:help',
+          'universe-builder:///help?token=secret',
+          'universe-builder:///help#fragment',
+          'universe-builder:///help\u0000',
+        ])
+          ['--link', url],
+      ]) {
+        expect(
+          () => DesktopOptions.parse(args, shortcut: false),
+          throwsFormatException,
+          reason: '$args',
+        );
+      }
+      expect(
+        () => DesktopOptions.parse(['--link', link], shortcut: true),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
     'fixture launch is explicit and cannot inherit a persistent connection',
     () {
       expect(DesktopOptions.parse(['--fixture'], shortcut: false).arguments, [

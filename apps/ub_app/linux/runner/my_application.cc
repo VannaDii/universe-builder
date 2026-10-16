@@ -11,6 +11,10 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  gchar* pending_link;
+  FlMethodChannel* navigation_channel;
+  FlMethodChannel* ready_channel;
+  gboolean navigation_ready;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -103,6 +107,27 @@ static void restore_window_preferences(GtkWindow* window) {
                    preferences);
 }
 
+// Native startup arguments hold a link until Dart has rendered its Router.
+static void deliver_pending_link(MyApplication* self) {
+  if (!self->navigation_ready || !self->pending_link) return;
+  g_autoptr(FlValue) arguments = fl_value_new_map();
+  fl_value_set_string_take(arguments, "location", fl_value_new_string(self->pending_link));
+  fl_method_channel_invoke_method(self->navigation_channel, "pushRouteInformation",
+                                  arguments, nullptr, nullptr, nullptr);
+  g_clear_pointer(&self->pending_link, g_free);
+}
+
+static void navigation_ready(FlMethodChannel*, FlMethodCall* call, gpointer data) {
+  if (g_strcmp0(fl_method_call_get_name(call), "ready") != 0) {
+    fl_method_call_respond_not_implemented(call, nullptr);
+    return;
+  }
+  MyApplication* self = MY_APPLICATION(data);
+  self->navigation_ready = TRUE;
+  deliver_pending_link(self);
+  fl_method_call_respond_success(call, nullptr, nullptr);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -173,6 +198,16 @@ static void my_application_activate(GApplication* application) {
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
   register_file_channels(view, window);
 
+  FlBinaryMessenger* messenger = fl_engine_get_binary_messenger(fl_view_get_engine(view));
+  g_autoptr(FlJsonMethodCodec) navigation_codec = fl_json_method_codec_new();
+  self->navigation_channel = fl_method_channel_new(messenger, "flutter/navigation",
+      FL_METHOD_CODEC(navigation_codec));
+  g_autoptr(FlStandardMethodCodec) ready_codec = fl_standard_method_codec_new();
+  self->ready_channel = fl_method_channel_new(messenger, "universe_builder/navigation",
+      FL_METHOD_CODEC(ready_codec));
+  fl_method_channel_set_method_call_handler(self->ready_channel, navigation_ready,
+                                             self, nullptr);
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -183,6 +218,15 @@ static gboolean my_application_local_command_line(GApplication* application,
   MyApplication* self = MY_APPLICATION(application);
   // Strip out the first argument as it is the binary name.
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+  for (gchar** argument = *arguments + 1; *argument; argument++) {
+    if (g_strcmp0(*argument, "--link") == 0 && *(argument + 1)) {
+      argument++;
+      if (g_str_has_prefix(*argument, "universe-builder:")) {
+        g_free(self->pending_link);
+        self->pending_link = g_strdup(*argument);
+      }
+    }
+  }
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
@@ -219,6 +263,9 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_pointer(&self->pending_link, g_free);
+  g_clear_object(&self->navigation_channel);
+  g_clear_object(&self->ready_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 

@@ -51,6 +51,16 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 20));
         }
         expect(capture.readAsLinesSync(), ['ux', ...options.arguments]);
+        expect(before, contains('MimeType=x-scheme-handler/universe-builder;'));
+        capture.deleteSync();
+        const link = 'universe-builder:///help';
+        final linked = await Process.run('gio', ['launch', path, link]);
+        expect(linked.exitCode, 0, reason: '${linked.stderr}');
+        final linkDeadline = DateTime.now().add(const Duration(seconds: 5));
+        while (!capture.existsSync() && DateTime.now().isBefore(linkDeadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        expect(capture.readAsLinesSync(), ['ux', ...options.arguments, link]);
         expect(File('${root.path}/should-not-exist').existsSync(), isFalse);
         await expectLater(
           createLinuxShortcut(engine: engine, options: options),

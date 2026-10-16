@@ -5,12 +5,17 @@ import UniformTypeIdentifiers
 class MainFlutterWindow: NSWindow {
   private var deviceChannel: FlutterMethodChannel?
   private var backupChannel: FlutterMethodChannel?
+  private var navigationChannel: FlutterMethodChannel?
   override func awakeFromNib() {
     let project = FlutterDartProject()
     let defaultRoot = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Universe Builder/Installation").path
     var arguments = Array(ProcessInfo.processInfo.arguments.dropFirst())
     if !arguments.contains(where: { $0 == "--fixture" || $0 == "--installation" || $0.hasPrefix("--installation=") || $0 == "--profile" || $0.hasPrefix("--profile=") }) {
       if let root = defaultRoot { arguments += ["--installation", root] }
+    }
+    if let index = arguments.firstIndex(of: "--link"), index + 1 < arguments.count,
+      let link = URL(string: arguments[index + 1]) {
+      (NSApp.delegate as? AppDelegate)?.openApplicationLink(link)
     }
     project.dartEntrypointArguments = arguments
     let flutterViewController = FlutterViewController(project: project)
@@ -19,6 +24,16 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    let navigation = FlutterMethodChannel(name: "universe_builder/navigation", binaryMessenger: flutterViewController.engine.binaryMessenger)
+    navigationChannel = navigation
+    navigation.setMethodCallHandler { [weak flutterViewController] call, result in
+      guard call.method == "ready" else { result(FlutterMethodNotImplemented); return }
+      guard let controller = flutterViewController, let delegate = NSApp.delegate as? AppDelegate else {
+        result(FlutterError(code: "unavailable", message: "Application navigation unavailable", details: nil)); return
+      }
+      delegate.navigationReady(messenger: controller.engine.binaryMessenger)
+      result(nil)
+    }
     let device = FlutterMethodChannel(name: "universe_builder/device", binaryMessenger: flutterViewController.engine.binaryMessenger)
     deviceChannel = device
     device.setMethodCallHandler { call, result in

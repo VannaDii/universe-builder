@@ -7,6 +7,9 @@ import 'event_editor_page.dart';
 import 'source_editor_page.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart'
     show ContinuityId, RecordId, RecordRef;
@@ -137,6 +140,24 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          kIsWeb ||
+          (defaultTargetPlatform != TargetPlatform.macOS &&
+              defaultTargetPlatform != TargetPlatform.linux)) {
+        return;
+      }
+      try {
+        await const MethodChannel('universe_builder/navigation')
+            .invokeMethod<void>('ready');
+      } on Object {
+        if (mounted) {
+          setState(
+            () => _error = 'Could not open the application link. Reopen it after connecting.',
+          );
+        }
+      }
+    });
     mobileSharedSources.addListener(_sharedSourceChanged);
     mobileSharedSources.start();
   }
@@ -837,8 +858,9 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     ),
     'policies' => UniversePoliciesPage(
       continuity: continuity,
-      representedContext: selectedRepresentedContext(continuity, _contexts[continuity.id])
-          ?? (throw const FormatException('Choose a represented context.')),
+      representedContext:
+          selectedRepresentedContext(continuity, _contexts[continuity.id]) ??
+          (throw const FormatException('Choose a represented context.')),
       changes: SavedChanges(
         session: _session!,
         universe: Selector(_selected!.name),
@@ -898,13 +920,11 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
 
   void _selectSection(int index) {
     setState(() => _page = index);
-    if (widget.device.supportsBrowser) {
-      _router.setLocation(
-        index == 0 && _selected != null
-            ? LibraryLocation(universe: _selected!.id)
-            : LibraryLocation(section: LibrarySection.values[index]),
-      );
-    }
+    _router.setLocation(
+      index == 0 && _selected != null
+          ? LibraryLocation(universe: _selected!.id)
+          : LibraryLocation(section: LibrarySection.values[index]),
+    );
   }
 
   Future<void> _connect() async {
@@ -944,11 +964,9 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         _description = null;
         _page = 0;
       });
-      if (widget.device.supportsBrowser) {
-        final target = _resumeLocation ?? _router.currentConfiguration;
-        _resumeLocation = null;
-        _router.setLocation(await _navigateLibrary(target));
-      }
+      final target = _resumeLocation ?? _router.currentConfiguration;
+      _resumeLocation = null;
+      _router.setLocation(await _navigateLibrary(target));
     } on Object {
       await session?.close();
       if (mounted) {
@@ -1001,13 +1019,19 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   }
 
   Future<void> _openHosted(BuildContext context) async {
-    await Navigator.of(context).push<void>(MaterialPageRoute(
-      builder: (_) => HostedConnectionPage(connect: (choice) async {
-        widget.device.hosted = choice;
-        await _connect();
-        if (_session == null) throw StateError('Service connection unavailable');
-      }),
-    ));
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => HostedConnectionPage(
+          connect: (choice) async {
+            widget.device.hosted = choice;
+            await _connect();
+            if (_session == null) {
+              throw StateError('Service connection unavailable');
+            }
+          },
+        ),
+      ),
+    );
     if (_session == null) widget.device.hosted = null;
   }
 
@@ -1116,10 +1140,8 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     final session = _session!;
     final renamed = await Navigator.of(context).push<LibraryEntry>(
       MaterialPageRoute(
-        builder: (_) => UniverseNamePage(
-          session: session,
-          universe: _selected!,
-        ),
+        builder: (_) =>
+            UniverseNamePage(session: session, universe: _selected!),
       ),
     );
     if (!mounted || renamed == null || _session != session) return;
@@ -1136,14 +1158,18 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       setState(() => _library = library);
       await _open(renamed);
     } on Object {
-      if (mounted) setState(() => _error = 'The rename was saved. Refresh the connection to reload this universe.');
+      if (mounted) {
+        setState(
+          () => _error = 'The rename was saved. Refresh the connection to reload this universe.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _open(LibraryEntry entry, {bool announce = true}) async {
-    if (announce && widget.device.supportsBrowser) {
+    if (announce) {
       _router.setLocation(LibraryLocation(universe: entry.id));
     }
     final previousContexts = _selected?.id == entry.id
@@ -1262,9 +1288,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     );
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        settings: widget.device.supportsBrowser
-            ? RouteSettings(name: location.uri.toString())
-            : null,
+        settings: RouteSettings(name: location.uri.toString()),
         builder: (_) => _linkedEditor(location, continuity),
       ),
     );
@@ -1274,9 +1298,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   Future<void> _newUniverse(BuildContext context) async {
     final session = _session!;
     final result = await Navigator.of(context).push<CreationResult>(
-      MaterialPageRoute(
-        builder: (_) => CreateUniversePage(session: session),
-      ),
+      MaterialPageRoute(builder: (_) => CreateUniversePage(session: session)),
     );
     if (!mounted || result == null) return;
     if (result.refresh) {
@@ -1286,13 +1308,15 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           final saved = await _session!.loadUniverseCreationForm!();
           if (saved?.form.creationPending == true) {
             await _session!.saveUniverseCreationForm!(
-              saved!.form.withPending(false), saved.generation,
+              saved!.form.withPending(false),
+              saved.generation,
             );
           }
         } on Object {
           if (mounted) {
-            setState(() => _error =
-                'The library is open, but the interrupted creation fields could not be updated. Check the library again before another creation.');
+            setState(
+              () => _error = 'The library is open, but the interrupted creation fields could not be updated. Check the library again before another creation.',
+            );
           }
         }
       }
@@ -1332,24 +1356,15 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.device.supportsBrowser
-      ? MaterialApp.router(
-          title: 'Universe Builder',
-          debugShowCheckedModeBanner: false,
-          theme: universeBuilderTheme(Brightness.light),
-          darkTheme: universeBuilderTheme(Brightness.dark),
-          themeMode: _theme,
-          routerDelegate: _router,
-          routeInformationParser: const LibraryRouteParser(),
-        )
-      : MaterialApp(
-          title: 'Universe Builder',
-          debugShowCheckedModeBanner: false,
-          theme: universeBuilderTheme(Brightness.light),
-          darkTheme: universeBuilderTheme(Brightness.dark),
-          themeMode: _theme,
-          home: _home(),
-        );
+  Widget build(BuildContext context) => MaterialApp.router(
+    title: 'Universe Builder',
+    debugShowCheckedModeBanner: false,
+    theme: universeBuilderTheme(Brightness.light),
+    darkTheme: universeBuilderTheme(Brightness.dark),
+    themeMode: _theme,
+    routerDelegate: _router,
+    routeInformationParser: const LibraryRouteParser(),
+  );
 
   Widget _home() => Builder(
     builder: (context) => LayoutBuilder(
@@ -1421,16 +1436,22 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                 child: Column(
                   children: [
                     if (_busy) const LinearProgressIndicator(),
-                    if (mobileSharedSources.error != null || mobileSharedSources.pending)
+                    if (mobileSharedSources.error != null ||
+                        mobileSharedSources.pending)
                       Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Column(children: [
-                          Text(mobileSharedSources.error ??
-                              'A shared text file is waiting. Open a universe, then choose Import source and Use shared text file.'),
-                          if (mobileSharedSources.error != null)
-                            TextButton(onPressed: mobileSharedSources.dismissError,
-                                child: const Text('Dismiss message')),
-                        ]),
+                        child: Column(
+                          children: [
+                            Text(
+                              mobileSharedSources.error ?? 'A shared text file is waiting. Open a universe, then choose Import source and Use shared text file.',
+                            ),
+                            if (mobileSharedSources.error != null)
+                              TextButton(
+                                onPressed: mobileSharedSources.dismissError,
+                                child: const Text('Dismiss message'),
+                              ),
+                          ],
+                        ),
                       ),
                     if (_error != null)
                       MaterialBanner(
@@ -1491,19 +1512,23 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             const SizedBox(height: 28),
             if (widget.device.supportsLocal)
               FilledButton.icon(
-                onPressed: _busy || !widget.device.available ? null : () {
-                  widget.device.hosted = null;
-                  _connect();
-                },
+                onPressed: _busy || !widget.device.available
+                    ? null
+                    : () {
+                        widget.device.hosted = null;
+                        _connect();
+                      },
                 icon: const Icon(Icons.computer_outlined),
                 label: const Text('Use this device'),
               ),
             if (widget.device.supportsHosted)
-              Builder(builder: (context) => TextButton.icon(
-                onPressed: _busy ? null : () => _openHosted(context),
-                icon: const Icon(Icons.cloud_outlined),
-                label: const Text('Connect to a service'),
-              )),
+              Builder(
+                builder: (context) => TextButton.icon(
+                  onPressed: _busy ? null : () => _openHosted(context),
+                  icon: const Icon(Icons.cloud_outlined),
+                  label: const Text('Connect to a service'),
+                ),
+              ),
             if (widget.device.supportsBrowser) ...[
               const Text(
                 'Connect to the instance serving this page. Paste a connection code from that instance, or resume this tab’s session.',
@@ -1581,7 +1606,8 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             icon: const Icon(Icons.upload_file),
             label: const Text('Import a package'),
           ),
-        if (_session!.restoreBackupFile != null || _session!.pickArchiveFile == null)
+        if (_session!.restoreBackupFile != null ||
+            _session!.pickArchiveFile == null)
           TextButton.icon(
             onPressed: _busy || _session!.restoreBackupFile == null
                 ? null
@@ -1601,11 +1627,15 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         const SizedBox(height: 24),
       ],
       if (_library!.universes.isEmpty) ...[
-        Text(_session!.author
-            ? 'Create your first universe to keep a campaign, novel or life story consistent. Give it a name and choose its starting calendar; you can add people, places and sources as you work.'
-            : 'No universes are available to this profile. Ask the approval owner to grant access to the universe you need.'),
+        Text(
+          _session!.author
+              ? 'Create your first universe to keep a campaign, novel or life story consistent. Give it a name and choose its starting calendar; you can add people, places and sources as you work.'
+              : 'No universes are available to this profile. Ask the approval owner to grant access to the universe you need.',
+        ),
         const SizedBox(height: 12),
-        const Text('Every universe has a root policy, inherited by its worlds. Start from scratch or clone Real World for scoped source requirements, including attributed personal recollections where permitted.'),
+        const Text(
+          'Every universe has a root policy, inherited by its worlds. Start from scratch or clone Real World for scoped source requirements, including attributed personal recollections where permitted.',
+        ),
       ],
       for (final universe in _library!.universes)
         ListTile(
@@ -1626,9 +1656,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           onPressed: () => setState(() {
             _selected = null;
             _description = null;
-            if (widget.device.supportsBrowser) {
-              _router.setLocation(const LibraryLocation());
-            }
+            _router.setLocation(const LibraryLocation());
           }),
           icon: const Icon(Icons.arrow_back),
           label: const Text('Library'),
@@ -1689,10 +1717,13 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                   ),
                 if (_contexts.containsKey(continuity.id))
                   GettingStartedGuide(
-                    key: ValueKey('start:${continuity.id.value}:${_contexts[continuity.id]?.value}'),
+                    key: ValueKey(
+                      'start:${continuity.id.value}:${_contexts[continuity.id]?.value}',
+                    ),
                     author: _session!.author,
                     enabled: !_busy,
-                    onOpen: (editor) => _openStarterEditor(context, continuity, editor),
+                    onOpen: (editor) =>
+                        _openStarterEditor(context, continuity, editor),
                   ),
                 if (_contexts.containsKey(continuity.id))
                   TextButton(
@@ -1700,16 +1731,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                         ? null
                         : () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
-                              settings: widget.device.supportsBrowser
-                                  ? RouteSettings(
-                                      name: LibraryLocation(
-                                        universe: _selected!.id,
-                                        continuity: continuity.id,
-                                        context: _contexts[continuity.id],
-                                        editor: 'records',
-                                      ).uri.toString(),
-                                    )
-                                  : null,
+                              settings: RouteSettings(
+                                name: LibraryLocation(
+                                  universe: _selected!.id,
+                                  continuity: continuity.id,
+                                  context: _contexts[continuity.id],
+                                  editor: 'records',
+                                ).uri.toString(),
+                              ),
                               builder: (_) => _linkedEditor(
                                 LibraryLocation(
                                   universe: _selected!.id,
@@ -1733,17 +1762,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'entity',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'entity',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1769,17 +1795,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'type',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'type',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1805,17 +1828,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'property',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'property',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1841,17 +1861,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'unit',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'unit',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1877,17 +1894,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'value-definition',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'value-definition',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1913,17 +1927,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'relation',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'relation',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1949,17 +1960,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'action',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'action',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -1985,17 +1993,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'rule',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'rule',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2021,17 +2026,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'communication',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'communication',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2057,17 +2059,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'commitment',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'commitment',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2093,17 +2092,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'plan',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'plan',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2129,17 +2125,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'item-power',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'item-power',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2165,17 +2158,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'represented-context',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'represented-context',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2202,17 +2192,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'initialization',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'initialization',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2239,17 +2226,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'issue-decision',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'issue-decision',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2275,17 +2259,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'exception',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'exception',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2311,17 +2292,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'boundary',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'boundary',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2347,17 +2325,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'work',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'work',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2383,17 +2358,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'work-version',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'work-version',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2419,17 +2391,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'saga',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'saga',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2455,17 +2424,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'scene',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'scene',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2491,17 +2457,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'passage',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'passage',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2527,17 +2490,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'memory',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'memory',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2563,17 +2523,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'observation',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'observation',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2599,17 +2556,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'secret',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'secret',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2635,17 +2589,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'appearance',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'appearance',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2671,17 +2622,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'story-time',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'story-time',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2707,17 +2655,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'attitude',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'attitude',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2743,17 +2688,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'proposition',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'proposition',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2779,17 +2721,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'completeness',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'completeness',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2903,17 +2842,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'source',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'source',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2939,17 +2875,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'event',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'event',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -2975,17 +2908,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'calendar',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'calendar',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -3011,17 +2941,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'pack',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'pack',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -3047,17 +2974,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'policies',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'policies',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -3083,17 +3007,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               : () => Navigator.of(context)
                                     .push<void>(
                                       MaterialPageRoute(
-                                        settings: widget.device.supportsBrowser
-                                            ? RouteSettings(
-                                                name: LibraryLocation(
-                                                  universe: _selected!.id,
-                                                  continuity: continuity.id,
-                                                  context:
-                                                      _contexts[continuity.id],
-                                                  editor: 'world',
-                                                ).uri.toString(),
-                                              )
-                                            : null,
+                                        settings: RouteSettings(
+                                          name: LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'world',
+                                          ).uri.toString(),
+                                        ),
                                         builder: (_) => _linkedEditor(
                                           LibraryLocation(
                                             universe: _selected!.id,
@@ -3118,17 +3039,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                             : () => Navigator.of(context)
                                   .push<void>(
                                     MaterialPageRoute(
-                                      settings: widget.device.supportsBrowser
-                                          ? RouteSettings(
-                                              name: LibraryLocation(
-                                                universe: _selected!.id,
-                                                continuity: continuity.id,
-                                                context:
-                                                    _contexts[continuity.id],
-                                                editor: 'writing',
-                                              ).uri.toString(),
-                                            )
-                                          : null,
+                                      settings: RouteSettings(
+                                        name: LibraryLocation(
+                                          universe: _selected!.id,
+                                          continuity: continuity.id,
+                                          context: _contexts[continuity.id],
+                                          editor: 'writing',
+                                        ).uri.toString(),
+                                      ),
                                       builder: (_) => _linkedEditor(
                                         LibraryLocation(
                                           universe: _selected!.id,
@@ -3153,17 +3071,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                             : () => Navigator.of(context)
                                   .push<void>(
                                     MaterialPageRoute(
-                                      settings: widget.device.supportsBrowser
-                                          ? RouteSettings(
-                                              name: LibraryLocation(
-                                                universe: _selected!.id,
-                                                continuity: continuity.id,
-                                                context:
-                                                    _contexts[continuity.id],
-                                                editor: 'changes',
-                                              ).uri.toString(),
-                                            )
-                                          : null,
+                                      settings: RouteSettings(
+                                        name: LibraryLocation(
+                                          universe: _selected!.id,
+                                          continuity: continuity.id,
+                                          context: _contexts[continuity.id],
+                                          editor: 'changes',
+                                        ).uri.toString(),
+                                      ),
                                       builder: (_) => _linkedEditor(
                                         LibraryLocation(
                                           universe: _selected!.id,

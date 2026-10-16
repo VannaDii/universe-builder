@@ -20,10 +20,21 @@ final class DesktopOptions {
     final allowed = {
       '--installation',
       '--profile',
+      if (!shortcut) '--link',
       if (shortcut) ...['--destination', '--launcher'],
     };
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
+      // Desktop entries expand %u to one optional trailing URI.
+      if (!shortcut &&
+          i == arguments.length - 1 &&
+          !argument.startsWith('--')) {
+        if (values.containsKey('--link')) {
+          throw const FormatException('Duplicate application link');
+        }
+        values['--link'] = argument;
+        continue;
+      }
       final equal = argument.indexOf('=');
       final option = equal < 0 ? argument : argument.substring(0, equal);
       if (!allowed.contains(option) || values.containsKey(option)) {
@@ -42,6 +53,21 @@ final class DesktopOptions {
       throw const FormatException('Installation and profile must be paired');
     }
     if (profile != null) ProfileId.parse(profile);
+    final link = values['--link'];
+    if (link != null) {
+      final uri = Uri.tryParse(link);
+      if (link.contains('\u0000') ||
+          uri == null ||
+          uri.scheme != 'universe-builder' ||
+          uri.authority.isNotEmpty ||
+          !uri.path.startsWith('/') ||
+          uri.hasQuery ||
+          uri.hasFragment) {
+        throw const FormatException(
+          'Expected a hostless Universe Builder link',
+        );
+      }
+    }
     return DesktopOptions._(
       [
         if (root != null) ...[
@@ -50,6 +76,7 @@ final class DesktopOptions {
           '--profile',
           profile!,
         ],
+        if (link != null) ...['--link', link],
       ],
       values['--destination'],
       values['--launcher'],
@@ -144,8 +171,8 @@ Future<String> createLinuxShortcut({
   }
   final content =
       '[Desktop Entry]\nType=Application\nName=Universe Builder\n'
-      'Exec=$command\nIcon=${icon.path.replaceAll(r'\', r'\\')}\n'
-      'Terminal=false\nCategories=Office;\nStartupWMClass=com.example.universe_builder\n';
+      'Exec=$command %u\nIcon=${icon.path.replaceAll(r'\', r'\\')}\n'
+      'Terminal=false\nCategories=Office;\nMimeType=x-scheme-handler/universe-builder;\nStartupWMClass=com.example.universe_builder\n';
   final parent = Directory(destination).absolute;
   await parent.create(recursive: true);
   final file = File('${parent.path}/universe-builder.desktop');
