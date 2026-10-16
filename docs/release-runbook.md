@@ -90,8 +90,7 @@ from `apps/ub_cli` and `dart test test/mcp_cli_test.dart --name 'stdio reaches
 real service'` from `apps/ub_mcp`. They use disposable installations and launch
 the packaged command outside the checkout with an empty PATH. This does not
 establish that the host has no developer tools installed. They do not open the
-desktop. Rust fixture packaging and its remaining Python checks are legacy
-migration tooling, not the version-tag distribution route.
+desktop. Version-tag distributions use the Dart/Flutter packaging route.
 
 ## Linux desktop package
 
@@ -177,15 +176,15 @@ The image includes libsecret but neither a keyring daemon nor a session bus;
 normal server containers use the environment-variable configuration path. Do
 not mount a desktop session bus merely to configure a server container.
 The requested database must already exist; backend selection
-does not transfer data or silently provision/convert schemas.
+does not transfer data or initialize the selected database automatically.
 
 Before replacement, finish queued work, retain backups outside the container,
 and stop the service with `docker stop --timeout 60 universe-builder-mcp-service`.
 SIGTERM drains the engine. Keep the volume, prior image and compatible backups;
-replace the entire container using the same volume only when its schema is
-compatible. Do not delete the volume on uninstall or try an older image against
-an upgraded schema. Perform an explicit supported conversion separately when
-required. This local image recipe does not deploy or publish a hosted service.
+replace the entire container using the same volume only when it uses the current
+v0 format. Preserve the volume on uninstall. Incompatible formats are rejected;
+no schema conversion operation is provided. This local image recipe does not
+deploy or publish a hosted service.
 
 ## Workload and recovery drill
 
@@ -250,7 +249,7 @@ Canonical revisions, source bytes, original image bytes, workflow entries and re
 
 A physical backup is first copied to a private temporary file and synchronized. The copy must pass SQLite page/foreign-key checks, every canonical payload/workflow digest check, and head reconstruction/reference validation before it is published and its parent directory synchronized. Existing backups are never overwritten. Interrupted or failed copies are not reported as successful backups.
 
-Supported schema upgrades first retain a verified private rollback copy alongside the original, named `.PACKAGE.before-schema-VERSION-UNIQUE.sqlite`. Keep these copies until the upgraded universe has passed recovery checks. If the copy cannot be verified or synchronized, the upgrade stops. An older binary must use the matching pre-upgrade copy in a separate installation; never point it at the upgraded original.
+Universe Builder is unreleased v0 and supports only its current data shapes. Backup/restore and SQLite/PostgreSQL transfer use the current format. Incompatible schemas are rejected without conversion.
 
 Current bounds: 500,000 records per snapshot, one million stored versions, a bounded 10,000-commit chain, 512 MiB logical archives and 8 GiB physical restore files. Logical history replay has a separate ten-million-membership budget. Every writer uses the same 8 GiB SQLite page-growth ceiling as physical restore; a growth failure rolls back its transaction. Existing oversized packages are never truncated. An explicit limit error preserves the original package; it is not permission to delete history. Physical backups and complete-history relational archives preserve full workflow evidence. Canon-only archives omit workflows and operation receipts. Imported approvals and operation receipts remain historical evidence; current authority and delegation come from the owning installation. Keep author-selected backups on a separate protected device/location as part of final recovery acceptance; no off-device backup is configured automatically.
 
@@ -262,14 +261,14 @@ A missing chunk or digest mismatch fails package verification and recovery. A lo
 
 ## Whole-bundle update and rollback
 
-1. Record the current app manifest and each universe's `doctor` report. Create verified backups outside the app bundle. Keep the previous complete app bundle.
+1. Inspect the current app manifest and each universe's `doctor` output. Create backups outside the app bundle. Keep the previous complete app bundle.
 2. Finish or cancel queued work. An interrupted validation is retried with its original idempotency key and immutable proposal reference; a completed run is retrieved by operation ID. Retrieve uncertain commit receipts before retrying publication.
 3. Use the authenticated command-line `shutdown` and confirm that the installation socket is gone. Never replace live helper binaries individually.
 4. Verify the replacement's signature and manifest. Replace the whole app bundle; preserve installation directories, profiles, databases, source blobs and backups.
 5. Start the engine explicitly, inspect `doctor`, read pinned historical revisions and compare heads, receipts and source digests. Reopen the desktop only when native interaction is authorized.
-6. If startup or integrity checks fail, stop the new engine. Preserve the failed installation for diagnosis. Restore the last verified backup into a separate installation and use the previous compatible complete bundle. Never open an upgraded database with an older binary unless that exact downgrade was tested.
+6. If startup or integrity checks fail, stop the new engine. Preserve the failed installation for diagnosis. Restore the last verified backup into a separate installation and use the previous compatible complete bundle. Use a bundle and backup matching the current v0 format.
 
-A same-version restart/restore drill is implemented. A historical released-version upgrade/downgrade matrix cannot be claimed from it. Future schema changes require golden packages from each supported source version, including immutable workflows, continuity baselines, source bytes and approvals.
+Restart/restore preserves current-format workflows, continuity baselines, source bytes and approvals. Release compatibility policy starts after an adopted release.
 
 ## Diagnostics and release gate
 

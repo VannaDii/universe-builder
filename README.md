@@ -143,7 +143,7 @@ unlocked by the app.
 Windows packaging remains pending.
 The [headless container procedure](docs/release-runbook.md#headless-container)
 packages these Linux binaries with a pinned runtime base, unprivileged service
-user and explicit persistent volume. Initialization and schema conversion stay
+user and explicit persistent volume. Initialization and backend selection stay
 explicit; the image does not include installation data or database credentials.
 Linux desktop assembly is available with
 `dart run apps/ub_cli/tool/package_linux.dart --output target/linux-desktop/local`.
