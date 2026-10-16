@@ -403,6 +403,16 @@ Json _contracts(Directory root, Directory source) {
       'replacement': _ref('Secret'),
     }),
   );
+  final definePolicy = _object({
+    'kind': {'type': 'string', 'const': 'define_universe_policy'},
+    'client_ref': _ref('RecordId'),
+    'key': _string,
+    'real_world': _boolean,
+    'activate': _boolean,
+    'expected_root_version': _ref('RecordVersionId'),
+  });
+  _asList(definePolicy['required']).remove('expected_root_version');
+  operations.add(definePolicy);
   return definitions;
 }
 

@@ -7387,7 +7387,8 @@
         "DomainOperation_v65",
         "DomainOperation_v66",
         "DomainOperation_v67",
-        "DomainOperation_v68"
+        "DomainOperation_v68",
+        "DomainOperation_v69"
       ]
     },
     "DomainOperation_v0": {
@@ -11848,6 +11849,53 @@
       "table": "r_domain_operation_v68_kind",
       "kind": "string",
       "const": "revise_secret"
+    },
+    "DomainOperation_v69": {
+      "table": "r_domain_operation_v69",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "DomainOperation_v69_kind",
+          "required": true
+        },
+        "client_ref": {
+          "model": "RecordId",
+          "required": true
+        },
+        "key": {
+          "model": "DomainOperation_v69_key",
+          "required": true
+        },
+        "real_world": {
+          "model": "DomainOperation_v69_real_world",
+          "required": true
+        },
+        "activate": {
+          "model": "DomainOperation_v69_activate",
+          "required": true
+        },
+        "expected_root_version": {
+          "model": "RecordVersionId",
+          "required": false
+        }
+      }
+    },
+    "DomainOperation_v69_kind": {
+      "table": "r_domain_operation_v69_kind",
+      "kind": "string",
+      "const": "define_universe_policy"
+    },
+    "DomainOperation_v69_key": {
+      "table": "r_domain_operation_v69_key",
+      "kind": "string"
+    },
+    "DomainOperation_v69_real_world": {
+      "table": "r_domain_operation_v69_real_world",
+      "kind": "boolean"
+    },
+    "DomainOperation_v69_activate": {
+      "table": "r_domain_operation_v69_activate",
+      "kind": "boolean"
     },
     "StoredContext": {
       "table": "r_stored_context",

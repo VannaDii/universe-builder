@@ -9,9 +9,13 @@ offers **Start from scratch** (an explicitly defined empty policy) or **Clone
 Real World policy** (an independent definition with the existing scoped evidence
 requirement). Both SQLite and PostgreSQL publish the definition and selection
 with the initial context/calendar. Publication cannot remove or break a declared
-root. Existing historical snapshots retain their original bytes; adoption of a
-root for older universes and the definition/cloning/switching controls are still
-being implemented. See [the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
+root. Only the selected definition's rules execute; available replacements remain
+inactive and independently authored rules keep their applicability. The typed
+`define_universe_policy` operation defines a scratch policy or an independent
+Real World clone and can select it atomically through reviewed Changes. Existing
+historical snapshots retain their original bytes. Dedicated UI controls and
+adoption of a root for older universes are still being implemented. See
+[the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
 Real World starts with no qualifying sources selected. The author chooses source
 membership explicitly; interpretation review is required only where a scoped
 policy asks for it.

@@ -380,7 +380,6 @@ void main() {
               }),
         ]),
       );
-      final inactiveRuleId = RecordId.generate();
       final fresh = await resumed.rebase(
         (await resumed.load())!,
         startNew: true,
@@ -399,22 +398,11 @@ void main() {
                   clientRef: otherWorldRecord.value,
                   record: WorldRecord(selector: 'Mountain'),
                 ),
-                DefineRuleOperation(
-                  clientRef: inactiveRuleId.value,
-                  record: scopedRule(
-                    'available-replacement',
-                    const UniverseApplicability(),
-                  ),
-                ),
-                InstallPackOperation(
+                DefineUniversePolicyOperation(
                   clientRef: RecordId.generate().value,
-                  record: DomainPackRecord(
-                    key: '${universePolicyDefinitionPrefix}replacement',
-                    version: '1',
-                    dependencies: {},
-                    capabilities: [],
-                    records: [inactiveRuleId],
-                  ),
+                  key: 'replacement',
+                  realWorld: true,
+                  activate: false,
                 ),
                 for (var i = 0; i < 51; i++)
                   DefineRuleOperation(
@@ -480,8 +468,9 @@ void main() {
         isNot(contains('mountain-sources')),
       );
       expect(
-        policies.policies.map((p) => p.rule.key),
-        isNot(contains('available-replacement')),
+        policies.policies.where((p) => p.origin == WorldPolicyOrigin.universe)
+            .single.record.recordVersionId,
+        inherited.policies.single.record.recordVersionId,
       );
       final oldPolicies = await readWorldEvidencePolicies(
         session: session,

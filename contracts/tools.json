@@ -31354,6 +31354,40 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Define a universe policy from scratch or a fresh Real World template; optionally select it through ordinary reviewed publication.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "define_universe_policy"
+                },
+                "client_ref": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "real_world": {
+                  "type": "boolean"
+                },
+                "activate": {
+                  "type": "boolean"
+                },
+                "expected_root_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "key",
+                "real_world",
+                "activate"
+              ]
             }
           ]
         },
@@ -44576,6 +44610,40 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Define a universe policy from scratch or a fresh Real World template; optionally select it through ordinary reviewed publication.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "define_universe_policy"
+                },
+                "client_ref": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "real_world": {
+                  "type": "boolean"
+                },
+                "activate": {
+                  "type": "boolean"
+                },
+                "expected_root_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "key",
+                "real_world",
+                "activate"
+              ]
             }
           ]
         },
@@ -53808,6 +53876,40 @@
                 "record",
                 "expected_version",
                 "replacement"
+              ]
+            },
+            {
+              "description": "Define a universe policy from scratch or a fresh Real World template; optionally select it through ordinary reviewed publication.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "define_universe_policy"
+                },
+                "client_ref": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "real_world": {
+                  "type": "boolean"
+                },
+                "activate": {
+                  "type": "boolean"
+                },
+                "expected_root_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "key",
+                "real_world",
+                "activate"
               ]
             }
           ]
@@ -63274,6 +63376,40 @@
                 "record",
                 "expected_version",
                 "replacement"
+              ]
+            },
+            {
+              "description": "Define a universe policy from scratch or a fresh Real World template; optionally select it through ordinary reviewed publication.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "define_universe_policy"
+                },
+                "client_ref": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "real_world": {
+                  "type": "boolean"
+                },
+                "activate": {
+                  "type": "boolean"
+                },
+                "expected_root_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "key",
+                "real_world",
+                "activate"
               ]
             }
           ]
@@ -77401,6 +77537,40 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Define a universe policy from scratch or a fresh Real World template; optionally select it through ordinary reviewed publication.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "define_universe_policy"
+                },
+                "client_ref": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "real_world": {
+                  "type": "boolean"
+                },
+                "activate": {
+                  "type": "boolean"
+                },
+                "expected_root_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "key",
+                "real_world",
+                "activate"
+              ]
             }
           ]
         },
@@ -87658,6 +87828,40 @@
                 "record",
                 "expected_version",
                 "replacement"
+              ]
+            },
+            {
+              "description": "Define a universe policy from scratch or a fresh Real World template; optionally select it through ordinary reviewed publication.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "define_universe_policy"
+                },
+                "client_ref": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "real_world": {
+                  "type": "boolean"
+                },
+                "activate": {
+                  "type": "boolean"
+                },
+                "expected_root_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "key",
+                "real_world",
+                "activate"
               ]
             }
           ]

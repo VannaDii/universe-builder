@@ -64,13 +64,20 @@ void main() {
         "validity":{"kind":"unknown"}
       }
     }
+    ,{
+      "kind":"define_universe_policy",
+      "client_ref":"rec_000000000000000000000005",
+      "key":"Historical fiction","real_world":true,"activate":true,
+      "expected_root_version":"ver_000000000000000000000006"
+    }
   ]''') as CanonicalArray;
   for (final input in extensions.items.cast<CanonicalObject>()) {
     final operation = DomainOperation.fromWire(input);
     covered.add(operation.kind);
     test('Dart operation extension: ${operation.kind.wireName}', () {
       expect(operation.toWire().toText(), input.toText());
-      expect(operation.authority, OperationAuthority.ordinary);
+      expect(operation.authority, operation is DefineUniversePolicyOperation
+          ? OperationAuthority.definition : OperationAuthority.ordinary);
       expect(
         DomainOperation.fromWire(operation.toWire()).toWire().toText(),
         input.toText(),

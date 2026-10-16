@@ -6,6 +6,7 @@ import 'package:ub_store/ub_store.dart';
 import 'event_compilation.dart';
 import 'instance_initialization.dart';
 import 'operation_lowering.dart';
+import 'universe_policy_compilation.dart';
 
 InvalidArgumentError _invalid(String message) =>
     InvalidArgumentError(field: 'operations', message: message);
@@ -135,6 +136,17 @@ List<Assignment> compileAllocatedOperations({
   }
 
   for (final op in lowered) {
+    if (op is DefineUniversePolicyOperation) {
+      if (!seen.add(op.clientRef)) {
+        throw _invalid('duplicate client_ref');
+      }
+      changes.addAll(compileUniversePolicy(
+        universe: universe,
+        base: base,
+        operation: op,
+      ));
+      continue;
+    }
     final (String, RecordPayload)? creation = switch (op) {
       CreateEntityOperation() => (op.clientRef, op.record),
       CreateWorldOperation() => (op.clientRef, op.record),

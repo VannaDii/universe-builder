@@ -139,6 +139,7 @@ String _versionPayloadDigest(RecordKind kind, RecordPayload payload) =>
     payloadDigest(kind.wireName, payload.toCanonical());
 
 enum DomainOperationKind {
+  defineUniversePolicy('define_universe_policy', OperationAuthority.definition),
   createSecret('create_secret', OperationAuthority.ordinary),
   reviseSecret('revise_secret', OperationAuthority.ordinary),
   createAppearance('create_appearance', OperationAuthority.ordinary),
@@ -218,6 +219,7 @@ sealed class DomainOperation {
   CanonicalObject toWire();
   static DomainOperation fromWire(CanonicalValue value) => switch (Fields(value)
       .string('kind')) {
+    'define_universe_policy' => DefineUniversePolicyOperation.fromWire(value),
     'create_secret' => CreateSecretOperation.fromWire(value),
     'revise_secret' => ReviseSecretOperation.fromWire(value),
     'create_appearance' => CreateAppearanceOperation.fromWire(value),
@@ -285,6 +287,51 @@ sealed class DomainOperation {
     'refine_classification' => RefineClassificationOperation.fromWire(value),
     _ => throw const FormatException('Unknown domain operation'),
   };
+}
+
+/// Defines a replacement root from scratch or a fresh Real World template.
+/// Activation is still subject to exact proposal review and publication.
+final class DefineUniversePolicyOperation extends DomainOperation {
+  const DefineUniversePolicyOperation({
+    required this.clientRef,
+    required this.key,
+    required this.realWorld,
+    required this.activate,
+    this.expectedRootVersion,
+  });
+  final String clientRef, key;
+  final bool realWorld, activate;
+  final RecordVersionId? expectedRootVersion;
+  factory DefineUniversePolicyOperation.fromWire(CanonicalValue value) {
+    final f = Fields(value)..allow({
+      'kind', 'client_ref', 'key', 'real_world', 'activate',
+      'expected_root_version',
+    });
+    if (f.string('kind') != 'define_universe_policy') {
+      throw const FormatException('Wrong operation kind');
+    }
+    return DefineUniversePolicyOperation(
+      clientRef: f.string('client_ref'),
+      key: f.string('key'),
+      realWorld: f.boolean('real_world'),
+      activate: f.boolean('activate'),
+      expectedRootVersion: f.optionalString('expected_root_version') == null
+          ? null
+          : RecordVersionId.parse(f.string('expected_root_version')),
+    );
+  }
+  @override
+  DomainOperationKind get kind => DomainOperationKind.defineUniversePolicy;
+  @override
+  CanonicalObject toWire() => tagged(kind.wireName, [
+    MapEntry('client_ref', CanonicalString(clientRef)),
+    MapEntry('key', CanonicalString(key)),
+    MapEntry('real_world', CanonicalBool(realWorld)),
+    MapEntry('activate', CanonicalBool(activate)),
+    if (expectedRootVersion != null)
+      MapEntry('expected_root_version',
+          CanonicalString(expectedRootVersion!.value)),
+  ]);
 }
 
 final class CreateSecretOperation extends DomainOperation {

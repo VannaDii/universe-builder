@@ -241,6 +241,78 @@ void main() {
         },
       );
 
+      test('root replacement clone survives PostgreSQL draft recovery and publication', () async {
+        var author = await runtime.connect(hello(authorId));
+        final created = WireFields(await author.execute(const CreateUniverseEngineRequest(
+          name: 'Disposable engine universe',
+          start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+        )), {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'});
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final represented = RecordId.parse(created.string('context_id'));
+        final revision = RevisionId.parse(created.string('revision'));
+        Future<List<RecordVersion>> snapshot(RevisionId at) => store.transaction((s) async {
+          final journal = s.kernel(universe).journal;
+          final membership = await journal.snapshot(continuity, at);
+          return [for (final version in membership.values)
+            RecordVersion.fromWire((await journal.load(version)).toCanonical())];
+        });
+        final prior = UniversePolicySelection.fromRecords(universe, await snapshot(revision));
+        final definition = RecordId.generate();
+        final operation = DefineUniversePolicyOperation(
+          clientRef: definition.value, key: 'Historical memoir',
+          realWorld: true, activate: true,
+          expectedRootVersion: prior.selection.recordVersionId,
+        );
+        final saved = SavedDraft.fromWire(await author.execute(SaveDraftEngineRequest(
+          universe: selector, continuityId: continuity, expectedVersion: BigInt.zero,
+          content: DraftContent(baseRevision: revision, representedContext: represented,
+            operations: [operation], rationale: 'Select the defined Real World clone.'),
+        )));
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(endpoint(), settings: settings);
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        final recovered = SavedDraft.fromWire(await author.execute(LoadDraftEngineRequest(
+          universe: selector, continuityId: continuity,
+        )));
+        expect(recovered.toWire().toText(), saved.toWire().toText());
+        final opened = await tool(author, OpenContextRequest(universe: selector,
+          continuityId: continuity, revision: const HeadRevisionSelector(),
+          representedContext: ContextIdSelector(represented), temporalQuery: const TimelessFrameTime(),
+          temporalSystems: [], perspective: const AuthorPerspective()), OpenedContext.fromWire);
+        final proposal = await tool(author, CreateProposalRequest(universe: selector,
+          contextId: opened.contextId, operations: recovered.content.operations,
+          submission: Submission.submitted, rationale: recovered.content.rationale,
+          idempotencyKey: 'define-root'), Proposal.fromWire);
+        final ref = ProposalRef(proposalId: proposal.proposalId,
+          version: proposal.version, digest: proposal.digest);
+        final validation = await tool(author, ProposalValidationRequest(universe: selector,
+          contextId: opened.contextId, proposalReference: ref,
+          checkScope: CheckScope.candidate), ValidationV3.fromWire) as EvaluatedValidation;
+        expect(validation.execution.findings.every(
+            (finding) => finding.outcome == EvidenceOutcome.supported), isTrue);
+        await author.execute(ApproveEngineRequest(universe: selector,
+          proposalReference: ref, validationRun: validation.execution.runId));
+        final receipt = await tool(author, CommitRequest(universe: selector,
+          proposalReference: ref, expectedBaseRevision: revision,
+          validationRun: validation.execution.runId,
+          idempotencyKey: 'publish-root'), CommitReceipt.fromWire);
+        final rows = await snapshot(receipt.revision);
+        final selected = UniversePolicySelection.fromRecords(universe, rows);
+        expect(selected.definition.identity.recordId, definition);
+        expect(rows.any((row) => row.recordVersionId == prior.definition.recordVersionId), isTrue);
+        final category = (selected.rules.single.payload as RuleRecord)
+            .requiredEvidence!.sourceCategories.single;
+        expect(rows.any((row) => row.identity.recordId == category.record &&
+            row.recordVersionId == category.version), isTrue);
+        expect(UniversePolicySelection.fromRecords(universe,
+            await snapshot(revision)).definition.recordVersionId,
+            prior.definition.recordVersionId);
+      });
+
       test('local PostgreSQL server owns discovery and drains on author shutdown without SQLite fallback', () async {
       await runtime.close();
       await store.close();

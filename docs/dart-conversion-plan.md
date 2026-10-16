@@ -138,8 +138,14 @@ Previously retained rootless snapshots keep their original bodies and digests;
 reading history does not fabricate a past policy selection. Existing-universe
 adoption must publish an explicit root before treating that universe as converted
 to this policy model. New creation and later publications must never leave a
-declared root missing or broken. Root definition/cloning/switching controls and
-existing-universe adoption remain implementation work.
+declared root missing or broken. The typed `define_universe_policy` operation
+now prepares an empty scratch definition or an independent Real World clone,
+optionally selecting it atomically through ordinary reviewed publication. Clone
+source-category versions are allocated privately during preparation and retained
+in the compiled proposal. Selecting a replacement compares the prior root's
+exact version; merely defining an alternative leaves it inactive. The existing
+pack-upgrade operation can select an already defined policy. Dedicated UI controls
+and existing-universe adoption remain implementation work.
 
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 

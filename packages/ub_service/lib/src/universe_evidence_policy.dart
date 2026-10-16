@@ -5,13 +5,16 @@ import 'package:ub_domain/ub_domain.dart';
 /// No imported source qualifies until the author selects its category membership.
 List<RecordVersion> initialUniversePolicyRecords(
   UniverseId universe,
-  bool realWorld,
-) {
-  RecordVersion record(RecordPayload payload) => RecordVersion.build(
+  bool realWorld, {
+  RecordId? definitionId,
+  String? definitionKey,
+  String evidenceNamespace = 'real_world',
+}) {
+  RecordVersion record(RecordPayload payload, {RecordId? id}) => RecordVersion.build(
     recordVersionId: RecordVersionId.generate(),
     identity: RecordIdentity(
       universeId: universe,
-      recordId: RecordId.generate(),
+      recordId: id ?? RecordId.generate(),
       recordKind: payload.recordKind,
     ),
     payload: payload,
@@ -20,7 +23,7 @@ List<RecordVersion> initialUniversePolicyRecords(
   if (realWorld) {
     final category = record(
       DomainPackRecord(
-        key: 'real_world.sources',
+        key: '$evidenceNamespace.sources',
         version: '1',
         dependencies: {},
         capabilities: [],
@@ -29,7 +32,7 @@ List<RecordVersion> initialUniversePolicyRecords(
     );
     final policy = record(
       RuleRecord(
-        namespace: 'real_world',
+        namespace: evidenceNamespace,
         key: 'default',
         labels: {'en': 'Real World evidence'},
         kind: RuleKind.authorialRestriction,
@@ -56,6 +59,7 @@ List<RecordVersion> initialUniversePolicyRecords(
   final definition = record(
     DomainPackRecord(
       key:
+          definitionKey ??
           '$universePolicyDefinitionPrefix${realWorld ? 'real_world' : 'custom'}',
       version: '1',
       dependencies: {},
@@ -65,6 +69,7 @@ List<RecordVersion> initialUniversePolicyRecords(
           if (row.payload is RuleRecord) row.identity.recordId,
       ],
     ),
+    id: definitionId,
   );
   final pack = definition.payload as DomainPackRecord;
   final selection = record(

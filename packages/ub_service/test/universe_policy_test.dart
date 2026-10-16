@@ -100,6 +100,91 @@ void main() {
     );
   });
 
+  for (final realWorld in [false, true]) {
+    test('defines a fresh ${realWorld ? 'Real World clone' : 'scratch policy'} through operations', () {
+      final initial = initialUniversePolicyRecords(universe, false);
+      final base = [...candidate.fixture(), ...initial];
+      final root = UniversePolicySelection.fromRecords(universe, base);
+      final id = RecordId.generate();
+      final changes = operations.compile(base, [
+        DefineUniversePolicyOperation(
+          clientRef: id.value,
+          key: 'replacement',
+          realWorld: realWorld,
+          activate: true,
+          expectedRootVersion: root.selection.recordVersionId,
+        ),
+      ]);
+      final replaced = changes.map((c) => c.recordId).toSet();
+      final after = [
+        for (final row in base)
+          if (!replaced.contains(row.identity.recordId)) row,
+        ...changes.map(operations.decode),
+      ];
+      final selected = UniversePolicySelection.fromRecords(universe, after);
+      expect(selected.definition.identity.recordId, id);
+      expect(selected.rules, hasLength(realWorld ? 1 : 0));
+      expect(after, contains(root.definition));
+      // The fixture already contains unsourced claims: activating Real World
+      // correctly requires evidence before this root switch can be published.
+      expect(candidate.check(after, base: base, changes: changes).admissible,
+          !realWorld);
+      if (realWorld) {
+        final source = (selected.rules.single.payload as RuleRecord)
+            .requiredEvidence!.sourceCategories.single;
+        final category = after.singleWhere((r) => r.identity.recordId == source.record);
+        expect(source.version, category.recordVersionId);
+        expect(source.universe, universe);
+      }
+    });
+  }
+
+  test('available Real World clones have independent rules and categories', () {
+    final base = [
+      ...candidate.fixture(),
+      ...initialUniversePolicyRecords(universe, true),
+    ];
+    final original = UniversePolicySelection.fromRecords(universe, base);
+    final changes = operations.compile(base, [
+      DefineUniversePolicyOperation(
+        clientRef: RecordId.generate().value,
+        key: 'available',
+        realWorld: true,
+        activate: false,
+      ),
+    ]);
+    final after = [...base, ...changes.map(operations.decode)];
+    final selected = UniversePolicySelection.fromRecords(universe, after);
+    expect(selected.definition, original.definition);
+    expect(selected.inactiveRuleIds, hasLength(1));
+    expect(candidate.check(after, base: base, changes: changes).admissible, isTrue);
+    final refs = after.where((row) => row.payload is RuleRecord)
+        .map((row) => (row.payload as RuleRecord)
+            .requiredEvidence!.sourceCategories.single.record).toSet();
+    expect(refs, hasLength(2));
+  });
+
+  test('root definition rejects stale selection, duplicate names and rootless availability', () {
+    final legacy = candidate.fixture();
+    final base = [...legacy, ...initialUniversePolicyRecords(universe, false)];
+    DefineUniversePolicyOperation define(String key, {bool activate = true}) =>
+        DefineUniversePolicyOperation(
+          clientRef: RecordId.generate().value,
+          key: key,
+          realWorld: false,
+          activate: activate,
+        );
+    expect(() => operations.compile(base, [define('replacement')]),
+        throwsA(isA<protocol.InvalidArgumentError>()));
+    expect(() => operations.compile(base, [define('custom', activate: false)]),
+        throwsA(isA<protocol.InvalidArgumentError>()));
+    expect(() => operations.compile(legacy, [define('first', activate: false)]),
+        throwsA(isA<protocol.InvalidArgumentError>()));
+    final adopted = operations.compile(legacy, [define('first')]);
+    expect(UniversePolicySelection.fromRecords(universe,
+        [...legacy, ...adopted.map(operations.decode)]).rules, isEmpty);
+  });
+
   test('another defined root can be selected without deleting the former definition', () {
     final initial = initialUniversePolicyRecords(universe, false);
     final old = UniversePolicySelection.fromRecords(universe, initial);

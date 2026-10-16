@@ -4840,7 +4840,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 68),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 69),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4910,6 +4910,7 @@ CREATE TABLE "r_domain_operation" (
   v66 INTEGER REFERENCES "r_domain_operation_v66"(__row_id),
   v67 INTEGER REFERENCES "r_domain_operation_v67"(__row_id),
   v68 INTEGER REFERENCES "r_domain_operation_v68"(__row_id),
+  v69 INTEGER REFERENCES "r_domain_operation_v69"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -5047,7 +5048,9 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=67 OR v67 IS NULL),
   CHECK(variant!=67 OR v67 IS NOT NULL),
   CHECK(variant=68 OR v68 IS NULL),
-  CHECK(variant!=68 OR v68 IS NOT NULL)
+  CHECK(variant!=68 OR v68 IS NOT NULL),
+  CHECK(variant=69 OR v69 IS NULL),
+  CHECK(variant!=69 OR v69 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -7853,6 +7856,31 @@ CREATE TABLE "r_domain_operation_v68" (
   CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL)),
   CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
   CHECK(("replacement__state"=2 AND "replacement" IS NOT NULL) OR ("replacement__state" IN (0,1) AND "replacement" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v69" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "key__state" INTEGER NOT NULL CHECK("key__state" IN (2)),
+  "key" TEXT,
+  "real_world__state" INTEGER NOT NULL CHECK("real_world__state" IN (2)),
+  "real_world" INTEGER,
+  "activate__state" INTEGER NOT NULL CHECK("activate__state" IN (2)),
+  "activate" INTEGER,
+  "expected_root_version__state" INTEGER NOT NULL CHECK("expected_root_version__state" IN (0,2)),
+  "expected_root_version" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='define_universe_policy'),
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
+  CHECK(("real_world__state"=2 AND "real_world" IS NOT NULL) OR ("real_world__state" IN (0,1) AND "real_world" IS NULL)),
+  CHECK("real_world" IN (0,1)),
+  CHECK(("activate__state"=2 AND "activate" IS NOT NULL) OR ("activate__state" IN (0,1) AND "activate" IS NULL)),
+  CHECK("activate" IN (0,1)),
+  CHECK(("expected_root_version__state"=2 AND "expected_root_version" IS NOT NULL) OR ("expected_root_version__state" IN (0,1) AND "expected_root_version" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_stored_context" (
@@ -12748,6 +12776,10 @@ CREATE TRIGGER "r_secret_concealment_no_delete" BEFORE DELETE ON "r_secret_conce
 CREATE TRIGGER "r_domain_operation_v68_no_update" BEFORE UPDATE ON "r_domain_operation_v68" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v68_no_delete" BEFORE DELETE ON "r_domain_operation_v68" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v69_no_update" BEFORE UPDATE ON "r_domain_operation_v69" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v69_no_delete" BEFORE DELETE ON "r_domain_operation_v69" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -21084,7 +21116,8 @@ const relationalCatalog = r'''{
         "DomainOperation_v65",
         "DomainOperation_v66",
         "DomainOperation_v67",
-        "DomainOperation_v68"
+        "DomainOperation_v68",
+        "DomainOperation_v69"
       ]
     },
     "DomainOperation_v0": {
@@ -25545,6 +25578,53 @@ const relationalCatalog = r'''{
       "table": "r_domain_operation_v68_kind",
       "kind": "string",
       "const": "revise_secret"
+    },
+    "DomainOperation_v69": {
+      "table": "r_domain_operation_v69",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "DomainOperation_v69_kind",
+          "required": true
+        },
+        "client_ref": {
+          "model": "RecordId",
+          "required": true
+        },
+        "key": {
+          "model": "DomainOperation_v69_key",
+          "required": true
+        },
+        "real_world": {
+          "model": "DomainOperation_v69_real_world",
+          "required": true
+        },
+        "activate": {
+          "model": "DomainOperation_v69_activate",
+          "required": true
+        },
+        "expected_root_version": {
+          "model": "RecordVersionId",
+          "required": false
+        }
+      }
+    },
+    "DomainOperation_v69_kind": {
+      "table": "r_domain_operation_v69_kind",
+      "kind": "string",
+      "const": "define_universe_policy"
+    },
+    "DomainOperation_v69_key": {
+      "table": "r_domain_operation_v69_key",
+      "kind": "string"
+    },
+    "DomainOperation_v69_real_world": {
+      "table": "r_domain_operation_v69_real_world",
+      "kind": "boolean"
+    },
+    "DomainOperation_v69_activate": {
+      "table": "r_domain_operation_v69_activate",
+      "kind": "boolean"
     },
     "StoredContext": {
       "table": "r_stored_context",
