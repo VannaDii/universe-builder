@@ -459,7 +459,7 @@ def positive_integer(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, required=True)
-    parser.add_argument("--bin-dir", type=Path, default=Path("target/debug"))
+    parser.add_argument("--bin-dir", type=Path, default=Path("target/headless/local/bin"))
     parser.add_argument("--installation", type=Path, required=True)
     parser.add_argument("--universe", required=True)
     parser.add_argument("--author-profile", required=True,

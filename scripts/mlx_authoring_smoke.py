@@ -450,7 +450,7 @@ def evaluate(args, report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, required=True, help="Existing local MLX model directory; never downloaded")
-    parser.add_argument("--bin-dir", type=Path, default=Path(__file__).resolve().parents[1] / "target/debug")
+    parser.add_argument("--bin-dir", type=Path, default=Path(__file__).resolve().parents[1] / "target/headless/local/bin")
     parser.add_argument("--report", type=Path, required=True, help="New output JSON path; never overwritten")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()

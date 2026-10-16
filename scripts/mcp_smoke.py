@@ -169,5 +169,5 @@ def run(bin_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--bin-dir', type=Path, default=ROOT / 'target/debug')
+    parser.add_argument('--bin-dir', type=Path, default=ROOT / 'target/headless/local/bin')
     run(parser.parse_args().bin_dir.resolve())

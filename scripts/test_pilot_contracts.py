@@ -11,7 +11,7 @@ class CurrentContractWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="ub-chapter-contract-") as directory:
             result = {}
             run(SimpleNamespace(regression=True, model=None, seed=42,
-                                bin_dir=Path(__file__).resolve().parents[1] / "target/debug",
+                                bin_dir=Path(__file__).resolve().parents[1] / "target/headless/local/bin",
                                 output=Path(directory)), result)
             self.assertEqual(result["status"], "pass")
             self.assertTrue(all(result["checks"].values()))
@@ -23,7 +23,7 @@ class CurrentContractWorkflowTests(unittest.TestCase):
         from power_authoring_pilot import run
         result = {}
         run(SimpleNamespace(model=None, seed=42,
-                            bin_dir=Path(__file__).resolve().parents[1] / "target/debug"), result)
+                            bin_dir=Path(__file__).resolve().parents[1] / "target/headless/local/bin"), result)
         self.assertEqual(result["engine_assessment"]["passed"], 11)
         self.assertEqual([r["expected"] for r in result["admissions"]],
                          ["usable", "usable", "conflict", "usable", "unknown", "usable",
@@ -37,7 +37,7 @@ class CurrentContractWorkflowTests(unittest.TestCase):
         from mlx_authoring_smoke import (setup_operations, claim_operation, commit_arguments,
                                          fixture_supported_values, validation_execution)
         with tempfile.TemporaryDirectory(prefix="ub-mlx-contract-", dir="/tmp") as directory:
-            session = PilotSession(directory, Path(__file__).resolve().parents[1] / "target/debug", {})
+            session = PilotSession(directory, Path(__file__).resolve().parents[1] / "target/headless/local/bin", {})
             try:
                 session.start()
                 claim = lambda n, subject, predicate, value, start=0, end=None: claim_operation(

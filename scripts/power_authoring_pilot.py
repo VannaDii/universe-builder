@@ -120,7 +120,7 @@ def run(args, report):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bin-dir", type=Path, default=Path("target/debug"))
+    parser.add_argument("--bin-dir", type=Path, default=Path("target/headless/local/bin"))
     parser.add_argument("--model", type=Path)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, required=True)

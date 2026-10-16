@@ -76,7 +76,7 @@ def run(bin_dir):
             admin('rename', uid, 'The Renamed Cycle')
             result = client.call('universe_describe', {'universe': 'The Ashen Cycle', 'mode': 'summary'})
             assert result['alias_matched'] is True and result['universe'] == 'The Renamed Cycle'
-            # Malformed legacy context input remains rejected.
+            # Malformed context input remains rejected.
             client.call('universe_open_context', {'universe': 'The Renamed Cycle', 'revision': 'head', 'continuity': 'main'}, error=True)
             client.close(); client = None
             assert admin('status')['service_instance'] == instance
@@ -117,5 +117,5 @@ def run(bin_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--bin-dir', type=Path, default=Path('target/debug'))
+    parser.add_argument('--bin-dir', type=Path, default=Path('target/headless/local/bin'))
     run(parser.parse_args().bin_dir.resolve())

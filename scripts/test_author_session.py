@@ -235,7 +235,7 @@ class ConnectedWritingTests(unittest.TestCase):
         from pathlib import Path
         from types import SimpleNamespace
         from mcp_smoke import MCP
-        binaries=Path(os.environ.get("UB_TEST_BIN_DIR",Path(__file__).resolve().parents[1]/"target/debug")).resolve()
+        binaries=Path(os.environ.get("UB_TEST_BIN_DIR",Path(__file__).resolve().parents[1]/"target/headless/local/bin")).resolve()
         if not all((binaries/name).is_file() for name in ("universe","universe-engine","universe-mcp")):
             self.skipTest("Build existing CLI/engine/MCP binaries for installed integration")
         with tempfile.TemporaryDirectory(prefix="ub-connected-writing-",dir="/tmp") as temp:
@@ -603,8 +603,9 @@ class ConnectedWritingTests(unittest.TestCase):
                 cli("approve","Story",ref["proposal_id"],str(ref["version"]),ref["digest"],staged["validation"]["execution"]["run_id"],profile=author)
                 before_advance=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["frame"]["revision"]
                 publish(check(context(),changes=[{"name":"Key","facts":[{"property":"tags","value":"yellow","scope":"universe","at_tick":"60","lifetime":{"kind":"until","end_tick":"61"}}]}]),"The key has a yellow tag from sixty until sixty-one.","connected-property-advance")
-                with self.assertRaisesRegex(RuntimeError,"approval stale"):
+                with self.assertRaises(RuntimeError) as stale_approval:
                     decisions.action({"action":"publish","candidate":ref,"validation_run":staged["validation"]["execution"]["run_id"],"idempotency_key":"connected-stale-property"})
+                self.assertEqual(json.loads(str(stale_approval.exception))["code"],"APPROVAL_STALE")
                 self.assertEqual(property_settings(context())["persistence"],"unspecified")
                 staged=decisions.action({"action":"prepare_contracts","candidate":check(context(),property_corrections=[{"name":"code","persistence":"until_changed","reason":"Fresh explicit correction after research."}])["candidate_handle"],"label":"Fresh property approval","text":"Future code values persist until changed."})
                 ref=staged["candidate"]
@@ -846,7 +847,7 @@ class ConnectedWritingTests(unittest.TestCase):
         from pathlib import Path
         from types import SimpleNamespace
         from mcp_smoke import MCP
-        binaries=Path(os.environ.get("UB_TEST_BIN_DIR",Path(__file__).resolve().parents[1]/"target/debug")).resolve()
+        binaries=Path(os.environ.get("UB_TEST_BIN_DIR",Path(__file__).resolve().parents[1]/"target/headless/local/bin")).resolve()
         if not all((binaries/name).is_file() for name in ("universe","universe-engine","universe-mcp")):
             self.skipTest("Build existing CLI/engine/MCP binaries for installed integration")
         with tempfile.TemporaryDirectory(prefix="ub-silver-writing-",dir="/tmp") as temp:
@@ -867,8 +868,7 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual(decisions.action(args)["result"],receipt["result"])
                 return receipt["result"]["revision"]
             try:
-                # Remaining Silver Gate premises use plain named changes, not legacy
-                # knows_location Boolean proxies or supplied prose interpretations.
+                # Silver Gate premises use named changes and explicit knowledge records.
                 silver=json.loads((Path(__file__).resolve().parents[1]/"fixtures/silver-gate.json").read_text())
                 self.assertEqual([s["id"] for s in silver["scenarios"]],[f"S{n:02d}" for n in range(1,11)])
                 gate=json.loads(cli("create",silver["universe"],"--first-time","16","--calendar","Gate days","--tick-label","events",profile=author))

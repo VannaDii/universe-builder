@@ -2826,12 +2826,12 @@ same Dart generator. This configuration uses the lower-level `universe-mcp`
 helper; when configuring the public `multiverse-mcp` launcher instead, prepend
 `serve` to its arguments.
 
-The retained Rust fixture commands during migration are:
+For a disposable Dart fixture:
 
 ```sh
 runtime=$(mktemp -d /tmp/universe-fixture.XXXXXX)
-cargo build --locked -p universe-engine -p universe-mcp
-./target/debug/universe-engine --fixture --socket "$runtime/fixture.sock"
+dart run apps/ub_cli/tool/package_headless.dart --output target/headless/local
+./target/headless/local/bin/universe-engine --fixture --socket "$runtime/fixture.sock"
 ```
 
 Leave the chosen engine running while its MCP host uses the socket, and stop it
