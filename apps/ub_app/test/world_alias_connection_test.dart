@@ -11,6 +11,7 @@ import 'package:ub_app/world_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/world_browser.dart';
 import 'package:ub_app/world_evidence_policies.dart';
+import 'package:ub_app/universe_policies.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -380,6 +381,8 @@ void main() {
               }),
         ]),
       );
+      final policyRules = List.generate(51, (_) => RecordId.generate());
+      final pagedPolicy = RecordId.generate();
       final fresh = await resumed.rebase(
         (await resumed.load())!,
         startNew: true,
@@ -404,9 +407,12 @@ void main() {
                   realWorld: true,
                   activate: false,
                 ),
+                InstallPackOperation(clientRef: pagedPolicy.value,
+                  record: DomainPackRecord(key: '${universePolicyDefinitionPrefix}paged',
+                    version: '1', dependencies: {}, capabilities: [], records: policyRules)),
                 for (var i = 0; i < 51; i++)
                   DefineRuleOperation(
-                    clientRef: RecordId.generate().value,
+                    clientRef: policyRules[i].value,
                     record: scopedRule(
                       'ordinary-$i',
                       const UniverseApplicability(),
@@ -472,6 +478,18 @@ void main() {
             .single.record.recordVersionId,
         inherited.policies.single.record.recordVersionId,
       );
+      final metadata = await readUniversePolicyChoices(resumed, SavedDraft(
+        version: BigInt.zero,
+        content: DraftContent(baseRevision: policyReceipt.revision,
+          representedContext: context, operations: [], rationale: '')));
+      final definition = metadata.definitions.singleWhere((row) =>
+        row.identity.recordId == pagedPolicy);
+      expect((await readUniversePolicyRulePage(changes: resumed,
+        context: metadata.context, definition: definition, offset: 0))
+          .map((row) => row.identity.recordId), policyRules.take(50));
+      expect((await readUniversePolicyRulePage(changes: resumed,
+        context: metadata.context, definition: definition, offset: 50))
+          .map((row) => row.identity.recordId), policyRules.skip(50));
       final oldPolicies = await readWorldEvidencePolicies(
         session: session,
         universe: entry,

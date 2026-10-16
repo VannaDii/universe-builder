@@ -325,6 +325,7 @@ List<Assignment> compileAllocatedOperations({
     operations: lowered,
     changes: changes,
   );
+  synchronizeUniversePolicySelection(universe: universe, base: base, changes: changes);
   freezeEventEffects(universe: universe, base: base, changes: changes);
   return List.unmodifiable(changes);
 }

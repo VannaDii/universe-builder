@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ub_app/pack_draft.dart';
+import 'package:ub_app/universe_policies.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -59,7 +60,12 @@ void main() {
         scope: scope,
       );
       Future<List<RecordVersion>> publish(SavedDraft draft) async {
-        final proposal = await changes().submit(draft);
+        late Proposal proposal;
+        try {
+          proposal = await changes().submit(draft);
+        } on InvalidArgumentError catch (error) {
+          fail('${error.field}: ${error.message}');
+        }
         final validation =
             await changes().validate(proposal) as EvaluatedValidation;
         await changes().approve(proposal, validation);
@@ -221,6 +227,72 @@ void main() {
         record: scope.representedContext!,
       );
       expect(contextRecord.toWire().toText(), earlierContext.toWire().toText());
+      final policies = await readUniversePolicyChoices(changes(), current);
+      final policyScope = EditorFormScope(instance: scope.instance,
+        profile: scope.profile, universe: scope.universe, continuity: scope.continuity,
+        representedContext: scope.representedContext, typeClientRef: universePolicyEditorKey);
+      final unfinished = UnfinishedPackForm(baseRevision: current.content.baseRevision,
+        representedContext: scope.representedContext!, clientRef: RecordId.generate().value,
+        realWorldPolicy: true, activatePolicy: false,
+        expectedRootVersion: policies.selection!.recordVersionId);
+      await session.savePackForm(policyScope, unfinished, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recovered = (await session.loadPackForm(policyScope))!.form;
+      expect(recovered.toWire().toText(), unfinished.toWire().toText());
+      expect(() => universePolicyOperation(recovered), throwsFormatException);
+      final named = recovered.copyWith(key: 'Memoir 記憶', rationale: 'Define an independent replacement.');
+      final request = packDraftRequest(draft: current, form: named,
+        universe: const Selector('Packs'), continuity: scope.continuity);
+      final policyDraft = SavedDraft.fromWire(await session.call(request));
+      expect(policyDraft.content.operations.single, isA<DefineUniversePolicyOperation>());
+      final fields = packFormFromDraft(policyDraft, 0).copyWith(key: 'Memoir 記憶 revised');
+      final edited = SavedDraft.fromWire(await session.call(packDraftRequest(
+        draft: policyDraft, form: fields, universe: const Selector('Packs'),
+        continuity: scope.continuity, index: 0)));
+      await publish(edited);
+      final selectionBase = await changes().rebase((await changes().load())!, startNew: true);
+      final available = await readUniversePolicyChoices(changes(), selectionBase);
+      expect(available.definitions, hasLength(2));
+      expect(available.selected, policies.selected);
+      final definition = available.definitions.singleWhere((row) =>
+        row.identity.recordId.value == unfinished.clientRef);
+      final visibleRules = await readUniversePolicyRulePage(changes: changes(),
+        context: available.context, definition: definition, offset: 0);
+      expect(visibleRules.map((r) => r.identity.recordId),
+        (definition.payload as DomainPackRecord).records);
+      expect(await readUniversePolicyRulePage(changes: changes(),
+        context: available.context, definition: definition, offset: 50), isEmpty);
+      final selectionRequest = universePolicySelectionDraftRequest(
+        draft: selectionBase, universe: const Selector('Packs'), continuity: scope.continuity,
+        representedContext: scope.representedContext!, revision: selectionBase.content.baseRevision,
+        selection: available.selection!, definition: definition);
+      final selectionDraft = SavedDraft.fromWire(await session.call(selectionRequest));
+      expect(universePolicyChangeLabel(selectionDraft.content.operations.single),
+        'select universe root: Memoir 記憶 revised');
+      expect(() => universePolicySelectionDraftRequest(
+        draft: selectionDraft, universe: const Selector('Packs'), continuity: scope.continuity,
+        representedContext: scope.representedContext!, revision: selectionBase.content.baseRevision,
+        selection: available.selection!, definition: definition), throwsFormatException);
+      await publish(selectionDraft);
+      final selectedBase = await changes().rebase((await changes().load())!, startNew: true);
+      expect((await readUniversePolicyChoices(changes(), selectedBase)).selected,
+          definition.identity.recordId);
+      expect((await readUniversePolicyChoices(changes(), current)).selected, policies.selected);
+      final revisionForm = packRevisionFormFromRecord(record: definition,
+        baseRevision: selectedBase.content.baseRevision,
+        representedContext: scope.representedContext!).copyWith(version: '2',
+          rationale: 'Revise the selected policy without breaking its root binding.');
+      final revisedDraft = SavedDraft.fromWire(await session.call(packDraftRequest(
+        draft: selectedBase, form: revisionForm, universe: const Selector('Packs'),
+        continuity: scope.continuity)));
+      final revised = await publish(revisedDraft);
+      expect(revised, hasLength(2)); // Definition and its selected root dependency.
+      final revisedBase = await changes().rebase((await changes().load())!, startNew: true);
+      final revisedPolicies = await readUniversePolicyChoices(changes(), revisedBase);
+      expect(revisedPolicies.selected, definition.identity.recordId);
+      expect((revisedPolicies.selection!.payload as DomainPackRecord).dependencies,
+          {(definition.payload as DomainPackRecord).key: '2'});
     } finally {
       await session?.close();
       await server.close();

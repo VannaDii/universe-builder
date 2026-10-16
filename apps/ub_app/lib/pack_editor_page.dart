@@ -19,12 +19,16 @@ class PackEditorPage extends StatefulWidget {
     this.editingDraft,
     this.index,
     this.revisionRecord,
+    this.definePolicy = false,
+    this.rootVersion,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
   final RecordVersion? revisionRecord;
+  final bool definePolicy;
+  final RecordVersionId? rootVersion;
   @override
   State<PackEditorPage> createState() => _PackEditorPageState();
 }
@@ -66,8 +70,13 @@ class _PackEditorPageState extends State<PackEditorPage> {
     super.dispose();
   }
 
+  UnfinishedPackForm _draftForm() {
+    final form = packFormFromDraft(_draft!, widget.index!);
+    return form.copyWith(expectedRootVersion: form.expectedRootVersion ?? widget.rootVersion);
+  }
+
   UnfinishedPackForm _fresh() => widget.index != null
-      ? packFormFromDraft(_draft!, widget.index!)
+      ? _draftForm()
       : widget.revisionRecord != null
       ? packRevisionFormFromRecord(
           record: widget.revisionRecord!,
@@ -78,6 +87,8 @@ class _PackEditorPageState extends State<PackEditorPage> {
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
           clientRef: RecordId.generate().value,
+          realWorldPolicy: widget.definePolicy ? false : null,
+          expectedRootVersion: widget.rootVersion,
         );
   Future<void> _load() async {
     setState(() {
@@ -106,6 +117,8 @@ class _PackEditorPageState extends State<PackEditorPage> {
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
+                          (op is DefineUniversePolicyOperation &&
+                              op.clientRef == _form!.clientRef) ||
                           (op is InstallPackOperation &&
                               _form!.revisionTarget == null &&
                               op.clientRef == _form!.clientRef) ||
@@ -214,12 +227,15 @@ class _PackEditorPageState extends State<PackEditorPage> {
                     op is UpgradePackOperation &&
                     op.record == packRevisionOperation(_form!).record,
               );
-          _form = packFormFromDraft(saved, index);
+          _form = packFormFromDraft(saved, index).copyWith(
+            expectedRootVersion: _form!.expectedRootVersion ?? widget.rootVersion,
+          );
           _fields++;
           _dirty = true;
         } else {
-          _added =
-              'Domain pack added to Changes. Review it before publication.';
+          _added = _form!.realWorldPolicy != null
+              ? 'Policy added to Changes. Review it before publication.'
+              : 'Domain pack added to Changes. Review it before publication.';
         }
       });
       await _save();
@@ -275,7 +291,9 @@ class _PackEditorPageState extends State<PackEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.index == null ? 'Domain pack' : 'Edit pack declaration',
+          _form?.realWorldPolicy != null || widget.definePolicy
+              ? 'Define universe policy'
+              : widget.index == null ? 'Domain pack' : 'Edit pack declaration',
         ),
       ),
       body: Align(
@@ -287,7 +305,9 @@ class _PackEditorPageState extends State<PackEditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                if (_form?.realWorldPolicy != null || widget.definePolicy)
+                  const Text('Start with an empty policy or an independent Real World clone. Worlds inherit the selected root. Selecting a replacement rechecks the universe against its requirements.')
+                else const Text(
                   'Declare a data pack of existing records with an exact version, dependency versions and capabilities. The service checks dependencies and supported capabilities during review. This declaration does not download content or alter member records.',
                 ),
                 if (_loading || _saving || _adding)
@@ -297,11 +317,41 @@ class _PackEditorPageState extends State<PackEditorPage> {
                     'Recovered fields belong to an earlier draft or revision.',
                   ),
                   TextButton(
-                    onPressed: _disabled ? null : _reset,
+                    onPressed: _loading || _saving || _adding ? null : _reset,
                     child: const Text('Use current draft fields'),
                   ),
                 ],
                 if (_form case final f?) ...[
+                  if (f.realWorldPolicy != null) ...[
+                    const Text('Real World clones start with no qualifying sources selected. You can keep a replacement available, configure its evidence requirements, then select it.'),
+                    _text('policy-name', 'Policy name', f.key,
+                      (v) => _change(f.copyWith(key: v))),
+                    RadioGroup<bool>(
+                      groupValue: f.realWorldPolicy!,
+                      onChanged: (value) {
+                        if (!_disabled && value != null) {
+                          _change(f.copyWith(realWorldPolicy: value));
+                        }
+                      },
+                      child: Column(children: [
+                        RadioListTile<bool>(value: false, enabled: !_disabled,
+                          title: const Text('Start from scratch'),
+                          subtitle: const Text('An empty policy you can define.')),
+                        RadioListTile<bool>(value: true, enabled: !_disabled,
+                          title: const Text('Clone Real World policy'),
+                          subtitle: const Text('Independent evidence requirements and source selections.')),
+                      ]),
+                    ),
+                    CheckboxListTile(
+                      value: f.activatePolicy,
+                      title: const Text('Select as the universe root'),
+                      subtitle: Text(widget.rootVersion == null
+                        ? 'The first policy must be selected.'
+                        : 'Otherwise this policy remains available without enforcing its rules.'),
+                      onChanged: _disabled || widget.rootVersion == null ? null
+                        : (value) => _change(f.copyWith(activatePolicy: value)),
+                    ),
+                  ] else ...[
                   if (f.revisionTarget != null)
                     const Text(
                       'Upgrades retain the pack key and require a different exact version. Dependency versions and member records remain explicit; publication preserves history.',
@@ -426,8 +476,8 @@ class _PackEditorPageState extends State<PackEditorPage> {
                           key: ValueKey((_fields, 'record', i)),
                           changes: widget.changes,
                           draft: _choices,
-                          kind: null,
-                          label: 'Member record',
+                          kind: f.key.startsWith(universePolicyDefinitionPrefix) ? RecordKind.rule : null,
+                          label: f.key.startsWith(universePolicyDefinitionPrefix) ? 'Policy rule' : 'Member record',
                           record: f.records[i],
                           universe: _scope.universe.value,
                           disabled: _disabled,
@@ -495,6 +545,7 @@ class _PackEditorPageState extends State<PackEditorPage> {
                               _change(f.copyWith(records: [...f.records, ''])),
                     child: const Text('Add member record'),
                   ),
+                  ],
                   if (widget.index == null)
                     _text(
                       'rationale',
@@ -527,7 +578,8 @@ class _PackEditorPageState extends State<PackEditorPage> {
                   if (_added != null)
                     TextButton(
                       onPressed: _loading || _saving || _adding ? null : _reset,
-                      child: const Text('Start another pack declaration'),
+                      child: Text(_form?.realWorldPolicy != null
+                        ? 'Start another policy' : 'Start another pack declaration'),
                     ),
                   TextButton(
                     onPressed: _loading || _saving || _adding

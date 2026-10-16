@@ -37,6 +37,7 @@ import 'relation_editor_page.dart';
 import 'source_editor_page.dart';
 import 'calendar_editor_page.dart';
 import 'pack_editor_page.dart';
+import 'universe_policies.dart';
 import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'world_editor_page.dart';
@@ -592,6 +593,14 @@ Future<Widget> draftOperationEditor(
       editingDraft: draft,
       index: index,
       changes: scopedChanges(operation.clientRef),
+    );
+  }
+  if (operation is DefineUniversePolicyOperation) {
+    final policies = await readUniversePolicyChoices(changes, draft);
+    return PackEditorPage(
+      revision: draft.content.baseRevision, editingDraft: draft, index: index,
+      changes: scopedChanges(operation.clientRef), definePolicy: true,
+      rootVersion: policies.selection?.recordVersionId,
     );
   }
   if (operation is InstallPackOperation) {

@@ -13,6 +13,7 @@ import 'package:ub_domain/ub_domain.dart'
 
 import 'connection.dart';
 import 'create_universe_page.dart';
+import 'universe_policies_page.dart';
 import 'world_editor_page.dart';
 import 'world_browser.dart';
 import 'world_detail_page.dart';
@@ -822,6 +823,22 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     ),
     'pack' => PackEditorPage(
       revision: continuity.revisionId,
+      changes: SavedChanges(
+        session: _session!,
+        universe: Selector(_selected!.name),
+        scope: EditorFormScope(
+          instance: _library!.instance,
+          profile: _session!.principal,
+          universe: _selected!.id,
+          continuity: continuity.id,
+          representedContext: _contexts[continuity.id],
+        ),
+      ),
+    ),
+    'policies' => UniversePoliciesPage(
+      continuity: continuity,
+      representedContext: selectedRepresentedContext(continuity, _contexts[continuity.id])
+          ?? (throw const FormatException('Choose a represented context.')),
       changes: SavedChanges(
         session: _session!,
         universe: Selector(_selected!.name),
@@ -3022,6 +3039,42 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Domain pack'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        settings: widget.device.supportsBrowser
+                                            ? RouteSettings(
+                                                name: LibraryLocation(
+                                                  universe: _selected!.id,
+                                                  continuity: continuity.id,
+                                                  context:
+                                                      _contexts[continuity.id],
+                                                  editor: 'policies',
+                                                ).uri.toString(),
+                                              )
+                                            : null,
+                                        builder: (_) => _linkedEditor(
+                                          LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'policies',
+                                          ),
+                                          continuity,
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Universe policies'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

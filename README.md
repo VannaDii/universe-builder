@@ -13,8 +13,12 @@ root. Only the selected definition's rules execute; available replacements remai
 inactive and independently authored rules keep their applicability. The typed
 `define_universe_policy` operation defines a scratch policy or an independent
 Real World clone and can select it atomically through reviewed Changes. Existing
-historical snapshots retain their original bytes. Dedicated UI controls and
-adoption of a root for older universes are still being implemented. See
+historical snapshots retain their original bytes. Open **Universe policies** in
+a continuity to define replacements, inspect their rules, or add a root selection
+to Changes. Unfinished policy names and choices recover separately from ordinary
+pack declarations on native and web clients. Editing the selected definition
+updates its root dependency in the same reviewed proposal. Enforcing explicit
+root adoption throughout older-universe import and conversion remains pending. See
 [the policy design](docs/dart-conversion-plan.md#41-meaning-and-scope).
 Real World starts with no qualifying sources selected. The author chooses source
 membership explicitly; interpretation review is required only where a scoped

@@ -64,6 +64,7 @@ final class LibraryLocation {
     'event',
     'calendar',
     'pack',
+    'policies',
     'world',
     'changes',
     'writing',

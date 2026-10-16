@@ -1,5 +1,19 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'universe_policies.dart';
+
+DefineUniversePolicyOperation universePolicyOperation(UnfinishedPackForm form) {
+  if (form.realWorldPolicy == null || form.key.trim().isEmpty) {
+    throw const FormatException('Give this policy a name.');
+  }
+  return DefineUniversePolicyOperation(
+    clientRef: form.clientRef,
+    key: form.key,
+    realWorld: form.realWorldPolicy!,
+    activate: form.activatePolicy,
+    expectedRootVersion: form.activatePolicy ? form.expectedRootVersion : null,
+  );
+}
 
 InstallPackOperation packOperation(UnfinishedPackForm form) {
   if ([form.key, form.version, form.clientRef].any((v) => v.trim().isEmpty)) {
@@ -77,6 +91,16 @@ UnfinishedPackForm packRevisionFormFromRecord({
 
 UnfinishedPackForm packFormFromDraft(SavedDraft draft, int index) {
   final op = draft.content.operations[index];
+  if (op is DefineUniversePolicyOperation) {
+    return UnfinishedPackForm(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: op.clientRef, key: op.key,
+      realWorldPolicy: op.realWorld, activatePolicy: op.activate,
+      expectedRootVersion: op.expectedRootVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (op is UpgradePackOperation) {
     return _packForm(
       c: op.replacement,
@@ -142,10 +166,12 @@ SaveDraftEngineRequest packDraftRequest({
       'Review Changes before adding this domain pack.',
     );
   }
-  final operation = form.revisionTarget == null
+  final DomainOperation operation = form.realWorldPolicy != null
+          ? universePolicyOperation(form)
+          : form.revisionTarget == null
           ? packOperation(form)
-          : packRevisionOperation(form),
-      operations = [...draft.content.operations];
+          : packRevisionOperation(form);
+  final operations = [...draft.content.operations];
   if (index != null) {
     final before = packFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
@@ -189,6 +215,9 @@ SaveDraftEngineRequest packDraftRequest({
           content: draft.content,
         );
       }
+    }
+    if (isUniverseRootChange(operation) && operations.any(isUniverseRootChange)) {
+      throw const FormatException('A root change is already in Changes. Review or edit it there.');
     }
     operations.add(operation);
   }

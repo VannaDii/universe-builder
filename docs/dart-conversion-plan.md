@@ -144,8 +144,15 @@ optionally selecting it atomically through ordinary reviewed publication. Clone
 source-category versions are allocated privately during preparation and retained
 in the compiled proposal. Selecting a replacement compares the prior root's
 exact version; merely defining an alternative leaves it inactive. The existing
-pack-upgrade operation can select an already defined policy. Dedicated UI controls
-and existing-universe adoption remain implementation work.
+pack-upgrade operation can select an already defined policy. The shared Flutter
+UI now exposes **Universe policies** per continuity: define scratch or Real World
+replacements, keep them available or select them through Changes, inspect their
+rules in pages, and open the existing rule editor. Unfinished policy input uses
+the existing pack recovery store with explicit policy fields and a separate editor
+slot; older native pack input upgrades without changing its entered values.
+Editing the selected definition updates the root's exact dependency in the same
+compiled proposal. Explicit adoption enforcement across older-universe import
+and conversion remains implementation work.
 
 World omission in a request continues to select no individual world. It must not apply a convenient default world's policy. Represented beliefs, dialogue, reports, dreams and counterfactuals retain their current context/occurrence semantics even inside a Real World universe.
 

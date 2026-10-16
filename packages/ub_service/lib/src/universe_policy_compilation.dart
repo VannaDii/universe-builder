@@ -91,3 +91,66 @@ List<Assignment> compileUniversePolicy({
   }
   return changes;
 }
+
+/// Editing the selected definition also updates its root's exact dependency in
+/// the same compiled proposal. An explicit root change retains caller intent.
+void synchronizeUniversePolicySelection({
+  required UniverseId universe,
+  required List<RecordVersion> base,
+  required List<Assignment> changes,
+}) {
+  if (!changes.any((change) {
+        final payload = change.next?.payload;
+        if (payload == null) {
+          return false;
+        }
+        final record = RecordPayload.fromWire(payload);
+        return record is DomainPackRecord &&
+            record.key.startsWith(universePolicyDefinitionPrefix);
+      }) ||
+      !base.any(isUniversePolicyRecord)) {
+    return;
+  }
+  final selected = UniversePolicySelection.fromRecords(universe, base);
+  if (changes.any(
+    (change) => change.recordId == selected.selection.identity.recordId,
+  )) {
+    return;
+  }
+  final edit = changes
+      .where(
+        (change) => change.recordId == selected.definition.identity.recordId,
+      )
+      .singleOrNull;
+  if (edit?.next == null) {
+    return;
+  }
+  final definition = RecordPayload.fromWire(edit!.next!.payload);
+  if (definition is! DomainPackRecord) {
+    return;
+  }
+  final version = RecordVersionId.generate();
+  final root = RecordVersion.build(
+    recordVersionId: version,
+    identity: selected.selection.identity,
+    payload: DomainPackRecord(
+      key: universePolicySelectionKey,
+      version: version.value,
+      dependencies: {definition.key: definition.version},
+      capabilities: [],
+      records: [selected.definition.identity.recordId],
+    ),
+  );
+  changes.add(
+    Assignment(
+      recordId: root.identity.recordId,
+      expected: selected.selection.recordVersionId,
+      next: StoredVersion(
+        versionId: version,
+        identity: root.identity,
+        payload: root.payload.toWire(),
+        digest: root.payloadDigest,
+      ),
+    ),
+  );
+}

@@ -3,6 +3,8 @@ import 'package:ub_domain/ub_domain.dart';
 import 'expression_forms.dart';
 import 'wire.dart';
 
+const universePolicyEditorKey = 'universe-policy';
+
 final class PackDependencyInput {
   const PackDependencyInput({this.key = '', this.version = ''});
   final String key, version;
@@ -30,6 +32,9 @@ final class UnfinishedPackForm {
     Iterable<String> capabilities = const [],
     Iterable<String> records = const [],
     this.rationale = '',
+    this.realWorldPolicy,
+    this.activatePolicy = true,
+    this.expectedRootVersion,
     this.revisionTarget,
     this.expectedRecordVersion,
     this.original,
@@ -47,6 +52,9 @@ final class UnfinishedPackForm {
   final RecordVersionId? expectedRecordVersion;
   final DomainPackRecord? original;
   final BigInt? draftVersion;
+  final bool? realWorldPolicy;
+  final bool activatePolicy;
+  final RecordVersionId? expectedRootVersion;
   UnfinishedPackForm copyWith({
     String? key,
     String? version,
@@ -54,6 +62,9 @@ final class UnfinishedPackForm {
     List<String>? capabilities,
     List<String>? records,
     String? rationale,
+    bool? realWorldPolicy,
+    bool? activatePolicy,
+    RecordVersionId? expectedRootVersion,
   }) => UnfinishedPackForm(
     baseRevision: baseRevision,
     representedContext: representedContext,
@@ -64,6 +75,9 @@ final class UnfinishedPackForm {
     capabilities: capabilities ?? this.capabilities,
     records: records ?? this.records,
     rationale: rationale ?? this.rationale,
+    realWorldPolicy: realWorldPolicy ?? this.realWorldPolicy,
+    activatePolicy: activatePolicy ?? this.activatePolicy,
+    expectedRootVersion: expectedRootVersion ?? this.expectedRootVersion,
     revisionTarget: revisionTarget,
     expectedRecordVersion: expectedRecordVersion,
     original: original,
@@ -76,6 +90,12 @@ final class UnfinishedPackForm {
     MapEntry('key', CanonicalString(key)),
     MapEntry('version', CanonicalString(version)),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (realWorldPolicy != null) ...[
+      MapEntry('real_world_policy', CanonicalBool(realWorldPolicy!)),
+      MapEntry('activate_policy', CanonicalBool(activatePolicy)),
+      if (expectedRootVersion != null)
+        MapEntry('expected_root_version', CanonicalString(expectedRootVersion!.value)),
+    ],
     MapEntry(
       'dependencies',
       CanonicalArray(dependencies.map((d) => d.toWire())),
@@ -111,6 +131,7 @@ final class UnfinishedPackForm {
       'expected_record_version',
       'original',
       'draft_version',
+      'real_world_policy', 'activate_policy', 'expected_root_version',
     });
     return UnfinishedPackForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -119,6 +140,10 @@ final class UnfinishedPackForm {
       key: f.string('key'),
       version: f.string('version'),
       rationale: f.string('rationale'),
+      realWorldPolicy: f.optional('real_world_policy', (_) => f.boolean('real_world_policy')),
+      activatePolicy: f.optional('activate_policy', (_) => f.boolean('activate_policy')) ?? true,
+      expectedRootVersion: f.optional('expected_root_version',
+          (v) => RecordVersionId.parse(wireString(v))),
       dependencies: f.array('dependencies').map(PackDependencyInput.fromWire),
       capabilities: f.array('capabilities').map(wireString),
       records: f.array('records').map(wireString),

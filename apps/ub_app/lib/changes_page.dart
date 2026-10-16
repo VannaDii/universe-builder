@@ -1,3 +1,4 @@
+import 'universe_policies.dart';
 import 'guarded_pop_scope.dart';
 
 import 'package:flutter/material.dart';
@@ -694,10 +695,22 @@ class _ChangesPageState extends State<ChangesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Change ${index + 1}: ${operations[index].kind.wireName.replaceAll('_', ' ')}',
+                              'Change ${index + 1}: ${universePolicyChangeLabel(operations[index])}',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            if (operations[index] case CreateWorldOperation(
+                            if (operations[index] case DefineUniversePolicyOperation(
+                              :final key, :final realWorld, :final activate,
+                            )) ...[
+                              Text('Policy: $key'),
+                              Text(realWorld ? 'Independent Real World clone' : 'Start from scratch'),
+                              Text(activate ? 'Select as the universe root after publication'
+                                : 'Keep available without enforcing its rules'),
+                            ] else if (operations[index] case UpgradePackOperation(:final replacement)
+                                when replacement.key == universePolicySelectionKey) ...[
+                              const Text('Every world inherits the replacement after publication. Existing claims are checked against its requirements.'),
+                              if (_proposal == null)
+                                const Text('To choose another policy, remove this change and select it in Universe policies.'),
+                            ] else if (operations[index] case CreateWorldOperation(
                               :final record,
                             )) ...[
                               const Text('Before: no world'),
@@ -1169,7 +1182,8 @@ class _ChangesPageState extends State<ChangesPage> {
                                 ),
                               ),
                             if (_proposal == null &&
-                                operations[index] is UpgradePackOperation)
+                                operations[index] is UpgradePackOperation &&
+                                (operations[index] as UpgradePackOperation).replacement.key != universePolicySelectionKey)
                               TextButton(
                                 onPressed: _busy
                                     ? null
@@ -1395,14 +1409,16 @@ class _ChangesPageState extends State<ChangesPage> {
                                 child: const Text('Edit calendar fields'),
                               ),
                             if (_proposal == null &&
-                                operations[index] is InstallPackOperation)
+                                (operations[index] is InstallPackOperation ||
+                                 operations[index] is DefineUniversePolicyOperation))
                               TextButton(
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
                                         (draft) => _editOperation(draft, index),
                                       ),
-                                child: const Text('Edit pack fields'),
+                                child: Text(operations[index] is DefineUniversePolicyOperation
+                                    ? 'Edit policy fields' : 'Edit pack fields'),
                               ),
                             if (_proposal == null &&
                                 isEditableAttribute(operations[index]))

@@ -87,6 +87,42 @@ void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
 }
 
 void main() {
+  test('v2 pack input upgrades without changing generic fields and retains unfinished policy choices', () {
+    final root = Directory('/tmp').createTempSync('ub-policy-recovery-');
+    final path = '${root.path}/forms.sqlite', s = scope(), original = pack(s);
+    var store = PackFormRecoveryStore.open(path);
+    try {
+      store.save(s, original, BigInt.zero);
+      store.close();
+      final db = sqlite3.open(path);
+      try {
+        db.execute('ALTER TABLE pack_form DROP COLUMN policy_real_world');
+        db.execute('ALTER TABLE pack_form DROP COLUMN policy_activate');
+        db.execute('ALTER TABLE pack_form DROP COLUMN expected_root_version');
+        db.execute('PRAGMA user_version=2');
+      } finally {
+        db.close();
+      }
+      store = PackFormRecoveryStore.open(path);
+      expect(store.load(s)!.form.toWire().toText(), original.toWire().toText());
+      final policy = UnfinishedPackForm(
+        baseRevision: RevisionId.generate(), representedContext: s.representedContext!,
+        clientRef: s.typeClientRef!, key: '',
+        realWorldPolicy: true, activatePolicy: false,
+        expectedRootVersion: RecordVersionId.generate(),
+        rationale: 'Still choosing the policy name 記憶.\r\n',
+      );
+      store.save(s, policy, BigInt.one);
+      store.close();
+      store = PackFormRecoveryStore.open(path);
+      expect(store.load(s)!.form.toWire().toText(), policy.toWire().toText());
+      expect(store.load(s)!.form.copyWith(realWorldPolicy: false,
+          activatePolicy: true).realWorldPolicy, isFalse);
+    } finally {
+      store.close();
+      root.deleteSync(recursive: true);
+    }
+  });
   test('typed pack recovery retains ordered incomplete input and exact original metadata across restart', () {
     final root = Directory('/tmp').createTempSync('ub-typed-pack-');
     final path = '${root.path}/forms.sqlite', s = scope(), input = pack(s);
@@ -201,7 +237,7 @@ void main() {
       expect(store.load(s)!.form.toWire().toText(), changed.toWire().toText());
       final db = sqlite3.open(path, mode: OpenMode.readOnly);
       try {
-        expect(db.select('PRAGMA user_version').single.values.single, 2);
+        expect(db.select('PRAGMA user_version').single.values.single, 3);
         expect(
           db.select(
             "SELECT count(*) AS n FROM pack_dependency WHERE profile=? AND list_kind='input'",

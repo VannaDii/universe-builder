@@ -54,6 +54,9 @@ extension type _PackRow._(JSObject _) implements JSObject {
     JSAny? revisionTarget,
     String? expectedRecordVersion,
     JSAny? originalFields,
+    bool? realWorldPolicy,
+    bool? activatePolicy,
+    String? expectedRootVersion,
   });
   external String get generation;
   external String get baseRevision;
@@ -67,6 +70,9 @@ extension type _PackRow._(JSObject _) implements JSObject {
   external String? get expectedRecordVersion;
   external JSAny? get originalFields;
   external String? get original;
+  external bool? get realWorldPolicy;
+  external bool? get activatePolicy;
+  external String? get expectedRootVersion;
 }
 
 @JS()
@@ -114,6 +120,10 @@ SavedPackForm _decodePack(
       key: row.key,
       version: row.version,
       rationale: row.rationale,
+      realWorldPolicy: row.realWorldPolicy,
+      activatePolicy: row.activatePolicy ?? true,
+      expectedRootVersion: row.expectedRootVersion == null ? null
+          : RecordVersionId.parse(row.expectedRootVersion!),
       draftVersion: row.draftVersion == null
           ? null
           : BigInt.parse(row.draftVersion!),
@@ -156,6 +166,9 @@ _PackRow _encodePack(SavedPackForm saved) {
     key: form.key,
     version: form.version,
     rationale: form.rationale,
+    realWorldPolicy: form.realWorldPolicy,
+    activatePolicy: form.activatePolicy,
+    expectedRootVersion: form.expectedRootVersion?.value,
     draftVersion: form.draftVersion?.toString(),
     revisionTarget: form.revisionTarget == null
         ? null
@@ -347,7 +360,8 @@ final class BrowserPackFormRecoveryStore {
     }
     if (scope.representedContext != form.representedContext ||
         (scope.typeClientRef != null &&
-            scope.typeClientRef != form.clientRef)) {
+            scope.typeClientRef != form.clientRef &&
+            !(scope.typeClientRef == universePolicyEditorKey && form.realWorldPolicy != null))) {
       throw const FormatException('Pack form context does not match.');
     }
     _binding(scope);
