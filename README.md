@@ -30,7 +30,9 @@ Real World starts with no qualifying sources selected. When defining a clone,
 the author can choose existing source versions for its independent category,
 including during first root adoption. Source membership does not establish that
 every claim is supported; interpretation review is required only where a scoped
-policy asks for it.
+policy asks for it. Source-version choices show the accessible source title and
+import time, with exact references available in the selection details. On narrow
+screens, record chooser controls stack below their labels.
 
 The rule editor offers **Required evidence** for new rules and published rule
 revisions. Choose published source categories and optionally accepted human or

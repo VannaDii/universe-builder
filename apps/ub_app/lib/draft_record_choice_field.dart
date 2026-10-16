@@ -125,20 +125,36 @@ class _DraftRecordChoiceFieldState extends State<DraftRecordChoiceField> {
   }
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    title: Text(widget.label),
-    subtitle: Text(
-      _name?.isNotEmpty == true
-          ? _name!
-          : widget.record.isEmpty
-          ? 'No selection'
-          : 'Reference retained; name unavailable here',
-    ),
-    trailing: OutlinedButton(
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
+    final label = _name?.isNotEmpty == true
+        ? _name!
+        : widget.record.isEmpty
+        ? 'No selection'
+        : 'Reference retained; name unavailable here';
+    final choose = OutlinedButton(
       onPressed: widget.disabled || _choosing ? null : _choose,
       child: Text('Choose ${widget.label.toLowerCase()}'),
-    ),
-  );
+    );
+    if (constraints.maxWidth < 560) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(widget.label, style: Theme.of(context).textTheme.titleMedium),
+            Text(label),
+            const SizedBox(height: 8),
+            Align(alignment: Alignment.centerLeft, child: choose),
+          ],
+        ),
+      );
+    }
+    return ListTile(
+      title: Text(widget.label),
+      subtitle: Text(label),
+      trailing: choose,
+    );
+  });
 }
 
 class _DraftRecordPicker extends StatefulWidget {
@@ -161,6 +177,7 @@ class _DraftRecordPicker extends StatefulWidget {
 class _DraftRecordPickerState extends State<_DraftRecordPicker> {
   final _query = TextEditingController();
   final List<SearchHit> _hits = [];
+  final Map<RecordId, String> _sourceLabels = {};
   OpenedContext? _context;
   Delivery? _delivery;
   String _searched = '';
@@ -184,6 +201,7 @@ class _DraftRecordPickerState extends State<_DraftRecordPicker> {
       _error = null;
       if (!more) {
         _hits.clear();
+        _sourceLabels.clear();
         _delivery = null;
         _searched = _query.text;
       }
@@ -204,9 +222,16 @@ class _DraftRecordPickerState extends State<_DraftRecordPicker> {
               hits: found.result.hits,
             )
           : found.result.hits;
+      final sourceLabels = <RecordId, String>{};
+      for (final hit in hits.where((hit) => hit.kind == RecordKind.sourceVersion)) {
+        sourceLabels[hit.recordId] = (await readDraftChoiceSummary(
+          changes: widget.changes, context: _context!, record: hit.recordId,
+          kind: RecordKind.sourceVersion)).label;
+      }
       if (mounted) {
         setState(() {
           _hits.addAll(hits);
+          _sourceLabels.addAll(sourceLabels);
           _delivery = found.delivery;
         });
       }
@@ -280,7 +305,8 @@ class _DraftRecordPickerState extends State<_DraftRecordPicker> {
               ExpansionTile(
                 key: ValueKey(hit.recordId),
                 title: Text(
-                  hit.label.isEmpty ? 'Unnamed record' : hit.label,
+                  _sourceLabels[hit.recordId] ??
+                    (hit.label.isEmpty ? 'Unnamed record' : hit.label),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),

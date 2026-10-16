@@ -46,6 +46,37 @@ Future<Envelope<SearchResults>> searchDraftChoices({
   limit: limit,
 );
 
+/// Resolve titles only through the same pinned, permission-checked context.
+Future<String> _sourceVersionChoiceLabel(
+  SavedChanges changes,
+  OpenedContext context,
+  RecordId id,
+) async {
+  final row = await readDraftChoiceVersion(
+    changes: changes,
+    context: context,
+    reference: RecordRef(record: id),
+    kind: RecordKind.sourceVersion,
+  );
+  final source = row.payload as SourceVersionRecord;
+  String title;
+  try {
+    final parent = await readDraftChoiceVersion(
+      changes: changes,
+      context: context,
+      reference: source.source,
+      kind: RecordKind.source,
+    );
+    title = (parent.payload as SourceRecord).label;
+    if (title.trim().isEmpty) {
+      title = 'Untitled source';
+    }
+  } on Object {
+    title = 'Source title unavailable';
+  }
+  return '$title · ${source.importTime}';
+}
+
 /// Policy configuration packs are not qualifying-source categories. Reads use
 /// the same pinned context and normal access checks as the original search.
 Future<List<SearchHit>> excludeUniversePolicyChoices({
@@ -91,7 +122,15 @@ Future<RecordSummary> readDraftChoiceSummary({
       (kind != null && read.result.summaries.single.kind != kind)) {
     throw const FormatException('Record is not available for this choice.');
   }
-  return read.result.summaries.single;
+  final summary = read.result.summaries.single;
+  if (summary.kind != RecordKind.sourceVersion) {
+    return summary;
+  }
+  return RecordSummary(
+    recordId: summary.recordId,
+    kind: summary.kind,
+    label: await _sourceVersionChoiceLabel(changes, context, record),
+  );
 }
 
 Future<RecordRef> selectDraftChoice({
