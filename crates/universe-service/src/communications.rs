@@ -76,7 +76,7 @@ fn delay(c: &Communication) -> Option<i128> {
     }
 }
 /// Reassess every communication, including unchanged records when rules change.
-/// Without authored contracts this lane is inactive, preserving legacy admission.
+/// Without authored contracts this lane is inactive, using ordinary admission.
 /// Once active, uncovered channels stay unresolved rather than assumed forward.
 pub(crate) fn assess(records: &[RecordVersion]) -> Vec<Finding> {
     let policies: Vec<_> = records

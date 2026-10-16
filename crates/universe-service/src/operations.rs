@@ -1096,7 +1096,7 @@ pub(crate) fn compile_allocated(
                 c.chronology
                     .as_mut()
                     .ok_or_else(|| {
-                        invalid("this legacy context needs an authored starting chronology")
+                        invalid("this context needs an authored starting chronology")
                     })?
                     .change(value, *mode, reason)
                     .map_err(|e| invalid(&e))?;

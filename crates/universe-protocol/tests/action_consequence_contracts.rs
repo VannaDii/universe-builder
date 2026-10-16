@@ -73,8 +73,8 @@ fn independently_authored_payloads_round_trip_with_frozen_bytes_and_digests() {
 }
 #[test]
 fn absence_empty_and_null_keep_distinct_meanings() {
-    let legacy: Payload = decode(&serde_json::to_vec(&fixtures()[0]["payload"]).unwrap()).unwrap();
-    let Payload::ActionDefinition(action) = legacy else {
+    let without_contract: Payload = decode(&serde_json::to_vec(&fixtures()[0]["payload"]).unwrap()).unwrap();
+    let Payload::ActionDefinition(action) = without_contract else {
         panic!()
     };
     assert!(action.consequence_contract.is_none());

@@ -626,7 +626,7 @@ impl Workflow<'_> {
                         })
                     })
                 {
-                    anyhow::bail!("Editing legacy effect slots/order requires advanced contract review; no authored slot metadata is discarded.");
+                    anyhow::bail!("Editing effect slots/order requires advanced contract review; no authored slot metadata is discarded.");
                 }
                 let mut declaration = input.clone();
                 declaration.actions = vec![WritingAction {

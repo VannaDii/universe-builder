@@ -301,7 +301,7 @@ mod tests {
         }
     }
     #[test]
-    fn half_open_validity_and_legacy_unknown_clock() {
+    fn half_open_validity_and_unknown_clock() {
         let v = Validity::CalendarInterval {
             calendar: cal(1),
             start: TemporalBound::Exact { value: "10".into() },

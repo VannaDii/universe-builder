@@ -274,7 +274,7 @@ pub(crate) fn assess(records: &[RecordVersion], frame: &Frame) -> Vec<Finding> {
             .filter(|(_, p)| Some(&p.context) == context)
             .collect();
         if matching.is_empty() && a.acquisition.is_none() {
-            // A context policy does not certify or constrain legacy attitudes elsewhere.
+            // A context policy does not certify or constrain attitudes elsewhere.
             continue;
         }
         if matching.is_empty() {
@@ -358,7 +358,7 @@ mod tests {
             ),
             row(
                 2,
-                json!({"record_kind":"epistemic_attitude","holder":rr(6),"proposition":rr(1),"attitude":"knows","certainty":null,"validity":{"kind":"unspecified"},"basis":{"kind":"author_decision","note":"legacy fact"}}),
+                json!({"record_kind":"epistemic_attitude","holder":rr(6),"proposition":rr(1),"attitude":"knows","certainty":null,"validity":{"kind":"unspecified"},"basis":{"kind":"author_decision","note":"authored fact"}}),
             ),
             RecordVersion::build(
                 RecordVersionId::parse("ver_000000000000000000000003").unwrap(),
@@ -373,7 +373,7 @@ mod tests {
         ]
     }
     #[test]
-    fn policy_isolates_contexts_without_certifying_legacy_knowledge() {
+    fn policy_isolates_contexts_without_certifying_other_knowledge() {
         let mut r = records();
         assert!(assess(&r, &frame()).is_empty());
         if let Payload::Proposition(p) = &mut r[0].payload {

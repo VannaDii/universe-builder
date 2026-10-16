@@ -478,7 +478,7 @@ async fn relational_grants_credentials_restart_and_independent_inspection() {
 }
 
 #[test]
-fn legacy_installation_is_rejected_without_conversion() {
+fn incompatible_installation_is_rejected_without_modification() {
     let dir = tempfile::tempdir().unwrap();
     let root = universe_store::ownership::private_dir(&dir.path().join("installation")).unwrap();
     let path = root.join("installation.sqlite");

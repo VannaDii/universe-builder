@@ -930,7 +930,7 @@ impl SourceValidationBindingV1 {
     }
 }
 /// Hash the complete unpaged validation core using its owning serializer.
-/// Omitted legacy fields remain omitted; the assessment wrapper is excluded.
+/// Omitted optional fields remain omitted; the assessment wrapper is excluded.
 pub fn execution_result_digest(execution: &crate::response::Validation) -> Sha256Hex {
     digest(b"", &bytes(execution))
 }

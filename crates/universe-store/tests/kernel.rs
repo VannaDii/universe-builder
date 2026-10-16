@@ -524,7 +524,7 @@ fn package_locks_reject_duplicate_and_link_paths() {
     Kernel::open(&path).unwrap();
 }
 #[test]
-fn failed_migration_is_atomic_and_populated_legacy_is_preserved() {
+fn failed_ddl_is_atomic_and_incompatible_database_is_untouched() {
     let d = tempfile::tempdir().unwrap();
     let path = d.path().join("u.db");
     let db = Database::open(&path).unwrap();
@@ -540,12 +540,12 @@ fn failed_migration_is_atomic_and_populated_legacy_is_preserved() {
             |r| r.get::<_, bool>(0)
         )
         .unwrap());
-    let legacy = d.path().join("old.db");
-    let c = rusqlite::Connection::open(&legacy).unwrap();
+    let incompatible = d.path().join("incompatible.db");
+    let c = rusqlite::Connection::open(&incompatible).unwrap();
     c.execute_batch("CREATE TABLE schema_meta(key TEXT PRIMARY KEY,value INTEGER); INSERT INTO schema_meta VALUES('schema_version',0); CREATE TABLE authored(text TEXT); INSERT INTO authored VALUES('preserve me');").unwrap();
     drop(c);
-    assert!(Database::open(&legacy).is_err());
-    let c = rusqlite::Connection::open(&legacy).unwrap();
+    assert!(Database::open(&incompatible).is_err());
+    let c = rusqlite::Connection::open(&incompatible).unwrap();
     assert_eq!(
         c.query_row("SELECT text FROM authored", [], |r| r.get::<_, String>(0))
             .unwrap(),

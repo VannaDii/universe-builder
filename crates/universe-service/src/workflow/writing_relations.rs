@@ -232,7 +232,7 @@ impl Workflow<'_> {
                     );
                 };
                 if !supported_limit(rule) {
-                    anyhow::bail!("This legacy relationship limit requires advanced contract review; its metadata will not be discarded.")
+                    anyhow::bail!("This relationship limit requires advanced contract review; its metadata will not be discarded.")
                 }
                 let mut replacement = (*rule).clone();
                 let limit = replacement.relation_cardinality.as_mut().unwrap();
