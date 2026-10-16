@@ -150,10 +150,16 @@ int _compareRef(RecordRef? a, RecordRef? b) {
 
 /// Counts distinct participants per grouping key, world, realm and authored
 /// clock. Unknown overlap remains unresolved; no minimum count is inferred.
-List<Finding> assessRelationCardinality(List<RecordVersion> records) {
+List<Finding> assessRelationCardinality(
+  List<RecordVersion> records, {
+  Set<RecordId> excludedRules = const {},
+}) {
   final map = {for (final r in records) r.identity.recordId: r};
   final worlds = <WorldId?>{null};
   for (final r in records) {
+    if (excludedRules.contains(r.identity.recordId)) {
+      continue;
+    }
     final applicability = switch (r.payload) {
       AssertionRecord(:final scope) => scope.applicability,
       RuleRecord(:final relationCardinality) =>
@@ -190,7 +196,9 @@ List<Finding> assessRelationCardinality(List<RecordVersion> records) {
   final findings = <Finding>[];
   for (final row in records) {
     final rule = row.payload;
-    if (rule is! RuleRecord) continue;
+    if (rule is! RuleRecord || excludedRules.contains(row.identity.recordId)) {
+      continue;
+    }
     final c = rule.relationCardinality;
     if (c == null) continue;
     final evidence = <RecordVersionId>{row.recordVersionId};

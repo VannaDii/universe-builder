@@ -106,7 +106,10 @@ Scratch is an explicitly defined policy with no requirements initially; it is
 not an absent policy. Cloning creates an independent editable definition, not a
 live alias to the original. An author may change the selected root only to
 another defined policy, through the normal reviewed Changes flow. Root selection
-and any changes to its managed rules must be published together. Scoped deviations
+and its complete definition must be available in the published snapshot. Selection
+activates that definition's rules; other definitions remain available without
+enforcing their rules. Shared members of the selected definition remain active.
+Rules outside these policy definitions retain their independent applicability. Scoped deviations
 continue to identify the exact rule they alter; changing the root must not silently
 retarget an old deviation to a different rule.
 

@@ -23,7 +23,7 @@ import 'structural_checks.dart';
 import 'validation_findings.dart';
 
 const candidateEvaluatorVersion =
-    'finite-policy-v20-universe-root-selection';
+    'finite-policy-v21-root-policy-activation';
 
 /// Candidate assessment only. Approval, source staging, snapshot selection and
 /// durable publication remain the responsibility of the author workflow.
@@ -69,9 +69,34 @@ CandidateValidationResult evaluateCandidate({
   definitions.validate();
   // Historical rootless snapshots remain readable. Once a root is declared,
   // publication cannot remove or break the universe's selection.
+  Set<RecordId> excludedRules = const {};
+  final activatedRules = <RecordId>{};
   if (base.any(isUniversePolicyRecord) || candidate.any(isUniversePolicyRecord)) {
     try {
-      UniversePolicySelection.fromRecords(frame.universe, candidate);
+      final policy = UniversePolicySelection.fromRecords(frame.universe, candidate);
+      excludedRules = policy.inactiveRuleIds;
+      final priorPolicy = base.any(isUniversePolicyRecord)
+          ? UniversePolicySelection.fromRecords(frame.universe, base)
+          : null;
+      final previous = priorPolicy?.rules
+              .map((r) => r.identity.recordId).toSet() ?? <RecordId>{};
+      final managed = {
+        ...policy.inactiveRuleIds,
+        ...policy.rules.map((r) => r.identity.recordId),
+      };
+      final detached = {
+        ...?priorPolicy?.inactiveRuleIds,
+        ...previous,
+      }.difference(managed);
+      if (detached.isNotEmpty &&
+          candidate.any((row) => detached.contains(row.identity.recordId))) {
+        throw const FormatException(
+          'A policy rule cannot become independent by removing its membership; '
+          'keep it in a defined policy or retire the rule with its definition',
+        );
+      }
+      activatedRules.addAll(policy.rules.map((r) => r.identity.recordId)
+          .where((id) => !previous.contains(id)));
     } on FormatException catch (error) {
       throw protocol.InvalidArgumentError(
         field: 'operations',
@@ -150,8 +175,9 @@ CandidateValidationResult evaluateCandidate({
     sourceFindings: assessRequiredEvidenceSources(
       records: candidate,
       base: base,
-      changed: changedIds,
+      changed: {...changedIds, ...activatedRules},
       categories: evidenceCategories,
+      excludedRules: excludedRules,
     ),
     records: candidate,
     review: selectedAssessment,
@@ -179,10 +205,10 @@ CandidateValidationResult evaluateCandidate({
     }
   }
   final declared = <(List<protocol.Finding>, String)>[
-    (assessKnowledgeBoundaries(candidate), 'knowledge.boundaries'),
-    (assessRelationCardinality(candidate), 'relations.cardinality'),
-    (assessCommunicationChronology(candidate), 'communications.chronology'),
-    (assessKnowledgeAcquisition(candidate, frame), 'knowledge.acquisition'),
+    (assessKnowledgeBoundaries(candidate, excludedRules: excludedRules), 'knowledge.boundaries'),
+    (assessRelationCardinality(candidate, excludedRules: excludedRules), 'relations.cardinality'),
+    (assessCommunicationChronology(candidate, excludedRules: excludedRules), 'communications.chronology'),
+    (assessKnowledgeAcquisition(candidate, frame, excludedRules: excludedRules), 'knowledge.acquisition'),
   ];
   for (final (lane, capability) in declared) {
     for (final f in lane) {
@@ -193,7 +219,7 @@ CandidateValidationResult evaluateCandidate({
       findings.add(f);
     }
   }
-  for (final gap in assessResourceAccounting(candidate, frame)) {
+  for (final gap in assessResourceAccounting(candidate, frame, excludedRules: excludedRules)) {
     if (gap.acceptance == null) admissible = false;
     findings.add(
       protocol.Finding(
@@ -246,6 +272,9 @@ CandidateValidationResult evaluateCandidate({
     checkCancelled?.call();
     switch (r.payload) {
       case RuleRecord rule:
+        if (excludedRules.contains(r.identity.recordId)) {
+          continue;
+        }
         if (rule.knowledgeBoundary != null ||
             rule.channelChronology != null ||
             rule.knowledgePolicy != null ||

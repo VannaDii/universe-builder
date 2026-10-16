@@ -166,6 +166,7 @@ CanonicalObject projectWritingContracts({
   required List<RecordVersion> rows,
   required Frame frame,
   required bool restricted,
+  Set<RecordId> excludedRules = const {},
 }) {
   final byId = {for (final row in rows) row.identity.recordId: row};
   String? name(RecordId id) =>
@@ -577,6 +578,9 @@ CanonicalObject projectWritingContracts({
           }),
         );
       case RuleRecord():
+        if (excludedRules.contains(row.identity.recordId)) {
+          continue;
+        }
         final cardinality = payload.relationCardinality;
         if (cardinality != null && cardinality.scope.context == frame.context) {
           groups['relation_limits']!.add(

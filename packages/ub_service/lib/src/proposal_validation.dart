@@ -185,8 +185,10 @@ Future<CheckedValidation> checkProposalCandidate({
     readVersion: readVersion,
   );
   final base = await readCanon(frame.continuity, frame.revision);
+  final inactivePolicies = inactiveUniversePolicyRules(universe, candidate);
   final needsReview = candidate.any(
     (r) =>
+        !inactivePolicies.contains(r.identity.recordId) &&
         r.payload is RuleRecord &&
         ((r.payload as RuleRecord).requiredEvidence?.reviewMethods.isNotEmpty ??
             false),

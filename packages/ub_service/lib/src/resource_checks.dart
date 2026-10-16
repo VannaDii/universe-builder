@@ -75,8 +75,9 @@ final _nonWhitespace = RegExp(
 /// arrival; it neither invents an event nor replaces ordinary approval.
 List<ResourceGap> assessResourceAccounting(
   List<RecordVersion> records,
-  Frame base,
-) {
+  Frame base, {
+  Set<RecordId> excludedRules = const {},
+}) {
   final byId = {for (final r in records) r.identity.recordId: r};
   var remaining = 1000000;
   final gaps = <ResourceGap>[];
@@ -89,7 +90,8 @@ List<ResourceGap> assessResourceAccounting(
   ];
   for (final ruleRow in records) {
     final rule = ruleRow.payload;
-    if (rule is! RuleRecord ||
+    if (excludedRules.contains(ruleRow.identity.recordId) ||
+        rule is! RuleRecord ||
         !rule.capabilities.contains(resourceAccountingCapability)) {
       continue;
     }

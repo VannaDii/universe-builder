@@ -63,6 +63,7 @@ TemporalExpression? _beginning(Validity validity) => switch (validity) {
   KnowledgePolicy policy,
   Frame frame,
   List<RecordVersionId> evidence,
+  Set<RecordId> excludedRules,
 ) {
   RecordVersion? find(RecordRef reference) {
     try {
@@ -135,7 +136,8 @@ TemporalExpression? _beginning(Validity validity) => switch (validity) {
   reason = 'Retrieve the matching channel chronology contract and repair its missing or violated transmission timing.';
   final chronologyRecords = <RecordVersion>[
     for (final r in records)
-      if (r.payload is RuleRecord &&
+      if (!excludedRules.contains(r.identity.recordId) &&
+          r.payload is RuleRecord &&
           (r.payload as RuleRecord).channelChronology != null)
         r,
   ];
@@ -215,11 +217,13 @@ TemporalExpression? _beginning(Validity validity) => switch (validity) {
 /// unchanged attitudes whose receipt, truth or policy has been corrected.
 List<Finding> assessKnowledgeAcquisition(
   List<RecordVersion> records,
-  Frame frame,
-) {
+  Frame frame, {
+  Set<RecordId> excludedRules = const {},
+}) {
   final policies = <(RecordVersion, KnowledgePolicy)>[
     for (final r in records)
-      if (r.payload is RuleRecord &&
+      if (!excludedRules.contains(r.identity.recordId) &&
+          r.payload is RuleRecord &&
           (r.payload as RuleRecord).knowledgePolicy != null)
         (r, (r.payload as RuleRecord).knowledgePolicy!),
   ];
@@ -255,7 +259,7 @@ List<Finding> assessKnowledgeAcquisition(
     }
     for (final (rule, policy) in matching) {
       final evidence = [rule.recordVersionId, row.recordVersionId];
-      final (pass, reason) = _check(records, a, policy, frame, evidence);
+      final (pass, reason) = _check(records, a, policy, frame, evidence, excludedRules);
       final unique = evidence.toSet().toList()
         ..sort((a, b) => a.value.compareTo(b.value));
       findings.add(

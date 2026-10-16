@@ -52,6 +52,7 @@ State assembleReadState({
   required List<RecordId> predicates,
   required WorldId? world,
   required bool restricted,
+  Set<RecordId> excludedRules = const {},
   List<InitializationReceipt> receipts = const [],
   RecordVersion Function(RecordVersionId)? readVersion,
 }) {
@@ -160,6 +161,7 @@ State assembleReadState({
     frame: frame,
     world: world,
     restricted: restricted,
+    excludedRules: excludedRules,
   );
   final reviewedObjects = <EffectiveObject>[];
   for (final object in objects) {

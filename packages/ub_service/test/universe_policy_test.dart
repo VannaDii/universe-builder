@@ -3,8 +3,20 @@ import 'package:ub_contracts/ub_contracts.dart' as protocol;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'package:ub_service/definition_registry.dart';
+import 'package:ub_service/effective_objects.dart';
+import 'package:ub_service/ub_service.dart' show buildContextBrief;
+import 'package:ub_store/ub_store.dart' show Assignment, StoredVersion;
 
 import 'candidate_validation_test.dart' as candidate;
+import 'rule_checks_test.dart' as f;
+import 'required_evidence_sources_test.dart' as evidence;
+import 'knowledge_boundaries_test.dart' as knowledge;
+import 'knowledge_checks_test.dart' as acquisition;
+import 'communication_checks_test.dart' as channels;
+import 'cardinality_checks_test.dart' as cardinality;
+import 'resource_checks_test.dart' as resources;
+import 'structural_checks_test.dart' as structural;
+import 'operation_compilation_test.dart' as operations;
 
 RecordVersion replace(RecordVersion original, RecordPayload payload) =>
     RecordVersion.build(
@@ -12,6 +24,40 @@ RecordVersion replace(RecordVersion original, RecordPayload payload) =>
       identity: original.identity,
       payload: payload,
     );
+
+RecordVersion availablePolicy(
+  UniverseId universe,
+  String name,
+  List<RecordId> members,
+) => RecordVersion.build(
+  recordVersionId: RecordVersionId.generate(),
+  identity: RecordIdentity(
+    universeId: universe,
+    recordId: RecordId.generate(),
+    recordKind: RecordKind.domainPack,
+  ),
+  payload: DomainPackRecord(
+    key: '$universePolicyDefinitionPrefix$name',
+    version: '1',
+    dependencies: {},
+    capabilities: [],
+    records: members,
+  ),
+);
+
+RecordVersion selectPolicy(RecordVersion selection, RecordVersion definition) {
+  final pack = definition.payload as DomainPackRecord;
+  return replace(
+    selection,
+    DomainPackRecord(
+      key: universePolicySelectionKey,
+      version: '2',
+      dependencies: {pack.key: pack.version},
+      capabilities: [],
+      records: [definition.identity.recordId],
+    ),
+  );
+}
 
 void main() {
   final universe = candidate.fixture().first.identity.universeId;
@@ -110,24 +156,257 @@ void main() {
   });
 
   test(
-    'changing a nonempty root requires an explicit rule-scope transition',
+    'only the selected root executes; independent rules remain in force',
     () {
-      final initial = initialUniversePolicyRecords(universe, true);
-      final active = UniversePolicySelection.fromRecords(universe, initial);
-      final empty = initialUniversePolicyRecords(universe, false);
-      final scratch = UniversePolicySelection.fromRecords(universe, empty);
-      final rows = [
-        ...candidate.fixture(),
-        ...initial.where((r) => r != active.selection),
-        ...empty,
+      final initial = initialUniversePolicyRecords(universe, false);
+      final empty = UniversePolicySelection.fromRecords(universe, initial);
+      final blocked = f.record(701, candidate.rule());
+      final alternate = availablePolicy(universe, 'alternate', [
+        blocked.identity.recordId,
+      ]);
+      final rows = [...candidate.fixture(), ...initial, blocked, alternate];
+      expect(candidate.check(rows).admissible, isTrue);
+      final selected = selectPolicy(empty.selection, alternate);
+      final activated = [
+        for (final r in rows) r == empty.selection ? selected : r,
       ];
+      expect(candidate.check(activated, base: rows).admissible, isFalse);
+      expect(candidate.check(rows, base: activated).admissible, isTrue);
       expect(
-        () => candidate.check(rows, base: [...candidate.fixture(), ...initial]),
-        throwsA(isA<protocol.InvalidArgumentError>()),
+        (blocked.payload as RuleRecord).applicability,
+        isA<UniverseApplicability>(),
       );
-      expect(scratch.rules, isEmpty);
+      final independent = f.record(702, candidate.rule());
+      final withIndependent = [...rows, independent];
+      expect(candidate.check(withIndependent).admissible, isFalse);
+      final inactive = UniversePolicySelection.fromRecords(
+        universe,
+        withIndependent,
+      ).inactiveRuleIds;
+      expect(inactive, {blocked.identity.recordId});
+      final objects = assembleEffectiveObjects(
+        records: withIndependent,
+        ids: [f.id(1)],
+        frame: f.frame(),
+        restricted: false,
+        excludedRules: inactive,
+      );
+      expect(
+        objects.single.rules.map((r) => r.record.identity.recordId),
+        contains(independent.identity.recordId),
+      );
+      expect(
+        objects.single.rules.map((r) => r.record.identity.recordId),
+        isNot(contains(blocked.identity.recordId)),
+      );
+      final brief = buildContextBrief(
+        all: withIndependent,
+        accessible: withIndependent,
+        visibility: withIndependent.map((r) => r.identity.recordId).toSet(),
+        focusIds: [f.id(1)],
+        frame: f.frame(),
+        world: null,
+        restricted: false,
+        byteBudget: 100000,
+        offset: 0,
+      );
+      final ids = brief.brief.records.map((r) => r.identity.recordId).toSet();
+      expect(
+        ids,
+        containsAll([
+          empty.selection.identity.recordId,
+          empty.definition.identity.recordId,
+          independent.identity.recordId,
+        ]),
+      );
+      expect(ids, isNot(contains(blocked.identity.recordId)));
+      expect(withIndependent, contains(blocked)); // Canon is not filtered away.
     },
   );
+
+  test('removing policy membership cannot implicitly activate its rule', () {
+    final initial = initialUniversePolicyRecords(universe, false);
+    final rule = f.record(701, candidate.rule());
+    final definition = availablePolicy(universe, 'alternate', [
+      rule.identity.recordId,
+    ]);
+    final base = [...candidate.fixture(), ...initial, rule, definition];
+    final empty = replace(
+      definition,
+      DomainPackRecord(
+        key: (definition.payload as DomainPackRecord).key,
+        version: '2',
+        dependencies: {},
+        capabilities: [],
+        records: [],
+      ),
+    );
+    for (final after in [
+      base.where((row) => row != definition).toList(),
+      [for (final row in base) row == definition ? empty : row],
+    ]) {
+      expect(
+        () => candidate.check(after, base: base),
+        throwsA(isA<protocol.InvalidArgumentError>()),
+      );
+    }
+    expect(
+      candidate.check(
+        base.where((row) => row != rule && row != definition).toList(),
+        base: base,
+      ).admissible,
+      isTrue,
+    );
+    final replacement = availablePolicy(universe, 'replacement', [
+      rule.identity.recordId,
+    ]);
+    expect(
+      candidate.check([
+        for (final row in base) if (row != definition) row,
+        replacement,
+      ], base: base).admissible,
+      isTrue,
+    );
+  });
+
+  test('root activation reopens source duties even when no claim changed', () {
+    final initial = initialUniversePolicyRecords(universe, false);
+    final root = UniversePolicySelection.fromRecords(universe, initial);
+    final available = availablePolicy(universe, 'sourced', [f.id(10)]);
+    final facts = evidence.fixture();
+    evidence.replace(
+      facts,
+      4,
+      evidence.assertion(
+        basis: const AuthorDecisionBasis('No supporting source'),
+      ),
+    );
+    final before = [...facts, ...initial, available];
+    expect(candidate.check(before).admissible, isTrue);
+    final selected = selectPolicy(root.selection, available);
+    final after = [
+      for (final row in before) row == root.selection ? selected : row,
+    ];
+    final result = candidate.check(
+      after,
+      base: before,
+      changes: [
+        Assignment(
+          recordId: selected.identity.recordId,
+          expected: root.selection.recordVersionId,
+          next: StoredVersion(
+            versionId: selected.recordVersionId,
+            identity: selected.identity,
+            payload: selected.payload.toWire(),
+            digest: selected.payloadDigest,
+          ),
+        ),
+      ],
+    );
+    expect(result.admissible, isFalse);
+    expect(
+      result.validation.findings.any(
+        (finding) =>
+            finding.ruleId == f.id(10) &&
+            finding.outcome == protocol.EvidenceOutcome.notEstablished,
+      ),
+      isTrue,
+    );
+  });
+
+  final knowledgeRows = knowledge.fixture();
+  knowledge.edit(knowledgeRows, 1, {'value': IntegerValue('1').toWire()});
+  final lanes = <({String name, List<RecordVersion> rows, Frame frame})>[
+    (name: 'knowledge boundary', rows: knowledgeRows, frame: f.frame()),
+    (
+      name: 'resource accounting',
+      rows: [...resources.fixture(), structural.context(5)],
+      frame: resources.frame,
+    ),
+    (
+      name: 'channel chronology',
+      rows: [
+        ...candidate.fixture(),
+        f.record(10, operations.entity()),
+        f.record(8, channels.policy()),
+        f.record(
+          9,
+          CommunicationRecord(
+            sender: f.ref(1),
+            intendedRecipients: [f.ref(10)],
+            actualRecipients: [],
+            content: [f.ref(3)],
+            channel: 'speech',
+            sentAt: ExactTime(channels.cal, '10'),
+            distorted: false,
+          ),
+        ),
+      ],
+      frame: f.frame(),
+    ),
+    (
+      name: 'relation cardinality',
+      rows: [
+        ...cardinality.base(),
+        for (final n in [10, 11, 12]) f.record(n, operations.entity()),
+        ...cardinality.fact(20, 11, cardinality.interval(0, 10)),
+        ...cardinality.fact(30, 12, cardinality.interval(5, 15)),
+      ],
+      frame: f.frame(),
+    ),
+    (
+      name: 'knowledge acquisition',
+      rows: [
+        ...candidate.fixture(),
+        f.record(
+          8,
+          EpistemicAttitudeRecord(
+            holder: f.ref(1),
+            proposition: f.ref(3),
+            attitude: EpistemicAttitudeKind.knows,
+            validity: const UnspecifiedValidity(),
+            basis: const AuthorDecisionBasis('Explicit statement'),
+          ),
+        ),
+        f.record(9, acquisition.policy(mode: KnowledgeMode.authorEstablished)),
+      ],
+      frame: f.frame(),
+    ),
+  ];
+  for (final lane in lanes) {
+    test('${lane.name} obeys root selection without changing its facts', () {
+      final ids = lane.rows
+          .where((r) => r.payload is RuleRecord)
+          .map((r) => r.identity.recordId)
+          .toSet();
+      final baseline = candidate.check(lane.rows, frame: lane.frame);
+      expect(
+        baseline.validation.findings.any((f) => ids.contains(f.ruleId)),
+        isTrue,
+      );
+      final initial = initialUniversePolicyRecords(universe, false);
+      final root = UniversePolicySelection.fromRecords(universe, initial);
+      final definition = availablePolicy(universe, 'lane', ids.toList());
+      final before = [...lane.rows, ...initial, definition];
+      final inactive = candidate.check(before, frame: lane.frame);
+      expect(
+        inactive.validation.findings.any((f) => ids.contains(f.ruleId)),
+        isFalse,
+      );
+      final selected = selectPolicy(root.selection, definition);
+      final after = [
+        for (final row in before) row == root.selection ? selected : row,
+      ];
+      final active = candidate.check(after, base: before, frame: lane.frame);
+      expect(
+        active.validation.findings.any((f) => ids.contains(f.ruleId)),
+        isTrue,
+      );
+      for (final row in lane.rows) {
+        expect(after, contains(row));
+      }
+    });
+  }
 
   test(
     'selection refuses missing, duplicate, foreign and mismatched definitions',

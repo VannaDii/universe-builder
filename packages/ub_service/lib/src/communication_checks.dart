@@ -82,10 +82,14 @@ BigInt? _delay(CommunicationRecord c) {
 
 /// Opt-in authored transmission timing; all messages are reassessed when rules
 /// change. Recipients, receipt times and cross-clock mappings are never inferred.
-List<Finding> assessCommunicationChronology(List<RecordVersion> records) {
+List<Finding> assessCommunicationChronology(
+  List<RecordVersion> records, {
+  Set<RecordId> excludedRules = const {},
+}) {
   final policies = <(RecordVersion, ChannelChronology)>[
     for (final r in records)
-      if (r.payload is RuleRecord &&
+      if (!excludedRules.contains(r.identity.recordId) &&
+          r.payload is RuleRecord &&
           (r.payload as RuleRecord).channelChronology != null)
         (r, (r.payload as RuleRecord).channelChronology!),
   ];

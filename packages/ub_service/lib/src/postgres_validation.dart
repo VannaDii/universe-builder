@@ -599,6 +599,7 @@ final class PostgresValidationWorkflow {
     );
     final state = await _readState(
       records: snapshot.accessible,
+      excludedRules: inactiveUniversePolicyRules(universe, snapshot.all),
       frame: frame,
       ids: request.entityIds,
       predicates: request.predicateFilters,
@@ -610,6 +611,7 @@ final class PostgresValidationWorkflow {
 
   Future<State> _readState({
     required List<RecordVersion> records,
+    Set<RecordId> excludedRules = const {},
     required Frame frame,
     required List<RecordId> ids,
     required List<RecordId> predicates,
@@ -638,6 +640,7 @@ final class PostgresValidationWorkflow {
     };
     return assembleReadState(
       records: records,
+      excludedRules: excludedRules,
       frame: frame,
       ids: ids,
       predicates: predicates,
@@ -698,6 +701,7 @@ final class PostgresValidationWorkflow {
             frame.perspective is! AuthorPerspective,
         readState: (id) => _readState(
           records: selected.accessible,
+          excludedRules: inactiveUniversePolicyRules(universe, selected.all),
           frame: frame,
           ids: [id],
           predicates: [],
@@ -733,6 +737,7 @@ final class PostgresValidationWorkflow {
       contracts: projectWritingContracts(
         request: request,
         rows: snapshot.accessible,
+        excludedRules: inactiveUniversePolicyRules(universe, snapshot.all),
         frame: frame,
         restricted:
             current.worldScope != null ||
@@ -1692,8 +1697,10 @@ final class PostgresValidationWorkflow {
     final declaration = AuthorKnowledgeDeclaration.fromWire(
       normalizeWritingDates(action.declaration.toWire(), frame, rows),
     );
+    final inactivePolicies = inactiveUniversePolicyRules(universe, rows);
     final policies = [
       for (final row in rows)
+        if (!inactivePolicies.contains(row.identity.recordId))
         if (row.payload case RuleRecord(:final knowledgePolicy)
             when knowledgePolicy?.context == frame.context)
           knowledgePolicy!,
@@ -4042,6 +4049,7 @@ final class PostgresValidationWorkflow {
       );
       await _workflow.compareAppend({}, [MapEntry(key, running.toWire())]);
     }
+    final inactivePolicies = inactiveUniversePolicyRules(universe, candidate);
     return PreparedValidationTask(
       operationId: id,
       proposal: proposal,
@@ -4055,6 +4063,7 @@ final class PostgresValidationWorkflow {
           restricted ||
               !candidate.any(
                 (r) =>
+                    !inactivePolicies.contains(r.identity.recordId) &&
                     r.payload is RuleRecord &&
                     ((r.payload as RuleRecord)
                             .requiredEvidence

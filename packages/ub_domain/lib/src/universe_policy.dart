@@ -1,6 +1,5 @@
 import 'ids.dart';
 import 'records.dart';
-import 'scope.dart';
 
 const universePolicySelectionKey = 'universe.policy.root';
 const universePolicyDefinitionPrefix = 'universe.policy.definition.';
@@ -15,10 +14,16 @@ bool isUniversePolicyRecord(RecordVersion record) => switch (record.payload) {
 /// A root selection and its definition in one exact canonical snapshot.
 /// Definitions use ordinary typed domain packs; selection does not copy rules.
 final class UniversePolicySelection {
-  UniversePolicySelection._(this.selection, this.definition, this.rules);
+  UniversePolicySelection._(
+    this.selection,
+    this.definition,
+    this.rules,
+    this.inactiveRuleIds,
+  );
 
   final RecordVersion selection, definition;
   final List<RecordVersion> rules;
+  final Set<RecordId> inactiveRuleIds;
 
   factory UniversePolicySelection.fromRecords(
     UniverseId universe,
@@ -72,25 +77,24 @@ final class UniversePolicySelection {
       }
       rules.add(rule);
     }
-    // A definition that is merely available must not keep enforcing its rules
-    // after another root is selected. Shared members of the active root remain
-    // active; unrelated rules outside policy definitions are untouched.
+    // Only the selected definition contributes policy rules. Other facts and
+    // independently authored rules retain their normal meaning and scope.
+    final inactive = <RecordId>{};
     for (final row in byId.values) {
       final payload = row.payload;
       if (payload is! DomainPackRecord ||
           !payload.key.startsWith(universePolicyDefinitionPrefix)) {
         continue;
       }
+      final members = <RecordId>{};
       for (final id in payload.records) {
-        if (seen.contains(id)) {
-          continue;
-        }
-        final member = byId[id]?.payload;
-        if (member is! RuleRecord ||
-            member.applicability is! UnspecifiedApplicability) {
+        if (!members.add(id) || byId[id]?.payload is! RuleRecord) {
           throw const FormatException(
-            'Unselected policy rules must be unbound templates',
+            'Policy must contain distinct visible rules',
           );
+        }
+        if (!seen.contains(id)) {
+          inactive.add(id);
         }
       }
     }
@@ -98,6 +102,16 @@ final class UniversePolicySelection {
       selection,
       definition,
       List.unmodifiable(rules),
+      Set.unmodifiable(inactive),
     );
   }
 }
+
+/// Use only with a complete, admitted snapshot. Permission-filtered projections
+/// must receive this set from their owning snapshot reader instead.
+Set<RecordId> inactiveUniversePolicyRules(
+  UniverseId universe,
+  List<RecordVersion> records,
+) => records.any(isUniversePolicyRecord)
+    ? UniversePolicySelection.fromRecords(universe, records).inactiveRuleIds
+    : const {};

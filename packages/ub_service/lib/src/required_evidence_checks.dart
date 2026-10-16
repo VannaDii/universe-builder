@@ -13,6 +13,7 @@ List<protocol.Finding> assessRequiredEvidenceSources({
   required List<RecordVersion> base,
   required Set<RecordId> changed,
   List<RecordVersion> categories = const [],
+  Set<RecordId> excludedRules = const {},
 }) {
   if (!records.any(
     (r) =>
@@ -83,7 +84,11 @@ List<protocol.Finding> assessRequiredEvidenceSources({
   final findings = <protocol.Finding>[];
   for (final policy in records) {
     final rule = policy.payload;
-    if (rule is! RuleRecord || rule.requiredEvidence == null) continue;
+    if (excludedRules.contains(policy.identity.recordId) ||
+        rule is! RuleRecord ||
+        rule.requiredEvidence == null) {
+      continue;
+    }
     final requirement = rule.requiredEvidence!;
     final categories = <RecordVersion>[];
     var categoriesResolved = requirement.sourceCategories.isNotEmpty;

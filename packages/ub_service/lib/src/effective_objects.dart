@@ -55,6 +55,7 @@ List<EffectiveObject> assembleEffectiveObjects({
   required Frame frame,
   WorldId? world,
   required bool restricted,
+  Set<RecordId> excludedRules = const {},
 }) {
   final worlds = <RecordId>[
     if (world != null)
@@ -70,13 +71,14 @@ List<EffectiveObject> assembleEffectiveObjects({
       if (prop is PropositionRecord) {
         assertionsBySubject.putIfAbsent(prop.subject.record, () => []).add(i);
       }
-    } else if (p is ActionDefinitionRecord || p is RuleRecord) {
+    } else if (p is ActionDefinitionRecord ||
+        p is RuleRecord && !excludedRules.contains(records[i].identity.recordId)) {
       sharedPositions.add(i);
     }
   }
   List<ResourceGap>? resourceGaps;
   try {
-    resourceGaps = assessResourceAccounting(records, frame);
+    resourceGaps = assessResourceAccounting(records, frame, excludedRules: excludedRules);
   } on InvalidArgumentError {
     resourceGaps = null;
   }

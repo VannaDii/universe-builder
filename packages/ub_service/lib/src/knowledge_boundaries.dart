@@ -120,11 +120,18 @@ bool _claimEqual(
 
 /// Absence of a knowing attitude stays unknown. Authored prohibitions report
 /// only overlapping knowledge facts; ordinary approval cannot waive them.
-List<Finding> assessKnowledgeBoundaries(List<RecordVersion> rows) {
+List<Finding> assessKnowledgeBoundaries(
+  List<RecordVersion> rows, {
+  Set<RecordId> excludedRules = const {},
+}) {
   final out = <Finding>[];
   for (final ruleRow in rows) {
     final rule = ruleRow.payload;
-    if (rule is! RuleRecord || rule.knowledgeBoundary == null) continue;
+    if (excludedRules.contains(ruleRow.identity.recordId) ||
+        rule is! RuleRecord ||
+        rule.knowledgeBoundary == null) {
+      continue;
+    }
     final b = rule.knowledgeBoundary!, prop = _find(rows, b.proposition.record);
     if (rule.validity case CalendarIntervalValidity(
       start: ExactBound(value: final a),

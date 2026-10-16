@@ -23,19 +23,34 @@ import 'record_reading.dart';
   for (final id in focusIds) {
     if (!byId.containsKey(id)) throw denied;
   }
+  final policy = all.any(isUniversePolicyRecord)
+      ? UniversePolicySelection.fromRecords(frame.universe, all)
+      : null;
+  final excludedRules = policy?.inactiveRuleIds ?? const <RecordId>{};
   final rules = all
-      .where((row) => row.payload is RuleRecord)
+      .where((row) => row.payload is RuleRecord &&
+          !excludedRules.contains(row.identity.recordId))
       .map((row) => row.identity.recordId)
       .toList();
   final hiddenRule = rules.any((id) => !byId.containsKey(id));
+  final hiddenPolicy = policy != null &&
+      (!byId.containsKey(policy.selection.identity.recordId) ||
+       !byId.containsKey(policy.definition.identity.recordId));
   final objects = assembleEffectiveObjects(
     records: accessible,
     ids: focusIds,
     frame: frame,
     world: world,
     restricted: restricted,
+    excludedRules: excludedRules,
   );
   final seeds = [
+    if (policy != null) ...[
+      if (byId.containsKey(policy.selection.identity.recordId))
+        policy.selection.identity.recordId,
+      if (byId.containsKey(policy.definition.identity.recordId))
+        policy.definition.identity.recordId,
+    ],
     ...rules.where(byId.containsKey),
     ...focusIds,
     for (final object in objects)
@@ -110,6 +125,7 @@ import 'record_reading.dart';
     coverage:
         closed &&
             !hiddenRule &&
+            !hiddenPolicy &&
             !hiddenAppearance &&
             !restricted &&
             complete &&
