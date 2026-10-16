@@ -61,6 +61,9 @@ UB_EXPORT int32_t ub_publish_snapshot(const char *source, const char *destinatio
 #if defined(__linux__)
 #include <sys/syscall.h>
 #endif
+#if defined(__ANDROID__)
+#include <linux/fs.h>
+#endif
 #define UB_EXPORT __attribute__((visibility("default")))
 
 /* Dart obtains getsockopt bytes from its owned socket. Keep ABI/layout and
@@ -213,8 +216,15 @@ UB_EXPORT int32_t ub_publish_snapshot(const char *source, const char *destinatio
   int parent = open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
   if (parent < 0) { error = errno; close(fd); return error; }
   if (fsync(fd) != 0) error = errno;
+#if defined(__ANDROID__)
+  /* App SELinux domains cannot create hard links. Keep atomic create-only
+     publication with the kernel operation (libc exposes it only from API 30). */
+  if (!error && syscall(__NR_renameat2, AT_FDCWD, source, AT_FDCWD,
+                        destination, RENAME_NOREPLACE) != 0) error = errno;
+#else
   if (!error && link(source, destination) != 0) error = errno;
   if (!error && unlink(source) != 0) error = errno;
+#endif
   if (!error && fsync(parent) != 0) error = errno;
   close(parent);
   close(fd);
