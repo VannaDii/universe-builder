@@ -28,14 +28,18 @@ import 'record_reading.dart';
       : null;
   final excludedRules = policy?.inactiveRuleIds ?? const <RecordId>{};
   final rules = all
-      .where((row) => row.payload is RuleRecord &&
-          !excludedRules.contains(row.identity.recordId))
+      .where(
+        (row) =>
+            row.payload is RuleRecord &&
+            !excludedRules.contains(row.identity.recordId),
+      )
       .map((row) => row.identity.recordId)
       .toList();
   final hiddenRule = rules.any((id) => !byId.containsKey(id));
-  final hiddenPolicy = policy != null &&
+  final hiddenPolicy =
+      policy != null &&
       (!byId.containsKey(policy.selection.identity.recordId) ||
-       !byId.containsKey(policy.definition.identity.recordId));
+          !byId.containsKey(policy.definition.identity.recordId));
   final objects = assembleEffectiveObjects(
     records: accessible,
     ids: focusIds,

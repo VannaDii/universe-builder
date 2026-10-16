@@ -106,9 +106,12 @@ void main() {
       store = PackFormRecoveryStore.open(path);
       expect(store.load(s)!.form.toWire().toText(), original.toWire().toText());
       final policy = UnfinishedPackForm(
-        baseRevision: RevisionId.generate(), representedContext: s.representedContext!,
-        clientRef: s.typeClientRef!, key: '',
-        realWorldPolicy: true, activatePolicy: false,
+        baseRevision: RevisionId.generate(),
+        representedContext: s.representedContext!,
+        clientRef: s.typeClientRef!,
+        key: '',
+        realWorldPolicy: true,
+        activatePolicy: false,
         expectedRootVersion: RecordVersionId.generate(),
         rationale: 'Still choosing the policy name 記憶.\r\n',
       );
@@ -116,8 +119,14 @@ void main() {
       store.close();
       store = PackFormRecoveryStore.open(path);
       expect(store.load(s)!.form.toWire().toText(), policy.toWire().toText());
-      expect(store.load(s)!.form.copyWith(realWorldPolicy: false,
-          activatePolicy: true).realWorldPolicy, isFalse);
+      expect(
+        store
+            .load(s)!
+            .form
+            .copyWith(realWorldPolicy: false, activatePolicy: true)
+            .realWorldPolicy,
+        isFalse,
+      );
     } finally {
       store.close();
       root.deleteSync(recursive: true);

@@ -66,7 +66,9 @@ final class SqliteValidationWorkflow implements ValidationJobService {
   List<RecordVersion> _canon(ContinuityId continuity, RevisionId revision) {
     final rows =
         [
-          for (final record in _journal.loadMany(_journal.snapshot(continuity, revision).values))
+          for (final record in _journal.loadMany(
+            _journal.snapshot(continuity, revision).values,
+          ))
             RecordVersion.fromWire(record.toCanonical()),
         ]..sort(
           (a, b) =>
@@ -2525,9 +2527,9 @@ final class SqliteValidationWorkflow implements ValidationJobService {
     final policies = [
       for (final row in rows)
         if (!inactivePolicies.contains(row.identity.recordId))
-        if (row.payload case RuleRecord(:final knowledgePolicy)
-            when knowledgePolicy?.context == frame.context)
-          knowledgePolicy!,
+          if (row.payload case RuleRecord(:final knowledgePolicy)
+              when knowledgePolicy?.context == frame.context)
+            knowledgePolicy!,
     ];
     if (policies.length != 1 ||
         policies.single.mode != KnowledgeMode.authorEstablished) {

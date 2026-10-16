@@ -320,11 +320,7 @@ void main() {
       'browser appearance originals ${malformed ? 'roll back without disturbing image and link rows' : 'retain targets, ordered media and nested validity'}',
       () async {
         final name = 'ub-appearance-retained-${OperationId.generate().value}',
-            tables = [
-              'appearance_form',
-              'appearance_image',
-              'appearance_link',
-            ];
+            tables = ['appearance_form', 'appearance_image', 'appearance_link'];
         final forms = [
           for (final validity in validities())
             (() {

@@ -48,6 +48,7 @@ final class UnfinishedPackForm {
   final String clientRef, key, version, rationale;
   final List<PackDependencyInput> dependencies;
   final List<String> capabilities;
+
   /// Pack members, or qualifying source-version IDs in policy-definition mode.
   final List<String> records;
   final ExpressionReferenceInput? revisionTarget;
@@ -96,7 +97,10 @@ final class UnfinishedPackForm {
       MapEntry('real_world_policy', CanonicalBool(realWorldPolicy!)),
       MapEntry('activate_policy', CanonicalBool(activatePolicy)),
       if (expectedRootVersion != null)
-        MapEntry('expected_root_version', CanonicalString(expectedRootVersion!.value)),
+        MapEntry(
+          'expected_root_version',
+          CanonicalString(expectedRootVersion!.value),
+        ),
     ],
     MapEntry(
       'dependencies',
@@ -133,7 +137,9 @@ final class UnfinishedPackForm {
       'expected_record_version',
       'original',
       'draft_version',
-      'real_world_policy', 'activate_policy', 'expected_root_version',
+      'real_world_policy',
+      'activate_policy',
+      'expected_root_version',
     });
     return UnfinishedPackForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -142,10 +148,17 @@ final class UnfinishedPackForm {
       key: f.string('key'),
       version: f.string('version'),
       rationale: f.string('rationale'),
-      realWorldPolicy: f.optional('real_world_policy', (_) => f.boolean('real_world_policy')),
-      activatePolicy: f.optional('activate_policy', (_) => f.boolean('activate_policy')) ?? true,
-      expectedRootVersion: f.optional('expected_root_version',
-          (v) => RecordVersionId.parse(wireString(v))),
+      realWorldPolicy: f.optional(
+        'real_world_policy',
+        (_) => f.boolean('real_world_policy'),
+      ),
+      activatePolicy:
+          f.optional('activate_policy', (_) => f.boolean('activate_policy')) ??
+          true,
+      expectedRootVersion: f.optional(
+        'expected_root_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       dependencies: f.array('dependencies').map(PackDependencyInput.fromWire),
       capabilities: f.array('capabilities').map(wireString),
       records: f.array('records').map(wireString),

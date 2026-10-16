@@ -40,7 +40,10 @@ bool? _rootPolicyDefined(List<RecordVersion> records) {
     return false;
   }
   try {
-    UniversePolicySelection.fromRecords(records.first.identity.universeId, records);
+    UniversePolicySelection.fromRecords(
+      records.first.identity.universeId,
+      records,
+    );
     return true;
   } on FormatException {
     return null;
@@ -72,9 +75,7 @@ ContinuitySummary? discoveryContinuity({
     revisionId: revision,
     name: name,
     representedContexts: contexts,
-    rootPolicyDefined: worldScope == null
-        ? _rootPolicyDefined(records)
-        : null,
+    rootPolicyDefined: worldScope == null ? _rootPolicyDefined(records) : null,
   );
 }
 

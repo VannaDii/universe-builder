@@ -46,12 +46,19 @@ void main() {
     expect(DeviceProfileStore.read(directory.path), next);
     final hint = '${directory.path}/device-profile';
     chmod('644', hint);
-    expect(() => DeviceProfileStore.write(directory.path, profile), throwsA(isA<FileSystemException>()));
+    expect(
+      () => DeviceProfileStore.write(directory.path, profile),
+      throwsA(isA<FileSystemException>()),
+    );
     expect(File(hint).readAsStringSync().trim(), next.value);
     File(hint).deleteSync();
-    final original = File('${directory.path}/other')..writeAsStringSync(next.value);
+    final original = File('${directory.path}/other')
+      ..writeAsStringSync(next.value);
     Link(hint).createSync(original.path);
-    expect(() => DeviceProfileStore.write(directory.path, profile), throwsA(isA<FileSystemException>()));
+    expect(
+      () => DeviceProfileStore.write(directory.path, profile),
+      throwsA(isA<FileSystemException>()),
+    );
     expect(original.readAsStringSync(), next.value);
   });
 

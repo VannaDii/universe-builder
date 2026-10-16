@@ -1701,9 +1701,9 @@ final class PostgresValidationWorkflow {
     final policies = [
       for (final row in rows)
         if (!inactivePolicies.contains(row.identity.recordId))
-        if (row.payload case RuleRecord(:final knowledgePolicy)
-            when knowledgePolicy?.context == frame.context)
-          knowledgePolicy!,
+          if (row.payload case RuleRecord(:final knowledgePolicy)
+              when knowledgePolicy?.context == frame.context)
+            knowledgePolicy!,
     ];
     if (policies.length != 1 ||
         policies.single.mode != KnowledgeMode.authorEstablished) {

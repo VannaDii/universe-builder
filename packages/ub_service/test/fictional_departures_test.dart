@@ -119,7 +119,7 @@ void main() {
     final unsupported = p.Finding.fromWire(
       CanonicalObject([
         ...finding.toWire().fields.where((f) => f.key != 'coverage'),
-          MapEntry('coverage', CanonicalString('unsupported')),
+        MapEntry('coverage', CanonicalString('unsupported')),
       ]),
     );
     expect(matchDeparture(unsupported, rows), isNull);

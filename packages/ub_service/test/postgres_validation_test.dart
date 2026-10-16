@@ -22,6 +22,7 @@ import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
 import 'package:ub_service/src/universe_evidence_policy.dart';
+
 import 'operation_compilation_test.dart' as f;
 import 'structural_checks_test.dart' as structure;
 import 'rule_checks_test.dart' as frames;
@@ -373,10 +374,18 @@ void main() {
                   reason: 'Disposable setup',
                   idempotencyKey: 'context',
                   changes: [
-                    for (final policy in initialUniversePolicyRecords(f.u, false))
-                      Assignment(recordId: policy.identity.recordId,
-                        next: StoredVersion.build(policy.recordVersionId,
-                          policy.identity, policy.payload.toWire())),
+                    for (final policy in initialUniversePolicyRecords(
+                      f.u,
+                      false,
+                    ))
+                      Assignment(
+                        recordId: policy.identity.recordId,
+                        next: StoredVersion.build(
+                          policy.recordVersionId,
+                          policy.identity,
+                          policy.payload.toWire(),
+                        ),
+                      ),
                     Assignment(
                       recordId: context.identity.recordId,
                       expected: null,

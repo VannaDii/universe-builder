@@ -77,8 +77,12 @@ void main() {
     covered.add(operation.kind);
     test('Dart operation extension: ${operation.kind.wireName}', () {
       expect(operation.toWire().toText(), input.toText());
-      expect(operation.authority, operation is DefineUniversePolicyOperation
-          ? OperationAuthority.definition : OperationAuthority.ordinary);
+      expect(
+        operation.authority,
+        operation is DefineUniversePolicyOperation
+            ? OperationAuthority.definition
+            : OperationAuthority.ordinary,
+      );
       expect(
         DomainOperation.fromWire(operation.toWire()).toWire().toText(),
         input.toText(),

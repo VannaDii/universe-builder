@@ -364,39 +364,43 @@ void main() {
     expect(finding.outcome, p.EvidenceOutcome.notEstablished);
     expect(finding.coverage, p.Coverage.unsupported);
   });
-  test('disjoint world scope leaves unrelated event occurrences outside the duty', () {
-    final rows = fixture();
-    sources.replace(
-      rows,
-      40,
-      sources.policy(
-        predicates: [],
-        applicability: WorldsApplicability([
-          WorldId.parse('wld_${f.suffix(50)}'),
-        ]),
-      ),
-    );
-    final old =
-        rows.singleWhere((r) => r.identity.recordId == f.id(30)).payload
-            as EventRecord;
-    sources.replace(
-      rows,
-      30,
-      EventRecord.fromWire(
-        CanonicalObject([
-          ...old.toWire().fields.where((e) => e.key != 'worlds'),
-          MapEntry(
-            'worlds',
-            CanonicalArray([CanonicalString('wld_${f.suffix(51)}')]),
-          ),
-        ]),
-      ),
-    );
-    expect(
-      assess(rows).any((finding) => finding.records.single.record == f.id(30)),
-      isFalse,
-    );
-  });
+  test(
+    'disjoint world scope leaves unrelated event occurrences outside the duty',
+    () {
+      final rows = fixture();
+      sources.replace(
+        rows,
+        40,
+        sources.policy(
+          predicates: [],
+          applicability: WorldsApplicability([
+            WorldId.parse('wld_${f.suffix(50)}'),
+          ]),
+        ),
+      );
+      final old =
+          rows.singleWhere((r) => r.identity.recordId == f.id(30)).payload
+              as EventRecord;
+      sources.replace(
+        rows,
+        30,
+        EventRecord.fromWire(
+          CanonicalObject([
+            ...old.toWire().fields.where((e) => e.key != 'worlds'),
+            MapEntry(
+              'worlds',
+              CanonicalArray([CanonicalString('wld_${f.suffix(51)}')]),
+            ),
+          ]),
+        ),
+      );
+      expect(
+        assess(rows)
+            .any((finding) => finding.records.single.record == f.id(30)),
+        isFalse,
+      );
+    },
+  );
   test(
     'an occurrence review does not discharge a required exact effect review',
     () {

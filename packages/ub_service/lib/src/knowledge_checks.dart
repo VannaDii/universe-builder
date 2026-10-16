@@ -259,7 +259,14 @@ List<Finding> assessKnowledgeAcquisition(
     }
     for (final (rule, policy) in matching) {
       final evidence = [rule.recordVersionId, row.recordVersionId];
-      final (pass, reason) = _check(records, a, policy, frame, evidence, excludedRules);
+      final (pass, reason) = _check(
+        records,
+        a,
+        policy,
+        frame,
+        evidence,
+        excludedRules,
+      );
       final unique = evidence.toSet().toList()
         ..sort((a, b) => a.value.compareTo(b.value));
       findings.add(

@@ -149,7 +149,10 @@ final class ContinuitySummary {
       id: ContinuityId.parse(wireString(f.require('id'))),
       revisionId: RevisionId.parse(wireString(f.require('revision_id'))),
       name: wireString(f.require('name')),
-      rootPolicyDefined: f.optional('root_policy_defined', (_) => f.boolean('root_policy_defined')),
+      rootPolicyDefined: f.optional(
+        'root_policy_defined',
+        (_) => f.boolean('root_policy_defined'),
+      ),
       representedContexts: f
           .array('represented_contexts')
           .map((v) => RepresentedContextSummary.fromWire(v)),

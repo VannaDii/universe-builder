@@ -129,10 +129,15 @@ void main() {
     final name = 'ub-policy-sources-${OperationId.generate().value}';
     final s = scope(0);
     final members = [RecordId.generate(), RecordId.generate()];
-    final f = UnfinishedPackForm(baseRevision: RevisionId.generate(),
-      representedContext: s.representedContext!, clientRef: RecordId.generate().value,
-      key: 'Memoir 記憶', realWorldPolicy: true, activatePolicy: true,
-      records: members.map((id) => id.value));
+    final f = UnfinishedPackForm(
+      baseRevision: RevisionId.generate(),
+      representedContext: s.representedContext!,
+      clientRef: RecordId.generate().value,
+      key: 'Memoir 記憶',
+      realWorldPolicy: true,
+      activatePolicy: true,
+      records: members.map((id) => id.value),
+    );
     var store = await BrowserPackFormRecoveryStore.open(databaseName: name);
     try {
       await store.save(s, f, BigInt.zero);
@@ -140,11 +145,16 @@ void main() {
       store = await BrowserPackFormRecoveryStore.open(databaseName: name);
       final recovered = (await store.load(s))!.form;
       expect(recovered.toWire().toText(), f.toWire().toText());
-      final operation = DefineUniversePolicyOperation(clientRef: recovered.clientRef,
-        key: recovered.key, realWorld: recovered.realWorldPolicy!,
+      final operation = DefineUniversePolicyOperation(
+        clientRef: recovered.clientRef,
+        key: recovered.key,
+        realWorld: recovered.realWorldPolicy!,
         activate: recovered.activatePolicy,
-        sourceCategoryMembers: recovered.records.map(RecordId.parse));
-      final restored = DomainOperation.fromWire(operation.toWire()) as DefineUniversePolicyOperation;
+        sourceCategoryMembers: recovered.records.map(RecordId.parse),
+      );
+      final restored = DomainOperation.fromWire(
+        operation.toWire(),
+      ) as DefineUniversePolicyOperation;
       expect(restored.sourceCategoryMembers, members);
     } finally {
       store.close();

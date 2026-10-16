@@ -130,24 +130,40 @@ void main() {
         final sources = [RecordId.generate(), RecordId.generate()];
         final values = [
           for (final members in [<RecordId>[], sources])
-            DefineUniversePolicyOperation(clientRef: RecordId.generate().value,
-              key: 'Memoir 記憶', realWorld: true, activate: true,
-              sourceCategoryMembers: members).toWire(),
+            DefineUniversePolicyOperation(
+              clientRef: RecordId.generate().value,
+              key: 'Memoir 記憶',
+              realWorld: true,
+              activate: true,
+              sourceCategoryMembers: members,
+            ).toWire(),
         ];
         final pointers = await connection.runTx((tx) async {
           final codec = PostgresRelationalCodec(tx, universe);
-          return [for (final value in values) await codec.put('DomainOperation', value)];
+          return [
+            for (final value in values)
+              await codec.put('DomainOperation', value),
+          ];
         });
         await connection.close();
-        connection = await Connection.open(Endpoint(host: '127.0.0.1', port: port!,
-          database: 'ub_disposable', username: role),
-          settings: const ConnectionSettings(sslMode: SslMode.disable));
+        connection = await Connection.open(
+          Endpoint(
+            host: '127.0.0.1',
+            port: port!,
+            database: 'ub_disposable',
+            username: role,
+          ),
+          settings: const ConnectionSettings(sslMode: SslMode.disable),
+        );
         await connection.runTx((tx) async {
           final codec = PostgresRelationalCodec(tx, universe);
           for (var i = 0; i < values.length; i++) {
             final restored = await codec.get('DomainOperation', pointers[i]);
             expect(restored.toText(), values[i].toText());
-            expect(DomainOperation.fromWire(restored).toWire().toText(), values[i].toText());
+            expect(
+              DomainOperation.fromWire(restored).toWire().toText(),
+              values[i].toText(),
+            );
           }
         });
       });
@@ -289,9 +305,12 @@ void main() {
             final result = <Object?>[];
             for (var offset = 0; offset < cases.length; offset += 50) {
               final end = (offset + 50).clamp(0, cases.length);
-              result.addAll(await codec.putMany('Payload', [
-                for (final item in cases.getRange(offset, end)) item['value']!,
-              ]));
+              result.addAll(
+                await codec.putMany('Payload', [
+                  for (final item in cases.getRange(offset, end))
+                    item['value']!,
+                ]),
+              );
             }
             return result;
           });
@@ -303,8 +322,10 @@ void main() {
           await connection.close();
           connection = await Connection.open(
             Endpoint(
-              host: '127.0.0.1', port: port,
-              database: 'ub_disposable', username: role,
+              host: '127.0.0.1',
+              port: port,
+              database: 'ub_disposable',
+              username: role,
             ),
             settings: const ConnectionSettings(sslMode: SslMode.disable),
           );
@@ -312,9 +333,16 @@ void main() {
             final codec = PostgresRelationalCodec(tx, universe);
             for (var i = 0; i < written.length; i++) {
               final value = await codec.get('Payload', written[i]);
-              expect(value.toText(), (cases[i]['canonical'] as CanonicalString).value);
-              final kind = (objectFields(value)['record_kind'] as CanonicalString).value;
-              expect(payloadDigest(kind, value), (cases[i]['digest'] as CanonicalString).value);
+              expect(
+                value.toText(),
+                (cases[i]['canonical'] as CanonicalString).value,
+              );
+              final kind =
+                  (objectFields(value)['record_kind'] as CanonicalString).value;
+              expect(
+                payloadDigest(kind, value),
+                (cases[i]['digest'] as CanonicalString).value,
+              );
             }
           });
         },
@@ -516,24 +544,41 @@ void main() {
         });
       }, timeout: const Timeout(Duration(minutes: 2)));
       test('batch writes reject invalid input before writing and roll back interruption', () async {
-        final value = CanonicalValue.parseJson('{"kind":"text","text":"記憶\\u0000😀"}');
+        final value = CanonicalValue.parseJson(
+          '{"kind":"text","text":"記憶\\u0000😀"}',
+        );
         Future<int> count() async =>
-            (await connection.execute('SELECT count(*) FROM $schema.r_value')).single.single as int;
+            (await connection.execute('SELECT count(*) FROM $schema.r_value'))
+                    .single
+                    .single
+                as int;
         final before = await count();
         await connection.runTx((tx) async {
           final codec = PostgresRelationalCodec(tx, universe);
           expect(await codec.putMany('Value', []), isEmpty);
-          await expectLater(codec.putMany('Value', List.filled(51, value)), throwsRangeError);
-          await expectLater(codec.putMany('Value', [value, const CanonicalBool(true)]), throwsFormatException);
+          await expectLater(
+            codec.putMany('Value', List.filled(51, value)),
+            throwsRangeError,
+          );
+          await expectLater(
+            codec.putMany('Value', [value, const CanonicalBool(true)]),
+            throwsFormatException,
+          );
         });
         expect(await count(), before);
-        await expectLater(connection.runTx((tx) async {
-          final codec = PostgresRelationalCodec(tx, universe);
-          final pointers = await codec.putMany('Value', [value, value]);
-          expect(pointers.toSet(), hasLength(2));
-          expect((await codec.get('Value', pointers.first)).toText(), value.toText());
-          throw StateError('Interrupted batch');
-        }), throwsStateError);
+        await expectLater(
+          connection.runTx((tx) async {
+            final codec = PostgresRelationalCodec(tx, universe);
+            final pointers = await codec.putMany('Value', [value, value]);
+            expect(pointers.toSet(), hasLength(2));
+            expect(
+              (await codec.get('Value', pointers.first)).toText(),
+              value.toText(),
+            );
+            throw StateError('Interrupted batch');
+          }),
+          throwsStateError,
+        );
         expect(await count(), before);
       });
     },

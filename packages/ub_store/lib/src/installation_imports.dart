@@ -268,7 +268,8 @@ extension InstallationImports on SqliteInstallationStore {
     // Older installations retained an absolute sandbox path. Never open that
     // path: the reviewed bytes are always resolved inside the current root and
     // checked against sourceDigest when admitted. iOS may move the app container.
-    final knownStagingPath = stagedPath == relativePath ||
+    final knownStagingPath =
+        stagedPath == relativePath ||
         stagedPath.replaceAll('\\', '/').endsWith('/$relativePath');
     if (preview.omittedRecords < 0 ||
         preview.records < 0 ||

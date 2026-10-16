@@ -18,6 +18,7 @@ import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
 
 import 'package:ub_service/src/universe_evidence_policy.dart';
+
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
 import 'proposal_authorization_test.dart' as permissions;
@@ -84,8 +85,14 @@ void main() {
           idempotencyKey: 'context',
           changes: [
             for (final row in initialPolicy)
-              Assignment(recordId: row.identity.recordId,
-                next: StoredVersion.build(row.recordVersionId, row.identity, row.payload.toWire())),
+              Assignment(
+                recordId: row.identity.recordId,
+                next: StoredVersion.build(
+                  row.recordVersionId,
+                  row.identity,
+                  row.payload.toWire(),
+                ),
+              ),
             Assignment(
               recordId: context.identity.recordId,
               next: StoredVersion(
@@ -351,13 +358,17 @@ void main() {
     expect(SearchResults.fromWire(first.result).hits.single.recordId, f.id(20));
     final selected = UniversePolicySelection.fromRecords(f.u, initialPolicy);
     final ordered = [selected.selection, selected.definition, ...rows];
-    final budget = ordered.map((row) =>
-        ContextBrief(
-          records: [row],
-          requiredDependencies: [row.identity.recordId],
-          coverage: Coverage.partial,
-        ).toWire().toBytes().length +
-        30).reduce((a, b) => a > b ? a : b);
+    final budget = ordered
+        .map(
+          (row) =>
+              ContextBrief(
+                records: [row],
+                requiredDependencies: [row.identity.recordId],
+                coverage: Coverage.partial,
+              ).toWire().toBytes().length +
+              30,
+        )
+        .reduce((a, b) => a > b ? a : b);
     GetContextRequest brief({String? cursor, String purpose = 'Research'}) =>
         GetContextRequest(
           universe: const Selector('World'),
@@ -1460,7 +1471,13 @@ void main() {
     expect(authority.catalog(author), hasLength(1));
   });
 
-  ({UniverseId id, String source, ContinuityId continuity, RevisionId revision, RecordVersion? context})
+  ({
+    UniverseId id,
+    String source,
+    ContinuityId continuity,
+    RevisionId revision,
+    RecordVersion? context,
+  })
   restoreSource({bool withContext = false}) {
     final id = UniverseId.generate();
     final continuity = ContinuityId.generate();
@@ -1476,18 +1493,40 @@ void main() {
       RecordVersion? context;
       var revision = journal.head(continuity);
       if (withContext) {
-        context = RecordVersion.build(recordVersionId: RecordVersionId.generate(),
-          identity: RecordIdentity(universeId: id, recordId: f.id(99),
-            recordKind: RecordKind.representedContext),
-          payload: RepresentedContextRecord(universe: id,
-            kind: const ObjectiveContext(), labels: {'en': 'Legacy reality'}));
-        revision = SqliteKernel(package.database, id).commit(CommitInput(
-          universe: id, continuity: continuity, expectedHead: revision,
-          principal: PrincipalId.generate(), decision: 'Admitted legacy context',
-          reason: 'Legacy import fixture', idempotencyKey: 'legacy-context',
-          changes: [Assignment(recordId: context.identity.recordId,
-            next: StoredVersion.build(context.recordVersionId, context.identity,
-              context.payload.toWire()))]));
+        context = RecordVersion.build(
+          recordVersionId: RecordVersionId.generate(),
+          identity: RecordIdentity(
+            universeId: id,
+            recordId: f.id(99),
+            recordKind: RecordKind.representedContext,
+          ),
+          payload: RepresentedContextRecord(
+            universe: id,
+            kind: const ObjectiveContext(),
+            labels: {'en': 'Legacy reality'},
+          ),
+        );
+        revision = SqliteKernel(package.database, id).commit(
+          CommitInput(
+            universe: id,
+            continuity: continuity,
+            expectedHead: revision,
+            principal: PrincipalId.generate(),
+            decision: 'Admitted legacy context',
+            reason: 'Legacy import fixture',
+            idempotencyKey: 'legacy-context',
+            changes: [
+              Assignment(
+                recordId: context.identity.recordId,
+                next: StoredVersion.build(
+                  context.recordVersionId,
+                  context.identity,
+                  context.payload.toWire(),
+                ),
+              ),
+            ],
+          ),
+        );
       }
       package.backup(source);
       return (
@@ -1560,65 +1599,185 @@ void main() {
       source.close();
     }
     final connection = runtime.connect(hello(author.id));
-    final review = importReport(await engine(connection, PreviewImportEngineRequest(
-      source: archive, name: 'Legacy policy', mode: ImportMode.restore)));
-    await engine(connection, AcceptImportEngineRequest(
-      previewId: OperationId.parse(review.string('preview_id')), digest: review.string('digest')));
+    final review = importReport(
+      await engine(
+        connection,
+        PreviewImportEngineRequest(
+          source: archive,
+          name: 'Legacy policy',
+          mode: ImportMode.restore,
+        ),
+      ),
+    );
+    await engine(
+      connection,
+      AcceptImportEngineRequest(
+        previewId: OperationId.parse(review.string('preview_id')),
+        digest: review.string('digest'),
+      ),
+    );
     const selector = Selector('Legacy policy');
-    Future<T> read<T>(Request request, T Function(CanonicalValue) decode) async =>
-        decode((await tool(connection, request)).result);
-    Future<OpenedContext> open() => read(OpenContextRequest(universe: selector,
-      universeId: fixture.id, continuityId: fixture.continuity,
-      revision: const HeadRevisionSelector(),
-      representedContext: ContextIdSelector(fixture.context!.identity.recordId),
-      temporalQuery: const TimelessFrameTime(), temporalSystems: [],
-      perspective: const AuthorPerspective()), OpenedContext.fromWire);
+    Future<T> read<T>(
+      Request request,
+      T Function(CanonicalValue) decode,
+    ) async => decode((await tool(connection, request)).result);
+    Future<OpenedContext> open() => read(
+      OpenContextRequest(
+        universe: selector,
+        universeId: fixture.id,
+        continuityId: fixture.continuity,
+        revision: const HeadRevisionSelector(),
+        representedContext: ContextIdSelector(
+          fixture.context!.identity.recordId,
+        ),
+        temporalQuery: const TimelessFrameTime(),
+        temporalSystems: [],
+        perspective: const AuthorPerspective(),
+      ),
+      OpenedContext.fromWire,
+    );
     final before = await open();
-    expect((await read(DescribeSummaryRequest(universe: selector), Description.fromWire))
-      .continuities.single.rootPolicyDefined, isFalse);
-    final blocked = await read(CreateProposalRequest(universe: selector,
-      contextId: before.contextId, operations: [CreateEntityOperation(
-        clientRef: RecordId.generate().value, record: f.entity())],
-      submission: Submission.submitted, rationale: 'Legacy write needs a policy.',
-      idempotencyKey: 'without-root'), Proposal.fromWire);
-    ProposalRef ref(Proposal proposal) => ProposalRef(proposalId: proposal.proposalId,
-      version: proposal.version, digest: proposal.digest);
-    await expectLater(read(ProposalValidationRequest(universe: selector,
-      contextId: before.contextId, proposalReference: ref(blocked),
-      checkScope: CheckScope.candidate), ValidationV3.fromWire),
-      throwsA(isA<InvalidArgumentError>().having((e) => e.message,
-        'root requirement', contains('root policy'))));
-    final adopted = await read(CreateProposalRequest(universe: selector,
-      contextId: before.contextId, operations: [DefineUniversePolicyOperation(
-        clientRef: RecordId.generate().value, key: 'Explicit legacy baseline',
-        realWorld: false, activate: true)], submission: Submission.submitted,
-      rationale: 'Adopt an empty policy without rewriting history.',
-      idempotencyKey: 'adopt-root'), Proposal.fromWire);
-    final checked = await read(ProposalValidationRequest(universe: selector,
-      contextId: before.contextId, proposalReference: ref(adopted),
-      checkScope: CheckScope.candidate), ValidationV3.fromWire) as EvaluatedValidation;
-    await engine(connection, ApproveEngineRequest(universe: selector,
-      proposalReference: ref(adopted), validationRun: checked.execution.runId));
-    final receipt = await read(CommitRequest(universe: selector,
-      proposalReference: ref(adopted), expectedBaseRevision: before.frame.revision,
-      validationRun: checked.execution.runId,
-      idempotencyKey: 'publish-adoption'), CommitReceipt.fromWire);
+    expect(
+      (await read(
+        DescribeSummaryRequest(universe: selector),
+        Description.fromWire,
+      )).continuities.single.rootPolicyDefined,
+      isFalse,
+    );
+    final blocked = await read(
+      CreateProposalRequest(
+        universe: selector,
+        contextId: before.contextId,
+        operations: [
+          CreateEntityOperation(
+            clientRef: RecordId.generate().value,
+            record: f.entity(),
+          ),
+        ],
+        submission: Submission.submitted,
+        rationale: 'Legacy write needs a policy.',
+        idempotencyKey: 'without-root',
+      ),
+      Proposal.fromWire,
+    );
+    ProposalRef ref(Proposal proposal) => ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    await expectLater(
+      read(
+        ProposalValidationRequest(
+          universe: selector,
+          contextId: before.contextId,
+          proposalReference: ref(blocked),
+          checkScope: CheckScope.candidate,
+        ),
+        ValidationV3.fromWire,
+      ),
+      throwsA(
+        isA<InvalidArgumentError>().having(
+          (e) => e.message,
+          'root requirement',
+          contains('root policy'),
+        ),
+      ),
+    );
+    final adopted = await read(
+      CreateProposalRequest(
+        universe: selector,
+        contextId: before.contextId,
+        operations: [
+          DefineUniversePolicyOperation(
+            clientRef: RecordId.generate().value,
+            key: 'Explicit legacy baseline',
+            realWorld: false,
+            activate: true,
+          ),
+        ],
+        submission: Submission.submitted,
+        rationale: 'Adopt an empty policy without rewriting history.',
+        idempotencyKey: 'adopt-root',
+      ),
+      Proposal.fromWire,
+    );
+    final checked = await read(
+      ProposalValidationRequest(
+        universe: selector,
+        contextId: before.contextId,
+        proposalReference: ref(adopted),
+        checkScope: CheckScope.candidate,
+      ),
+      ValidationV3.fromWire,
+    ) as EvaluatedValidation;
+    await engine(
+      connection,
+      ApproveEngineRequest(
+        universe: selector,
+        proposalReference: ref(adopted),
+        validationRun: checked.execution.runId,
+      ),
+    );
+    final receipt = await read(
+      CommitRequest(
+        universe: selector,
+        proposalReference: ref(adopted),
+        expectedBaseRevision: before.frame.revision,
+        validationRun: checked.execution.runId,
+        idempotencyKey: 'publish-adoption',
+      ),
+      CommitReceipt.fromWire,
+    );
     expect(receipt.revision, isNot(fixture.revision));
-    expect((await read(DescribeSummaryRequest(universe: selector), Description.fromWire))
-      .continuities.single.rootPolicyDefined, isTrue);
-    final retained = await read(GetRequest(universe: selector,
-      contextId: before.contextId, recordIds: [fixture.context!.identity.recordId],
-      fieldGroups: [FieldGroup.payload]), Records.fromWire);
-    expect(retained.records.single.toWire().toText(), fixture.context!.toWire().toText());
+    expect(
+      (await read(
+        DescribeSummaryRequest(universe: selector),
+        Description.fromWire,
+      )).continuities.single.rootPolicyDefined,
+      isTrue,
+    );
+    final retained = await read(
+      GetRequest(
+        universe: selector,
+        contextId: before.contextId,
+        recordIds: [fixture.context!.identity.recordId],
+        fieldGroups: [FieldGroup.payload],
+      ),
+      Records.fromWire,
+    );
+    expect(
+      retained.records.single.toWire().toText(),
+      fixture.context!.toWire().toText(),
+    );
     final current = await open();
-    final ready = await read(CreateProposalRequest(universe: selector,
-      contextId: current.contextId, operations: [CreateEntityOperation(
-        clientRef: RecordId.generate().value, record: f.entity())],
-      submission: Submission.submitted, rationale: 'Policy is now defined.',
-      idempotencyKey: 'after-adoption'), Proposal.fromWire);
-    expect(await read(ProposalValidationRequest(universe: selector,
-      contextId: current.contextId, proposalReference: ref(ready),
-      checkScope: CheckScope.candidate), ValidationV3.fromWire), isA<EvaluatedValidation>());
+    final ready = await read(
+      CreateProposalRequest(
+        universe: selector,
+        contextId: current.contextId,
+        operations: [
+          CreateEntityOperation(
+            clientRef: RecordId.generate().value,
+            record: f.entity(),
+          ),
+        ],
+        submission: Submission.submitted,
+        rationale: 'Policy is now defined.',
+        idempotencyKey: 'after-adoption',
+      ),
+      Proposal.fromWire,
+    );
+    expect(
+      await read(
+        ProposalValidationRequest(
+          universe: selector,
+          contextId: current.contextId,
+          proposalReference: ref(ready),
+          checkScope: CheckScope.candidate,
+        ),
+        ValidationV3.fromWire,
+      ),
+      isA<EvaluatedValidation>(),
+    );
   });
 
   test('native logical import persists exact preview across restart and retries admission', () async {
@@ -1661,9 +1820,16 @@ void main() {
       final resumed = runtime.connect(hello(author.id));
       final receipt = await engine(resumed, accept);
       expect((await engine(resumed, accept)).toText(), receipt.toText());
-      final empty = Description.fromWire((await tool(resumed,
-        DescribeSummaryRequest(universe: Selector('Imported $canonOnly')))).result);
-      expect(empty.continuities, isEmpty); // No context exists for a Changes frame.
+      final empty = Description.fromWire(
+        (await tool(
+          resumed,
+          DescribeSummaryRequest(universe: Selector('Imported $canonOnly')),
+        )).result,
+      );
+      expect(
+        empty.continuities,
+        isEmpty,
+      ); // No context exists for a Changes frame.
       await engine(
         resumed,
         LibraryEngineRequest(universe: Selector('Imported $canonOnly')),
@@ -4454,8 +4620,11 @@ void main() {
               imported.database,
               f.u,
             ).snapshot(opened.frame.continuity, opened.frame.revision),
-            equals({f.id(99): f.ver(99),
-          for (final row in initialPolicy) row.identity.recordId: row.recordVersionId}),
+            equals({
+              f.id(99): f.ver(99),
+              for (final row in initialPolicy)
+                row.identity.recordId: row.recordVersionId,
+            }),
           );
         } finally {
           staged.close();
@@ -4522,8 +4691,11 @@ void main() {
               imported.database,
               clonedId,
             ).snapshot(opened.frame.continuity, opened.frame.revision),
-            equals({f.id(99): f.ver(99),
-          for (final row in initialPolicy) row.identity.recordId: row.recordVersionId}),
+            equals({
+              f.id(99): f.ver(99),
+              for (final row in initialPolicy)
+                row.identity.recordId: row.recordVersionId,
+            }),
           );
         } finally {
           cloned.close();
@@ -4606,8 +4778,11 @@ void main() {
             copy.database,
             f.u,
           ).snapshot(opened.frame.continuity, opened.frame.revision),
-          equals({f.id(99): f.ver(99),
-          for (final row in initialPolicy) row.identity.recordId: row.recordVersionId}),
+          equals({
+            f.id(99): f.ver(99),
+            for (final row in initialPolicy)
+              row.identity.recordId: row.recordVersionId,
+          }),
         );
       } finally {
         archive.close();
@@ -4643,8 +4818,11 @@ void main() {
           backup.database,
           f.u,
         ).snapshot(opened.frame.continuity, opened.frame.revision),
-        equals({f.id(99): f.ver(99),
-          for (final row in initialPolicy) row.identity.recordId: row.recordVersionId}),
+        equals({
+          f.id(99): f.ver(99),
+          for (final row in initialPolicy)
+            row.identity.recordId: row.recordVersionId,
+        }),
       );
     } finally {
       backup.close();
@@ -4869,8 +5047,11 @@ void main() {
           package.database,
           f.u,
         ).snapshot(opened.frame.continuity, opened.frame.revision),
-        equals({f.id(99): f.ver(99),
-          for (final row in initialPolicy) row.identity.recordId: row.recordVersionId}),
+        equals({
+          f.id(99): f.ver(99),
+          for (final row in initialPolicy)
+            row.identity.recordId: row.recordVersionId,
+        }),
       );
     } finally {
       package.close();

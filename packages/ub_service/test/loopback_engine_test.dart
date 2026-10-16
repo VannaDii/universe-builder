@@ -37,14 +37,17 @@ void main() {
       webAssets: assets.path,
     );
     final http = HttpClient();
-    Future<({
-      int status,
-      List<int> bytes,
-      String? type,
-      int length,
-      String? policy,
-      String? cache,
-    })> fetch(
+    Future<
+      ({
+        int status,
+        List<int> bytes,
+        String? type,
+        int length,
+        String? policy,
+        String? cache,
+      })
+    >
+    fetch(
       String path, {
       String method = 'GET',
       String? host,

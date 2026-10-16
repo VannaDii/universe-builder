@@ -30,8 +30,10 @@ List<Assignment> compileUniversePolicy({
     throw invalid('Choose each qualifying source version once');
   }
   for (final source in sources) {
-    if (!base.any((row) => row.identity.recordId == source &&
-        row.payload is SourceVersionRecord)) {
+    if (!base.any(
+      (row) =>
+          row.identity.recordId == source && row.payload is SourceVersionRecord,
+    )) {
       throw invalid('Choose an existing source version from this universe');
     }
   }

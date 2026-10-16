@@ -122,7 +122,8 @@ SavedPackForm _decodePack(
       rationale: row.rationale,
       realWorldPolicy: row.realWorldPolicy,
       activatePolicy: row.activatePolicy ?? true,
-      expectedRootVersion: row.expectedRootVersion == null ? null
+      expectedRootVersion: row.expectedRootVersion == null
+          ? null
           : RecordVersionId.parse(row.expectedRootVersion!),
       draftVersion: row.draftVersion == null
           ? null
@@ -361,7 +362,8 @@ final class BrowserPackFormRecoveryStore {
     if (scope.representedContext != form.representedContext ||
         (scope.typeClientRef != null &&
             scope.typeClientRef != form.clientRef &&
-            !(scope.typeClientRef == universePolicyEditorKey && form.realWorldPolicy != null))) {
+            !(scope.typeClientRef == universePolicyEditorKey &&
+                form.realWorldPolicy != null))) {
       throw const FormatException('Pack form context does not match.');
     }
     _binding(scope);

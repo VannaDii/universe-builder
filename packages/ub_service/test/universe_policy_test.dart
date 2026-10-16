@@ -63,53 +63,119 @@ void main() {
   final universe = candidate.fixture().first.identity.universeId;
   test('first Real World adoption uses explicit sources without rewriting historical claims', () {
     final legacy = evidence.fixture();
-    List<Assignment> define(List<RecordId> members) => operations.compile(legacy, [
-      DefineUniversePolicyOperation(clientRef: RecordId.generate().value,
-        key: 'Memoir root', realWorld: true, activate: true,
-        sourceCategoryMembers: members),
-    ]);
+    List<Assignment> define(List<RecordId> members) =>
+        operations.compile(legacy, [
+          DefineUniversePolicyOperation(
+            clientRef: RecordId.generate().value,
+            key: 'Memoir root',
+            realWorld: true,
+            activate: true,
+            sourceCategoryMembers: members,
+          ),
+        ]);
     final empty = define([]);
-    expect(candidate.check([...legacy, ...empty.map(operations.decode)],
-      base: legacy, changes: empty, requireRootPolicy: true).admissible, isFalse);
+    expect(
+      candidate
+          .check(
+            [...legacy, ...empty.map(operations.decode)],
+            base: legacy,
+            changes: empty,
+            requireRootPolicy: true,
+          )
+          .admissible,
+      isFalse,
+    );
     final chosen = define([f.id(12)]);
     final adopted = [...legacy, ...chosen.map(operations.decode)];
     final policy = UniversePolicySelection.fromRecords(universe, adopted);
-    final requirement = (policy.rules.single.payload as RuleRecord).requiredEvidence!;
+    final requirement =
+        (policy.rules.single.payload as RuleRecord).requiredEvidence!;
     expect(requirement.reviewMethods, isEmpty);
     final pin = requirement.sourceCategories.single;
-    final category = adopted.singleWhere((r) => r.recordVersionId == pin.version);
+    final category = adopted.singleWhere(
+      (r) => r.recordVersionId == pin.version,
+    );
     expect((category.payload as DomainPackRecord).records, [f.id(12)]);
-    expect(candidate.check(adopted, base: legacy, changes: chosen,
-      requireRootPolicy: true).admissible, isTrue);
-    expect(adopted.take(legacy.length).map((r) => r.toWire().toText()),
-      legacy.map((r) => r.toWire().toText()));
+    expect(
+      candidate
+          .check(
+            adopted,
+            base: legacy,
+            changes: chosen,
+            requireRootPolicy: true,
+          )
+          .admissible,
+      isTrue,
+    );
+    expect(
+      adopted.take(legacy.length).map((r) => r.toWire().toText()),
+      legacy.map((r) => r.toWire().toText()),
+    );
   });
   test('policy source selection rejects missing, non-source, duplicate and scratch members', () {
     final legacy = evidence.fixture();
-    for (final members in [[f.id(1)], [RecordId.generate()], [f.id(12), f.id(12)]]) {
-      expect(() => operations.compile(legacy, [DefineUniversePolicyOperation(
-        clientRef: RecordId.generate().value, key: 'Real World',
-        realWorld: true, activate: true, sourceCategoryMembers: members)]),
-        throwsA(isA<protocol.InvalidArgumentError>()));
+    for (final members in [
+      [f.id(1)],
+      [RecordId.generate()],
+      [f.id(12), f.id(12)],
+    ]) {
+      expect(
+        () => operations.compile(legacy, [
+          DefineUniversePolicyOperation(
+            clientRef: RecordId.generate().value,
+            key: 'Real World',
+            realWorld: true,
+            activate: true,
+            sourceCategoryMembers: members,
+          ),
+        ]),
+        throwsA(isA<protocol.InvalidArgumentError>()),
+      );
     }
-    expect(() => operations.compile(legacy, [DefineUniversePolicyOperation(
-      clientRef: RecordId.generate().value, key: 'Scratch',
-      realWorld: false, activate: true, sourceCategoryMembers: [f.id(12)])]),
-      throwsA(isA<protocol.InvalidArgumentError>()));
+    expect(
+      () => operations.compile(legacy, [
+        DefineUniversePolicyOperation(
+          clientRef: RecordId.generate().value,
+          key: 'Scratch',
+          realWorld: false,
+          activate: true,
+          sourceCategoryMembers: [f.id(12)],
+        ),
+      ]),
+      throwsA(isA<protocol.InvalidArgumentError>()),
+    );
   });
   test('legacy analysis stays readable but publication requires explicit root adoption', () {
     final legacy = candidate.fixture();
     expect(candidate.check(legacy).admissible, isTrue);
-    expect(() => candidate.check(legacy, requireRootPolicy: true),
-      throwsA(isA<protocol.InvalidArgumentError>()));
-    final changes = operations.compile(legacy, [DefineUniversePolicyOperation(
-      clientRef: RecordId.generate().value, key: 'Adopted policy',
-      realWorld: false, activate: true)]);
+    expect(
+      () => candidate.check(legacy, requireRootPolicy: true),
+      throwsA(isA<protocol.InvalidArgumentError>()),
+    );
+    final changes = operations.compile(legacy, [
+      DefineUniversePolicyOperation(
+        clientRef: RecordId.generate().value,
+        key: 'Adopted policy',
+        realWorld: false,
+        activate: true,
+      ),
+    ]);
     final adopted = [...legacy, ...changes.map(operations.decode)];
-    expect(candidate.check(adopted, base: legacy, changes: changes,
-      requireRootPolicy: true).admissible, isTrue);
-    expect(adopted.take(legacy.length).map((r) => r.toWire().toText()),
-      legacy.map((r) => r.toWire().toText()));
+    expect(
+      candidate
+          .check(
+            adopted,
+            base: legacy,
+            changes: changes,
+            requireRootPolicy: true,
+          )
+          .admissible,
+      isTrue,
+    );
+    expect(
+      adopted.take(legacy.length).map((r) => r.toWire().toText()),
+      legacy.map((r) => r.toWire().toText()),
+    );
   });
   for (final realWorld in [false, true]) {
     test(
@@ -151,42 +217,51 @@ void main() {
   });
 
   for (final realWorld in [false, true]) {
-    test('defines a fresh ${realWorld ? 'Real World clone' : 'scratch policy'} through operations', () {
-      final initial = initialUniversePolicyRecords(universe, false);
-      final base = [...candidate.fixture(), ...initial];
-      final root = UniversePolicySelection.fromRecords(universe, base);
-      final id = RecordId.generate();
-      final changes = operations.compile(base, [
-        DefineUniversePolicyOperation(
-          clientRef: id.value,
-          key: 'replacement',
-          realWorld: realWorld,
-          activate: true,
-          expectedRootVersion: root.selection.recordVersionId,
-        ),
-      ]);
-      final replaced = changes.map((c) => c.recordId).toSet();
-      final after = [
-        for (final row in base)
-          if (!replaced.contains(row.identity.recordId)) row,
-        ...changes.map(operations.decode),
-      ];
-      final selected = UniversePolicySelection.fromRecords(universe, after);
-      expect(selected.definition.identity.recordId, id);
-      expect(selected.rules, hasLength(realWorld ? 1 : 0));
-      expect(after, contains(root.definition));
-      // The fixture already contains unsourced claims: activating Real World
-      // correctly requires evidence before this root switch can be published.
-      expect(candidate.check(after, base: base, changes: changes).admissible,
-          !realWorld);
-      if (realWorld) {
-        final source = (selected.rules.single.payload as RuleRecord)
-            .requiredEvidence!.sourceCategories.single;
-        final category = after.singleWhere((r) => r.identity.recordId == source.record);
-        expect(source.version, category.recordVersionId);
-        expect(source.universe, universe);
-      }
-    });
+    test(
+      'defines a fresh ${realWorld ? 'Real World clone' : 'scratch policy'} through operations',
+      () {
+        final initial = initialUniversePolicyRecords(universe, false);
+        final base = [...candidate.fixture(), ...initial];
+        final root = UniversePolicySelection.fromRecords(universe, base);
+        final id = RecordId.generate();
+        final changes = operations.compile(base, [
+          DefineUniversePolicyOperation(
+            clientRef: id.value,
+            key: 'replacement',
+            realWorld: realWorld,
+            activate: true,
+            expectedRootVersion: root.selection.recordVersionId,
+          ),
+        ]);
+        final replaced = changes.map((c) => c.recordId).toSet();
+        final after = [
+          for (final row in base)
+            if (!replaced.contains(row.identity.recordId)) row,
+          ...changes.map(operations.decode),
+        ];
+        final selected = UniversePolicySelection.fromRecords(universe, after);
+        expect(selected.definition.identity.recordId, id);
+        expect(selected.rules, hasLength(realWorld ? 1 : 0));
+        expect(after, contains(root.definition));
+        // The fixture already contains unsourced claims: activating Real World
+        // correctly requires evidence before this root switch can be published.
+        expect(
+          candidate.check(after, base: base, changes: changes).admissible,
+          !realWorld,
+        );
+        if (realWorld) {
+          final source = (selected.rules.single.payload as RuleRecord)
+              .requiredEvidence!
+              .sourceCategories
+              .single;
+          final category = after.singleWhere(
+            (r) => r.identity.recordId == source.record,
+          );
+          expect(source.version, category.recordVersionId);
+          expect(source.universe, universe);
+        }
+      },
+    );
   }
 
   test('available Real World clones have independent rules and categories', () {
@@ -207,10 +282,20 @@ void main() {
     final selected = UniversePolicySelection.fromRecords(universe, after);
     expect(selected.definition, original.definition);
     expect(selected.inactiveRuleIds, hasLength(1));
-    expect(candidate.check(after, base: base, changes: changes).admissible, isTrue);
-    final refs = after.where((row) => row.payload is RuleRecord)
-        .map((row) => (row.payload as RuleRecord)
-            .requiredEvidence!.sourceCategories.single.record).toSet();
+    expect(
+      candidate.check(after, base: base, changes: changes).admissible,
+      isTrue,
+    );
+    final refs = after
+        .where((row) => row.payload is RuleRecord)
+        .map(
+          (row) => (row.payload as RuleRecord)
+              .requiredEvidence!
+              .sourceCategories
+              .single
+              .record,
+        )
+        .toSet();
     expect(refs, hasLength(2));
   });
 
@@ -224,15 +309,26 @@ void main() {
           realWorld: false,
           activate: activate,
         );
-    expect(() => operations.compile(base, [define('replacement')]),
-        throwsA(isA<protocol.InvalidArgumentError>()));
-    expect(() => operations.compile(base, [define('custom', activate: false)]),
-        throwsA(isA<protocol.InvalidArgumentError>()));
-    expect(() => operations.compile(legacy, [define('first', activate: false)]),
-        throwsA(isA<protocol.InvalidArgumentError>()));
+    expect(
+      () => operations.compile(base, [define('replacement')]),
+      throwsA(isA<protocol.InvalidArgumentError>()),
+    );
+    expect(
+      () => operations.compile(base, [define('custom', activate: false)]),
+      throwsA(isA<protocol.InvalidArgumentError>()),
+    );
+    expect(
+      () => operations.compile(legacy, [define('first', activate: false)]),
+      throwsA(isA<protocol.InvalidArgumentError>()),
+    );
     final adopted = operations.compile(legacy, [define('first')]);
-    expect(UniversePolicySelection.fromRecords(universe,
-        [...legacy, ...adopted.map(operations.decode)]).rules, isEmpty);
+    expect(
+      UniversePolicySelection.fromRecords(universe, [
+        ...legacy,
+        ...adopted.map(operations.decode),
+      ]).rules,
+      isEmpty,
+    );
   });
 
   test('another defined root can be selected without deleting the former definition', () {
@@ -386,10 +482,12 @@ void main() {
       );
     }
     expect(
-      candidate.check(
-        base.where((row) => row != rule && row != definition).toList(),
-        base: base,
-      ).admissible,
+      candidate
+          .check(
+            base.where((row) => row != rule && row != definition).toList(),
+            base: base,
+          )
+          .admissible,
       isTrue,
     );
     final replacement = availablePolicy(universe, 'replacement', [
@@ -397,7 +495,8 @@ void main() {
     ]);
     expect(
       candidate.check([
-        for (final row in base) if (row != definition) row,
+        for (final row in base)
+          if (row != definition) row,
         replacement,
       ], base: base).admissible,
       isTrue,

@@ -11,15 +11,16 @@ List<RecordVersion> initialUniversePolicyRecords(
   String evidenceNamespace = 'real_world',
   Iterable<RecordId> sourceCategoryMembers = const [],
 }) {
-  RecordVersion record(RecordPayload payload, {RecordId? id}) => RecordVersion.build(
-    recordVersionId: RecordVersionId.generate(),
-    identity: RecordIdentity(
-      universeId: universe,
-      recordId: id ?? RecordId.generate(),
-      recordKind: payload.recordKind,
-    ),
-    payload: payload,
-  );
+  RecordVersion record(RecordPayload payload, {RecordId? id}) =>
+      RecordVersion.build(
+        recordVersionId: RecordVersionId.generate(),
+        identity: RecordIdentity(
+          universeId: universe,
+          recordId: id ?? RecordId.generate(),
+          recordKind: payload.recordKind,
+        ),
+        payload: payload,
+      );
   final evidence = <RecordVersion>[];
   if (realWorld) {
     final category = record(

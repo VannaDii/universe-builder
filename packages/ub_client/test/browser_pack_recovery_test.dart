@@ -148,20 +148,40 @@ void main() {
         (await store.load(other))!.form.toWire().toText(),
         declaration.toWire().toText(),
       );
-      final policyScope = EditorFormScope(instance: scope.instance,
-        profile: scope.profile, universe: universe, continuity: scope.continuity,
-        representedContext: context, typeClientRef: universePolicyEditorKey);
-      final policy = UnfinishedPackForm(baseRevision: input.baseRevision,
-        representedContext: context, clientRef: RecordId.generate().value,
-        key: '', realWorldPolicy: true, activatePolicy: false,
-        expectedRootVersion: RecordVersionId.generate(), rationale: 'Still choosing 記憶.');
+      final policyScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: universe,
+        continuity: scope.continuity,
+        representedContext: context,
+        typeClientRef: universePolicyEditorKey,
+      );
+      final policy = UnfinishedPackForm(
+        baseRevision: input.baseRevision,
+        representedContext: context,
+        clientRef: RecordId.generate().value,
+        key: '',
+        realWorldPolicy: true,
+        activatePolicy: false,
+        expectedRootVersion: RecordVersionId.generate(),
+        rationale: 'Still choosing 記憶.',
+      );
       await store.save(policyScope, policy, BigInt.zero);
       store.close();
       store = await BrowserPackFormRecoveryStore.open(databaseName: name);
-      expect((await store.load(policyScope))!.form.toWire().toText(), policy.toWire().toText());
-      final scratch = policy.copyWith(realWorldPolicy: false, activatePolicy: true);
+      expect(
+        (await store.load(policyScope))!.form.toWire().toText(),
+        policy.toWire().toText(),
+      );
+      final scratch = policy.copyWith(
+        realWorldPolicy: false,
+        activatePolicy: true,
+      );
       await store.save(policyScope, scratch, BigInt.one);
-      expect((await store.load(policyScope))!.form.toWire().toText(), scratch.toWire().toText());
+      expect(
+        (await store.load(policyScope))!.form.toWire().toText(),
+        scratch.toWire().toText(),
+      );
     } finally {
       store.close();
       final deleted = Completer<void>();

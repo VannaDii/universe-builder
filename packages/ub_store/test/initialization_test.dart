@@ -370,15 +370,17 @@ void main() {
     expect(database.select('PRAGMA foreign_key_check'), isEmpty);
   });
   test('recovery checks initialization after multiple batches of ordinary assertions', () {
-    publish(request('mixed-assertions', [
-      proposition(100, 100, 7, '12'),
-      for (var n = 101; n < 156; n++)
-        assertion(n, n, 100, 'instance', {
-          'kind': 'author_decision',
-          'note': 'Ordinary authored assertion',
-        }),
-      ...initial(8, 200),
-    ]));
+    publish(
+      request('mixed-assertions', [
+        proposition(100, 100, 7, '12'),
+        for (var n = 101; n < 156; n++)
+          assertion(n, n, 100, 'instance', {
+            'kind': 'author_decision',
+            'note': 'Ordinary authored assertion',
+          }),
+        ...initial(8, 200),
+      ]),
+    );
     final receipts = InitializationEvidence(journal).read();
     expect(receipts, hasLength(1));
     expect(receipts.single.instance, RecordId.parse(id('rec', 8)));

@@ -11,7 +11,8 @@ const _keys = 'instance,profile,universe,continuity,context,editor_key';
 const _legacyColumns = '$_keys,generation,form_input';
 const _fieldsV2 =
     'generation,base_revision,client_ref,pack_key,pack_version,target_record,target_universe,expected_record_version,rationale,draft_version,has_original,original_key,original_version';
-const _fields = '$_fieldsV2,policy_real_world,policy_activate,expected_root_version';
+const _fields =
+    '$_fieldsV2,policy_real_world,policy_activate,expected_root_version';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = """
@@ -44,7 +45,14 @@ String _textProjection(String columns) => columns
     .split(',')
     .map(
       (c) =>
-          {'ordinal', 'has_original', 'policy_real_world', 'policy_activate'}.contains(c) ? c : 'CAST($c AS BLOB) AS $c',
+          {
+            'ordinal',
+            'has_original',
+            'policy_real_world',
+            'policy_activate',
+          }.contains(c)
+          ? c
+          : 'CAST($c AS BLOB) AS $c',
     )
     .join(',');
 String _text(Row row, String column) =>
@@ -112,9 +120,15 @@ final class PackFormRecoveryStore {
           }
           db.execute('DROP TABLE legacy_pack_form');
         } else if (version == 2) {
-          db.execute('ALTER TABLE pack_form ADD COLUMN policy_real_world INTEGER CHECK(policy_real_world IN (0,1))');
-          db.execute('ALTER TABLE pack_form ADD COLUMN policy_activate INTEGER NOT NULL DEFAULT 1 CHECK(policy_activate IN (0,1))');
-          db.execute('ALTER TABLE pack_form ADD COLUMN expected_root_version TEXT');
+          db.execute(
+            'ALTER TABLE pack_form ADD COLUMN policy_real_world INTEGER CHECK(policy_real_world IN (0,1))',
+          );
+          db.execute(
+            'ALTER TABLE pack_form ADD COLUMN policy_activate INTEGER NOT NULL DEFAULT 1 CHECK(policy_activate IN (0,1))',
+          );
+          db.execute(
+            'ALTER TABLE pack_form ADD COLUMN expected_root_version TEXT',
+          );
           db.execute('PRAGMA user_version=3');
         }
         db.execute('COMMIT');
@@ -152,7 +166,8 @@ final class PackFormRecoveryStore {
     final current =
         (version == 2 || version == 3) &&
         tables.length == 3 &&
-        columns('pack_form') == '$_keys,${version == 2 ? _fieldsV2 : _fields}' &&
+        columns('pack_form') ==
+            '$_keys,${version == 2 ? _fieldsV2 : _fields}' &&
         columns('pack_dependency') ==
             '$_keys,list_kind,ordinal,dependency_key,dependency_version' &&
         columns('pack_item') == '$_keys,list_kind,ordinal,item';
@@ -225,9 +240,12 @@ final class PackFormRecoveryStore {
         capabilities: items('capabilities'),
         records: items('records'),
         rationale: _text(row, 'rationale'),
-        realWorldPolicy: row['policy_real_world'] == null ? null : row['policy_real_world'] == 1,
+        realWorldPolicy: row['policy_real_world'] == null
+            ? null
+            : row['policy_real_world'] == 1,
         activatePolicy: row['policy_activate'] == 1,
-        expectedRootVersion: row['expected_root_version'] == null ? null
+        expectedRootVersion: row['expected_root_version'] == null
+            ? null
             : RecordVersionId.parse(_text(row, 'expected_root_version')),
         revisionTarget: row['target_record'] == null
             ? null
@@ -343,8 +361,10 @@ final class PackFormRecoveryStore {
 
   void _validate(EditorFormScope scope, UnfinishedPackForm form) {
     if (scope.representedContext != form.representedContext ||
-        scope.typeClientRef != null && scope.typeClientRef != form.clientRef &&
-            !(scope.typeClientRef == universePolicyEditorKey && form.realWorldPolicy != null)) {
+        scope.typeClientRef != null &&
+            scope.typeClientRef != form.clientRef &&
+            !(scope.typeClientRef == universePolicyEditorKey &&
+                form.realWorldPolicy != null)) {
       throw const FormatException('Pack form context does not match.');
     }
     for (final text in form.exactTexts) {

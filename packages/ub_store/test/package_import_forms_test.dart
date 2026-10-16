@@ -18,14 +18,20 @@ void main() {
     try {
       expect(store.load(scope), isNull);
       final saved = store.save(scope, initial, BigInt.zero);
-      expect(store.load(scope)!.form.toWire().toText(), initial.toWire().toText());
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        initial.toWire().toText(),
+      );
       expect(
         store.save(scope, initial, BigInt.zero).generation,
         saved.generation,
       );
       store.close();
       store = PackageImportFormRecoveryStore.open(path);
-      expect(store.load(scope)!.form.toWire().toText(), initial.toWire().toText());
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        initial.toWire().toText(),
+      );
       expect(store.load((scope.$1, ProfileId.generate())), isNull);
       expect(store.load((OperationId.generate(), scope.$2)), isNull);
       expect(

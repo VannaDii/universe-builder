@@ -30,20 +30,32 @@ void main() {
     final sources = [RecordId.generate(), RecordId.generate()];
     final values = [
       for (final members in [<RecordId>[], sources])
-        DefineUniversePolicyOperation(clientRef: RecordId.generate().value,
-          key: 'Memoir 記憶', realWorld: true, activate: true,
-          sourceCategoryMembers: members).toWire(),
+        DefineUniversePolicyOperation(
+          clientRef: RecordId.generate().value,
+          key: 'Memoir 記憶',
+          realWorld: true,
+          activate: true,
+          sourceCategoryMembers: members,
+        ).toWire(),
     ];
     database.execute('BEGIN IMMEDIATE');
-    final pointers = [for (final value in values) codec.put('DomainOperation', value)];
+    final pointers = [
+      for (final value in values) codec.put('DomainOperation', value),
+    ];
     database.execute('COMMIT');
     database.close();
-    database = SqliteDatabase.open('${directory.path}/package.sqlite', existing: true);
+    database = SqliteDatabase.open(
+      '${directory.path}/package.sqlite',
+      existing: true,
+    );
     codec = RelationalCodec(database);
     for (var i = 0; i < values.length; i++) {
       final restored = codec.get('DomainOperation', pointers[i]);
       expect(restored.toText(), values[i].toText());
-      expect(DomainOperation.fromWire(restored).toWire().toText(), values[i].toText());
+      expect(
+        DomainOperation.fromWire(restored).toWire().toText(),
+        values[i].toText(),
+      );
     }
   });
 

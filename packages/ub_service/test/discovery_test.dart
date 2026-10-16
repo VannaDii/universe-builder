@@ -78,15 +78,23 @@ void main() {
     expect(unrestricted.name, 'Alternate');
     expect(unrestricted.representedContexts.single.id, f.id(31));
     expect(unrestricted.rootPolicyDefined, isFalse);
-    final rooted = read([...rows, ...initialUniversePolicyRecords(f.u, false)], null)!;
+    final rooted = read([
+      ...rows,
+      ...initialUniversePolicyRecords(f.u, false),
+    ], null)!;
     expect(rooted.rootPolicyDefined, isTrue);
-    expect(ContinuitySummary.fromWire(rooted.toWire()).rootPolicyDefined, isTrue);
+    expect(
+      ContinuitySummary.fromWire(rooted.toWire()).rootPolicyDefined,
+      isTrue,
+    );
     expect(read(rows, {p.world(50)}), isNull);
     final visible = read([...rows, s.context(99)], {p.world(50)})!;
     expect(visible.representedContexts.map((c) => c.id), [f.id(99)]);
     expect(visible.revisionId, f.revision);
     expect(visible.rootPolicyDefined, isNull);
-    expect(visible.toWire().fields.map((field) => field.key),
-      isNot(contains('root_policy_defined')));
+    expect(
+      visible.toWire().fields.map((field) => field.key),
+      isNot(contains('root_policy_defined')),
+    );
   });
 }

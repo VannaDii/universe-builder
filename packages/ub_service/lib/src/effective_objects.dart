@@ -72,13 +72,18 @@ List<EffectiveObject> assembleEffectiveObjects({
         assertionsBySubject.putIfAbsent(prop.subject.record, () => []).add(i);
       }
     } else if (p is ActionDefinitionRecord ||
-        p is RuleRecord && !excludedRules.contains(records[i].identity.recordId)) {
+        p is RuleRecord &&
+            !excludedRules.contains(records[i].identity.recordId)) {
       sharedPositions.add(i);
     }
   }
   List<ResourceGap>? resourceGaps;
   try {
-    resourceGaps = assessResourceAccounting(records, frame, excludedRules: excludedRules);
+    resourceGaps = assessResourceAccounting(
+      records,
+      frame,
+      excludedRules: excludedRules,
+    );
   } on InvalidArgumentError {
     resourceGaps = null;
   }

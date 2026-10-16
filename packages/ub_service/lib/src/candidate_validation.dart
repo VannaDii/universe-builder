@@ -73,15 +73,21 @@ CandidateValidationResult evaluateCandidate({
   // publication cannot remove or break the universe's selection.
   Set<RecordId> excludedRules = const {};
   final activatedRules = <RecordId>{};
-  if (requireRootPolicy || base.any(isUniversePolicyRecord) || candidate.any(isUniversePolicyRecord)) {
+  if (requireRootPolicy ||
+      base.any(isUniversePolicyRecord) ||
+      candidate.any(isUniversePolicyRecord)) {
     try {
-      final policy = UniversePolicySelection.fromRecords(frame.universe, candidate);
+      final policy = UniversePolicySelection.fromRecords(
+        frame.universe,
+        candidate,
+      );
       excludedRules = policy.inactiveRuleIds;
       final priorPolicy = base.any(isUniversePolicyRecord)
           ? UniversePolicySelection.fromRecords(frame.universe, base)
           : null;
-      final previous = priorPolicy?.rules
-              .map((r) => r.identity.recordId).toSet() ?? <RecordId>{};
+      final previous =
+          priorPolicy?.rules.map((r) => r.identity.recordId).toSet() ??
+          <RecordId>{};
       final managed = {
         ...policy.inactiveRuleIds,
         ...policy.rules.map((r) => r.identity.recordId),
@@ -97,8 +103,11 @@ CandidateValidationResult evaluateCandidate({
           'keep it in a defined policy or retire the rule with its definition',
         );
       }
-      activatedRules.addAll(policy.rules.map((r) => r.identity.recordId)
-          .where((id) => !previous.contains(id)));
+      activatedRules.addAll(
+        policy.rules
+            .map((r) => r.identity.recordId)
+            .where((id) => !previous.contains(id)),
+      );
     } on FormatException catch (error) {
       throw protocol.InvalidArgumentError(
         field: 'operations',
@@ -207,10 +216,26 @@ CandidateValidationResult evaluateCandidate({
     }
   }
   final declared = <(List<protocol.Finding>, String)>[
-    (assessKnowledgeBoundaries(candidate, excludedRules: excludedRules), 'knowledge.boundaries'),
-    (assessRelationCardinality(candidate, excludedRules: excludedRules), 'relations.cardinality'),
-    (assessCommunicationChronology(candidate, excludedRules: excludedRules), 'communications.chronology'),
-    (assessKnowledgeAcquisition(candidate, frame, excludedRules: excludedRules), 'knowledge.acquisition'),
+    (
+      assessKnowledgeBoundaries(candidate, excludedRules: excludedRules),
+      'knowledge.boundaries',
+    ),
+    (
+      assessRelationCardinality(candidate, excludedRules: excludedRules),
+      'relations.cardinality',
+    ),
+    (
+      assessCommunicationChronology(candidate, excludedRules: excludedRules),
+      'communications.chronology',
+    ),
+    (
+      assessKnowledgeAcquisition(
+        candidate,
+        frame,
+        excludedRules: excludedRules,
+      ),
+      'knowledge.acquisition',
+    ),
   ];
   for (final (lane, capability) in declared) {
     for (final f in lane) {
@@ -221,7 +246,11 @@ CandidateValidationResult evaluateCandidate({
       findings.add(f);
     }
   }
-  for (final gap in assessResourceAccounting(candidate, frame, excludedRules: excludedRules)) {
+  for (final gap in assessResourceAccounting(
+    candidate,
+    frame,
+    excludedRules: excludedRules,
+  )) {
     if (gap.acceptance == null) admissible = false;
     findings.add(
       protocol.Finding(

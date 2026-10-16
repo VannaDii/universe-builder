@@ -140,11 +140,9 @@ List<Assignment> compileAllocatedOperations({
       if (!seen.add(op.clientRef)) {
         throw _invalid('duplicate client_ref');
       }
-      changes.addAll(compileUniversePolicy(
-        universe: universe,
-        base: base,
-        operation: op,
-      ));
+      changes.addAll(
+        compileUniversePolicy(universe: universe, base: base, operation: op),
+      );
       continue;
     }
     final (String, RecordPayload)? creation = switch (op) {
@@ -325,7 +323,11 @@ List<Assignment> compileAllocatedOperations({
     operations: lowered,
     changes: changes,
   );
-  synchronizeUniversePolicySelection(universe: universe, base: base, changes: changes);
+  synchronizeUniversePolicySelection(
+    universe: universe,
+    base: base,
+    changes: changes,
+  );
   freezeEventEffects(universe: universe, base: base, changes: changes);
   return List.unmodifiable(changes);
 }
