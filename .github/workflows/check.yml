@@ -118,33 +118,40 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Install pinned Flutter and bundled Dart for schema commands
+      - name: Install pinned Flutter and bundled Dart
         run: |
           git clone --depth 1 --branch "$(cat .flutter-version)" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
       - run: flutter pub get --enforce-lockfile
-      - name: Install pinned Rust
-        run: rustup toolchain install 1.92.0 --component rustfmt --component clippy
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install jsonschema==4.25.1
-      - run: python -m unittest discover -s scripts -p 'test_mcp_smoke.py' -v
-      - run: python -m unittest discover -s scripts -p 'test_mlx_authoring_smoke.py' -v
-      - run: python -m unittest discover -s scripts -p 'test_author_session.py' -v
-      - run: python -m unittest discover -s scripts -p 'test_chapter_retcon_pilot.py' -v
-      - run: cargo run --locked -p xtask -- check
-      - run: cargo run --locked -p xtask -- validate-contracts
+      - run: dart run tool/build_contracts.dart --check
+      - run: dart run tool/build_schema.dart --check
+      - run: dart run tool/embed_schema.dart
+      - run: dart run tool/embed_mcp.dart
+      - run: git diff --exit-code -- contracts/tools.json contracts/source-assessments.json packages/ub_store/lib/src/schema.g.dart packages/ub_store/lib/src/credential_schema.g.dart packages/ub_store/lib/src/installation_schema.g.dart packages/ub_contracts/lib/src/mcp_metadata.g.dart
+      - run: dart analyze packages apps/ub_cli apps/ub_engine apps/ub_mcp tool
+      - run: flutter analyze apps/ub_app --no-pub
+      - name: Run Dart functional tests
+        run: |
+          umask 077
+          for package in ub_domain ub_store ub_rules ub_contracts ub_service ub_client; do
+            (cd "packages/$package" && dart test)
+          done
+          for app in ub_cli ub_engine ub_mcp ub_app; do
+            (cd "apps/$app" && dart test)
+          done
+      - name: Assemble the macOS app and standalone Dart helpers
+        run: dart run apps/ub_cli/tool/package_macos.dart --mode release
+      - name: Exercise packaged CLI and engine
+        working-directory: apps/ub_cli
         env:
-          UNIVERSE_PYTHON: python
-      - run: cargo run --locked -p xtask -- mcp-smoke
+          UB_TEST_MACOS_BUNDLE: ${{ github.workspace }}/apps/ub_app/build/macos/Build/Products/Release/Universe Builder.app
+        run: |
+          umask 077
+          dart test test/universe_cli_test.dart --name 'standalone universe command'
+      - name: Exercise packaged MCP launcher and current permissions
+        working-directory: apps/ub_mcp
         env:
-          UNIVERSE_PYTHON: python
-      - run: cargo run --locked -p xtask -- installation-smoke
-        env:
-          UNIVERSE_PYTHON: python
-      - name: Current pilot contract regressions without reports
-        run: python -m unittest discover -s scripts -p 'test_pilot_contracts.py' -v
-      - run: python scripts/verify_launcher.py --bin-dir target/debug
-      - name: Native and host gates
-        run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks are not run by this job.'
+          UB_TEST_MACOS_BUNDLE: ${{ github.workspace }}/apps/ub_app/build/macos/Build/Products/Release/Universe Builder.app
+        run: |
+          umask 077
+          dart test test/mcp_cli_test.dart --name 'stdio reaches real service'

@@ -2827,28 +2827,40 @@ preview packages: ad-hoc signed, not notarized, with release acceptance still op
 
 ## Build and verify
 
-Use the pinned Rust toolchain. On a Mac whose Xcode license has not been accepted, use the installed command-line tools:
+Use the pinned Flutter version in `.flutter-version` and its bundled Dart
+3.13.4. The ordinary macOS CI job is configured to run the Dart functional suites,
+assemble the Flutter app with its standalone helpers and exercise the packaged
+CLI/engine and MCP launcher against disposable installations. Native GUI,
+accessibility, model-host and clean-machine checks remain separate.
 
 ```sh
-export DEVELOPER_DIR=/Library/Developer/CommandLineTools
-cargo run --locked -p xtask -- check
+flutter pub get --enforce-lockfile
+dart run tool/build_contracts.dart --check
+dart run tool/build_schema.dart --check
+dart run tool/embed_schema.dart
+dart run tool/embed_mcp.dart
+dart analyze packages apps/ub_cli apps/ub_engine apps/ub_mcp tool
+flutter analyze apps/ub_app --no-pub
+umask 077
+for package in ub_domain ub_store ub_rules ub_contracts ub_service ub_client; do
+  (cd "packages/$package" && dart test)
+done
+for app in ub_cli ub_engine ub_mcp ub_app; do
+  (cd "apps/$app" && dart test)
+done
 ```
 
-The check runs formatting, Clippy with warnings denied, all workspace tests, and generated-contract drift checks. Native UI and model-host checks are separate gates.
+Use the release runbook's explicit opt-in commands for disposable PostgreSQL,
+credential-store and full-workload cases; ordinary test runs skip cases whose
+fixture environment is absent. The macOS package assembly and installed-helper
+commands are also documented there. The CI job does not publish a release.
 
-Independent JSON Schema and MCP checks use Python and `jsonschema==4.25.1`:
+During source coexistence, the pinned Rust toolchain can still run
+`cargo run --locked -p xtask -- check`. The retained independent Python schema
+and host checks use `jsonschema==4.25.1` and `UNIVERSE_PYTHON` with
+`xtask validate-contracts`, `xtask mcp-smoke` and `xtask installation-smoke`.
 
-```sh
-python3 -m venv /tmp/universe-validation
-/tmp/universe-validation/bin/pip install jsonschema==4.25.1
-export UNIVERSE_PYTHON=/tmp/universe-validation/bin/python
-cargo run --locked -p xtask -- validate-contracts
-cargo run --locked -p xtask -- mcp-smoke
-cargo run --locked -p xtask -- installation-smoke
-```
-
-These Rust checks remain transitional compatibility checks. Public tool and
-assessment schemas are owned by `contracts/source/` and bundled with
+Public tool and assessment schemas are owned by `contracts/source/` and bundled with
 `dart run tool/build_contracts.dart`; the generated Dart MCP metadata comes from
 `dart run tool/embed_mcp.dart`. After an intentional contract change, review the
 generated diff and run the affected Dart and contract checks. The original
