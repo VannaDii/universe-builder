@@ -207,8 +207,7 @@ digest and continuity head. It removes only its own temporary directory.
 Phase timings go to ordinary test output; no report file is needed. These
 measurements describe this workload and machine, not an SLA, an interactive
 latency target or mobile/clean-machine qualification. Do not run it against an
-author's installation. The former Rust standard-workload test and Python
-benchmark are transitional procedures, not the Dart migration check.
+author's installation. Use the Dart workloads below for PostgreSQL measurements.
 
 The separate PostgreSQL catalog workload uses the existing disposable test
 database (`ub_disposable`) selected by `UB_TEST_POSTGRES_PORT`. Run it alone

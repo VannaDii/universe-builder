@@ -29,18 +29,22 @@ Universe Builder is unreleased v0. Maintain only the current data shapes; do not
 
 Source was inspected in this checkout on October 11. No application tests, installed author packages, credentials or running service were opened for this plan. At that planning baseline, approximately 77,000 lines of Rust existed under crates, including tests. The typed schema has 886 CREATE TABLE declarations and its catalog contains 1,620 model entries. These are scope indicators, not migration progress or a schedule estimate.
 
-Use these owners rather than reconstructing behavior from old plans:
+The Rust runtime workspace and executable entry points are retired. Git retains
+the original implementation; Rust paths in earlier ADRs and decision records
+describe that historical baseline. Current platform qualification and remaining
+product requirements still determine completion. Use these Dart owners rather
+than reconstructing behavior from old plans:
 
 | Area | Owning sources |
 | --- | --- |
 | Product boundary and approved replacement model | [factual realignment](factual-universe-realignment-plan.md), [author workflow](ai-authoring-workflow.md) |
-| Values, identities, chronology and canonical bytes | [domain](../crates/universe-domain/src/lib.rs), [canonical encoding](../crates/universe-domain/src/canonical.rs), [records](../crates/universe-domain/src/records.rs), [scope](../crates/universe-domain/src/scope.rs) |
-| Factual evaluation and service orchestration | [rules](../crates/universe-rules/src/lib.rs), [service](../crates/universe-service/src/lib.rs), [workflow](../crates/universe-service/src/workflow.rs) |
-| Author commands and public MCP contracts | [installation commands](../crates/universe-protocol/src/installation.rs), [tool requests](../crates/universe-protocol/src/request.rs), contracts/ |
-| Typed relational persistence | [schema assembly](../crates/universe-store/src/schema.rs), [codec](../crates/universe-store/src/relational.rs), [normative mapping](decisions/relational-storage/README.md) |
-| Atomic publication and historical reads | [kernel](../crates/universe-store/src/kernel.rs), [workflow storage](../crates/universe-store/src/workflow_storage.rs) |
-| Installation identity and current grants | [registry](../crates/universe-service/src/registry.rs), [local client](../crates/universe-client/src/installation.rs) |
-| Transfer and conversion | [archives](../crates/universe-store/src/archive.rs), [row transfer](../crates/universe-store/src/transfer.rs) |
+| Values, identities, chronology and canonical bytes | [domain](../packages/ub_domain/lib/ub_domain.dart), [canonical encoding](../packages/ub_domain/lib/src/canonical.dart), [records](../packages/ub_domain/lib/src/records.dart), [scope](../packages/ub_domain/lib/src/scope.dart) |
+| Factual evaluation and service orchestration | [rules](../packages/ub_rules/lib/ub_rules.dart), [service](../packages/ub_service/lib/ub_service.dart), [candidate validation](../packages/ub_service/lib/src/candidate_validation.dart) |
+| Author commands and public MCP contracts | [installation commands](../packages/ub_contracts/lib/src/engine_request.dart), [tool requests](../packages/ub_contracts/lib/src/request.dart), contracts/ |
+| Typed relational persistence | [schema generator](../tool/build_schema.dart), [codec](../packages/ub_store/lib/src/relational.dart), [PostgreSQL codec](../packages/ub_store/lib/src/postgres_relational.dart), [normative mapping](decisions/relational-storage/README.md) |
+| Atomic publication and historical reads | [kernel](../packages/ub_store/lib/src/kernel.dart), [workflow storage](../packages/ub_store/lib/src/workflow_storage.dart), corresponding postgres_ implementations |
+| Installation identity and current grants | [installation authority](../packages/ub_service/lib/src/installation_authority.dart), [local client](../packages/ub_client/lib/src/local_engine.dart), corresponding PostgreSQL authority |
+| Transfer and backend moves | [packages and archives](../packages/ub_store/lib/src/owned_database.dart), [PostgreSQL import](../packages/ub_store/lib/src/postgres_import.dart), [move coordination](../packages/ub_store/lib/src/installation_moves.dart) |
 | Current UX proposal | [UX redesign](ux-redesign-plan.md), the Flutter editors and workflows in apps/ub_app/lib |
 | Build and distribution | apps/ub_cli/tool/, tool/, scripts/, packaging/, .github/workflows/, [release runbook](release-runbook.md) |
 
@@ -298,7 +302,7 @@ author approval cannot discharge these duties.
 
 Policies may cover assertions and occurrences together or select named predicates
 for assertions/effects. Arbitrary derivation chains remain explicitly unsupported.
-The Rust engine still rejects all required-evidence declarations. Delivery still
+Delivery still
 requires completion of the remaining authoring and platform workflows specified
 above; a passing source check alone does not establish complete migration.
 
@@ -322,8 +326,7 @@ exception behavior; marked departures are identified while the refuted factual
 outcome remains visible. An `always_block` expression is still enforced. A narrow
 departure cannot relax another world's obligation or an uncovered time/context.
 Changing/removing an exception or its acceptance decision rechecks its dependent
-claims. The Rust engine explicitly rejects marked departures; admission is
-implemented by the shared Dart evaluator in SQLite/PostgreSQL.
+claims. Admission uses the shared Dart evaluator in SQLite/PostgreSQL.
 
 ## 5. Target application architecture
 

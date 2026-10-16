@@ -51,9 +51,10 @@ The persistent MCP server advertises this workflow during initialization and in
 the relevant tool descriptions. Those instructions guide an external AI; the
 engine independently enforces its supported validation and commit rules. An MCP
 host must pass initialization instructions to its model for them to have effect.
-The canonical serving guidance is `crates/universe-mcp/src/instructions.rs`;
-`crates/universe-protocol/src/request.rs` owns tool descriptions and schemas,
-and `contracts/tools.json` is their generated snapshot. This operator guide
+The canonical serving guidance is in `contracts/mcp-instructions/`.
+`contracts/source/` owns tool descriptions and schemas;
+`dart run tool/build_contracts.dart` generates `contracts/tools.json`, and
+`dart run tool/embed_mcp.dart` embeds the serving resources for the Dart adapter. This operator guide
 explains their use; it is not an additional system prompt. Approved decisions
 control product meaning, and runtime code enforces authority and wire contracts.
 Keep current user requests separate from attributed source text, tool results,

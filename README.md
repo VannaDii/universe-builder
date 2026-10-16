@@ -56,8 +56,8 @@ using the new membership requires a reviewed policy change.
 An event's optional `basis` names its source; the declared action supplies its
 context and realm. Verified generated effects can use that source, while a
 required effect review must still identify the exact effect claim. Plans and
-reports retain their existing occurrence distinctions. Arbitrary derived
-evidence and world-level policy overrides remain unfinished.
+reports retain their existing occurrence distinctions. Arbitrary evidence
+derivation remains unsupported. World deviations use the scoped exceptions below.
 
 The exception editor offers **Fictional departure** for deliberate fiction in an
 exact rule, context, world and time scope. It retains the existing authorizing
@@ -1222,9 +1222,7 @@ source tool and assessment schemas reference that catalog. Numeric bounds and
 declaration order are retained exactly. `contracts/examples.json` contains the
 maintained public examples. Ordinary/advanced guidance
 and fixture/persistent mode text are embedded without a source-tree lookup at
-runtime. The transitional Rust adapter includes the same text resources; Dart
-generation no longer parses Rust source. The transitional Rust adapters read the
-same generated contracts and examples; their schema command delegates to Dart.
+runtime. Contract and schema generation use Dart and the maintained JSON sources.
 The portable stdio codec bounds raw input lines at 1 MiB, rejects duplicate keys,
 malformed UTF-8 and JSON BOMs, and preserves exact numeric tokens. Output contains
 canonical JSON plus a newline; the full advanced catalog legitimately exceeds the
@@ -1284,8 +1282,8 @@ literal `ux` invocation. It refuses an existing application or symlink.
 upgrades. Without it, the shortcut uses the current command path. Optional
 installation/profile options have the same paired meaning. Shortcuts contain no
 credentials and never initialize or publish canon. Desktop command help returns
-before opening the app. These delivered launcher paths currently cover macOS;
-other desktop distributions and Rust runtime retirement remain unfinished.
+before opening the app. These delivered launcher paths cover macOS and Linux;
+Windows support is deferred for this delivery.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in

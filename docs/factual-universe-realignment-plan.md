@@ -44,7 +44,7 @@ Source inspection confirms these mismatches:
 3. State/context retrieval exposes record families that callers must assemble. It does not yet provide one effective object description with separately attributed definition facts, instance facts, chronology and applicable rules.
 4. The earlier rule recommendation used an isolated evaluator result as evidence of an admission gap. Full candidate validation separately rejects incompatible supported values of a single-valued property. Retain the probe as a characterization of the rule function; reassess the recommendation through the entire public workflow.
 
-Implementation anchors: [types](../crates/universe-domain/src/records.rs), [structural/scalar validation](../crates/universe-service/src/validation.rs), [canonical storage](../crates/universe-store/src/kernel.rs), stored workflow schema, [installation authority](../crates/universe-service/src/registry.rs), [logical archive](../crates/universe-store/src/archive.rs), and cumulative proof.
+Current Dart implementation anchors: [types](../packages/ub_domain/lib/src/records.dart), [structural validation](../packages/ub_service/lib/src/structural_checks.dart), [canonical storage](../packages/ub_store/lib/src/kernel.dart), [workflow storage](../packages/ub_store/lib/src/workflow_storage.dart), [installation authority](../packages/ub_service/lib/src/installation_authority.dart), and [packages and archives](../packages/ub_store/lib/src/owned_database.dart). The findings above describe the original planning baseline; current behavior is owned by these Dart sources.
 
 ## Preserve the working foundation
 
