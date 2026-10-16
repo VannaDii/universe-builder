@@ -188,7 +188,9 @@ and uses the same authenticated loopback commands, authority locks, durable
 drafts and graceful shutdown as the desktop engine. Worker exit is a lifecycle
 notification; uncertain operations still require normal service recovery. The native
 connection selects this worker on iOS/Android, initializes or retains the protected
-device profile, and closes the worker with its session. The iOS runner supplies an app-private, backup-excluded installation directory;
+device profile, and closes the worker with its session. The embedded worker stays
+alive while its app session is retained; the desktop daemon’s fifteen-minute idle
+shutdown does not apply. The iOS runner supplies an app-private, backup-excluded installation directory;
 Android uses its no-backup app directory and permits the local authenticated
 network transport. Desktop backend-switching controls are omitted on mobile.
 Mobile **Save complete backup file** and **Restore a backup** use system file
