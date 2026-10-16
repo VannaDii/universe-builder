@@ -6,6 +6,7 @@ import 'package:ub_store/postgres_installation.dart';
 import 'package:ub_store/installation.dart'
     show OwnedFileLock, privateDirectory;
 
+import 'hosted_providers.dart';
 import 'configuration.dart';
 import 'local_engine.dart';
 import 'loopback_engine.dart';
@@ -43,6 +44,7 @@ final class LocalPostgresEngineServer {
     Uri? httpsOrigin,
     SecurityContext? tlsContext,
     InternetAddress? bindAddress,
+    HostedAccountAccess? hostedAccount,
   }) async {
     OwnedFileLock? lock;
     PostgresInstallationStore? store;
@@ -59,11 +61,16 @@ final class LocalPostgresEngineServer {
       lock = OwnedFileLock.acquire('$directory/service.lock');
       store = await openPostgresInstallation(configuration);
       runtime = NativePostgresRuntime(store: store, profileRoot: directory);
-      http = await LoopbackEngineServer.postgres(runtime, webAssets: webAssets);
+      http = await LoopbackEngineServer.postgres(
+        runtime,
+        webAssets: webAssets,
+        hostedAccount: hostedAccount,
+      );
       if (httpsOrigin != null || tlsContext != null || bindAddress != null) {
         https = await LoopbackEngineServer.postgres(
           runtime,
           webAssets: webAssets,
+          hostedAccount: hostedAccount,
           httpsOrigin: httpsOrigin,
           tlsContext: tlsContext,
           bindAddress: bindAddress,

@@ -7,7 +7,9 @@ Status: implementation baseline approved by Vanna's conversion goal, subject to 
 October 15 scope update: Vanna is choosing the sign-in and billing providers;
 their integration remains in scope. Windows support is deferred for this delivery.
 The remaining Dart conversion, Real World behavior, mobile workflows and runtime
-cutover remain in scope; provider selection does not establish their completion.
+cutover remain in scope; provider selection does not establish their completion. Vanna subsequently directed
+stubbing these adapters while comparing Square, Stripe and app-store options; no
+provider, pricing or commercial policy is selected by the stubs.
 
 ## 1. Intended outcome
 

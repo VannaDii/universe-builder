@@ -265,6 +265,17 @@ leaving a local-only service running. Restart the engine after certificate chang
 Backend selection continues to use `UB_USE_POSTGRES` and `UB_POSTGRES_ENDPOINT`
 or the saved encrypted configuration.
 
+Hosted provider selection is deferred. Sign-in and billing adapters are stubbed:
+`POST /engine/browser/sign-in` returns HTTP 503 until an adapter and account/profile
+bindings are supplied. Existing profile access and browser enrollment still work.
+The authenticated owner's `POST /engine/browser/billing` reports
+`{"provider":"stub","status":"not_configured"}`. Billing observations do not grant
+canon permissions or define pricing, quotas, cancellation or retention. These
+stubs do not process payments or qualify the service for paid operation.
+Service integrations can supply `HostedAccountAccess` to the existing SQLite or
+PostgreSQL server; identities are bound by issuer and subject to existing profiles,
+and current credentials/grants are checked on sign-in and each session request.
+
 Native apps offer **Connect to a service** with an HTTPS address, profile ID and
 access key supplied by the instance owner. The key stays in memory for the session
 and is forgotten on sign-out; it is not written into local recovery. Ordinary

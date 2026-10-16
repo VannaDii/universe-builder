@@ -11,6 +11,7 @@ import 'package:ub_store/installation.dart'
 import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
 import 'package:ub_store/ub_store.dart' show maxImageBytes;
 
+import 'hosted_providers.dart';
 import 'postgres_runtime.dart';
 import 'sqlite_runtime.dart';
 
@@ -32,8 +33,10 @@ final class LoopbackEngineServer {
     this._now,
     this._webFiles,
     this.endpoint,
+    this._hostedAccount,
   );
   final HttpServer _server;
+  final HostedAccountAccess? _hostedAccount;
   final Map<String, File> _webFiles;
   final DateTime Function() _now;
   final _enrollments = <String, ({EngineHello hello, DateTime expires})>{};
@@ -98,6 +101,7 @@ final class LoopbackEngineServer {
     Uri? httpsOrigin,
     SecurityContext? tlsContext,
     InternetAddress? bindAddress,
+    HostedAccountAccess? hostedAccount,
   }) => _bind(
     (hello) async {
       final connection = runtime.connect(hello);
@@ -112,6 +116,7 @@ final class LoopbackEngineServer {
     httpsOrigin: httpsOrigin,
     tlsContext: tlsContext,
     bindAddress: bindAddress,
+    hostedAccount: hostedAccount,
   );
 
   static Future<LoopbackEngineServer> postgres(
@@ -121,6 +126,7 @@ final class LoopbackEngineServer {
     Uri? httpsOrigin,
     SecurityContext? tlsContext,
     InternetAddress? bindAddress,
+    HostedAccountAccess? hostedAccount,
   }) => _bind(
     (hello) async {
       final connection = await runtime.connect(hello);
@@ -135,6 +141,7 @@ final class LoopbackEngineServer {
     httpsOrigin: httpsOrigin,
     tlsContext: tlsContext,
     bindAddress: bindAddress,
+    hostedAccount: hostedAccount,
   );
 
   static Future<LoopbackEngineServer> _bind(
@@ -144,6 +151,7 @@ final class LoopbackEngineServer {
     Uri? httpsOrigin,
     SecurityContext? tlsContext,
     InternetAddress? bindAddress,
+    HostedAccountAccess? hostedAccount,
   }) async {
     if (httpsOrigin == null) {
       if (tlsContext != null || bindAddress != null) {
@@ -200,6 +208,7 @@ final class LoopbackEngineServer {
       files,
       httpsOrigin?.replace(port: listener.port) ??
           Uri.parse('http://127.0.0.1:${listener.port}'),
+      hostedAccount,
     );
     server._subscription = listener.listen(server._accept);
     return server;
@@ -508,6 +517,8 @@ final class LoopbackEngineServer {
             '/engine/call',
             '/engine/browser-grant',
             '/engine/browser/exchange',
+            '/engine/browser/sign-in',
+            '/engine/browser/billing',
             '/engine/browser/hello',
             '/engine/browser/call',
             '/engine/browser/logout',
@@ -550,7 +561,23 @@ final class LoopbackEngineServer {
           response.statusCode = HttpStatus.forbidden;
           return;
         }
-        if (path == '/engine/browser/exchange') {
+        if (path == '/engine/browser/sign-in') {
+          final fields = WireFields(
+            CanonicalValue.parseWireJson(utf8.decode(input.takeBytes())),
+            {'assertion'},
+          );
+          try {
+            final account = _hostedAccount;
+            if (account == null) throw const HostedProviderUnavailable();
+            hello = await account.authenticate(fields.string('assertion'));
+          } on HostedProviderUnavailable {
+            response.statusCode = HttpStatus.serviceUnavailable;
+            return;
+          } on Object {
+            response.statusCode = HttpStatus.unauthorized;
+            return;
+          }
+        } else if (path == '/engine/browser/exchange') {
           final fields = WireFields(
             CanonicalValue.parseWireJson(utf8.decode(input.takeBytes())),
             {'token'},
@@ -615,6 +642,27 @@ final class LoopbackEngineServer {
         }
       }
       final authenticated = connection!;
+      if (path == '/engine/browser/billing') {
+        if (!authenticated.welcome.author) {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        if (input.length != 0) {
+          response.statusCode = HttpStatus.badRequest;
+          return;
+        }
+        final status =
+            await (_hostedAccount?.billingStatus() ??
+                const StubHostedBillingProvider().status(''));
+        response.headers.contentType = ContentType.json;
+        response.add(
+          CanonicalObject([
+            MapEntry('provider', CanonicalString(status.provider)),
+            MapEntry('status', CanonicalString(status.status.wireName)),
+          ]).toBytes(),
+        );
+        return;
+      }
       if (path == '/engine/browser/prepare-download' ||
           path == '/engine/archive-file') {
         if (!authenticated.welcome.author) {
@@ -743,7 +791,8 @@ final class LoopbackEngineServer {
             CanonicalNumber('${expires.millisecondsSinceEpoch ~/ 1000}'),
           ),
         ]);
-      } else if (path == '/engine/browser/exchange') {
+      } else if (path == '/engine/browser/exchange' ||
+          path == '/engine/browser/sign-in') {
         if (_browserSessions.length >= 256) {
           response.statusCode = HttpStatus.serviceUnavailable;
           return;
