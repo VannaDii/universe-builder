@@ -51,7 +51,7 @@ Future<WorldEvidencePolicies> readWorldEvidencePolicies({
   required OpenedContext context,
   required WorldId world,
 }) async {
-  final policies = <WorldEvidencePolicy>[];
+  final rows = <RecordVersion>[];
   var complete = true;
   Future<List<RecordVersion>> read(Iterable<RecordId> requested) async {
     final ids = requested.toSet().toList(), rows = <RecordVersion>[];
@@ -94,32 +94,51 @@ Future<WorldEvidencePolicies> readWorldEvidencePolicies({
     return rows;
   }
 
-  String? cursor;
-  final cursors = <String>{};
-  do {
-    final page = await searchContextRecords(
-      session: session,
-      universe: universe,
-      context: context,
-      query: '',
-      kind: RecordKind.rule,
-      cursor: cursor,
-    );
-    final rows = await read(page.result.hits.map((r) => r.recordId));
-    for (final row in rows) {
-      if (row.payload case RuleRecord rule) {
-        if (worldEvidencePolicyOrigin(rule, world) case final origin?) {
-          policies.add(WorldEvidencePolicy(row, origin));
-        }
+  for (final kind in [RecordKind.rule, RecordKind.domainPack]) {
+    String? cursor;
+    final cursors = <String>{};
+    do {
+      final page = await searchContextRecords(
+        session: session,
+        universe: universe,
+        context: context,
+        query: '',
+        kind: kind,
+        cursor: cursor,
+      );
+      rows.addAll(await read(page.result.hits.map((r) => r.recordId)));
+      cursor = page.delivery.cursor;
+      if (page.delivery.complete) {
+        break;
       }
-    }
-    cursor = page.delivery.cursor;
-    if (page.delivery.complete) break;
-    if (cursor == null || !cursors.add(cursor)) {
-      complete = false;
-      break;
-    }
-  } while (true);
+      if (cursor == null || !cursors.add(cursor)) {
+        complete = false;
+        break;
+      }
+    } while (true);
+  }
+  Set<RecordId> inactive = const {};
+  var rootResolved = complete;
+  try {
+    inactive = UniversePolicySelection.fromRecords(
+      universe.id,
+      rows,
+    ).inactiveRuleIds;
+  } on FormatException {
+    // Missing/restricted root metadata cannot establish which rules are active.
+    rootResolved = false;
+    complete = false;
+  }
+  final policies = <WorldEvidencePolicy>[
+    for (final row in rows)
+      if (!inactive.contains(row.identity.recordId))
+        if (row.payload case RuleRecord rule)
+          if (worldEvidencePolicyOrigin(rule, world) case final origin?)
+            WorldEvidencePolicy(
+              row,
+              rootResolved ? origin : WorldPolicyOrigin.unresolved,
+            ),
+  ];
   final categoryIds = <RecordId>{
     for (final policy in policies)
       for (final ref in policy.rule.requiredEvidence!.sourceCategories)
