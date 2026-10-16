@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart';
+import 'package:ub_service/src/universe_evidence_policy.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/src/relational.dart';
@@ -17,8 +18,8 @@ final continuity = ContinuityId.parse('cont_${suffix(1)}');
 final principal = PrincipalId.parse('prn_${suffix(1)}');
 RecordRef ref(int n) => RecordRef(universe: universe, record: id(n));
 
-/// The same already-admitted storage/evaluator workload as the transitional
-/// Rust test, built directly in the normative Dart store using current-format fixtures.
+/// The standard already-admitted storage/evaluator workload, built directly
+/// in the normative store with the required current root policy.
 RevisionId seed(OwnedSqliteDatabase package, Map<RecordId, String> digests) {
   final kernel = SqliteKernel(package.database, universe);
   final changes = <Assignment>[];
@@ -128,9 +129,18 @@ RevisionId seed(OwnedSqliteDatabase package, Map<RecordId, String> digests) {
       ),
     );
   }
-  expect(changes.length, 412002);
+  for (final record in initialUniversePolicyRecords(universe, false)) {
+    final row = StoredVersion.build(
+      record.recordVersionId,
+      record.identity,
+      record.payload.toWire(),
+    );
+    digests[row.identity.recordId] = row.digest;
+    changes.add(Assignment(recordId: row.identity.recordId, next: row));
+  }
+  expect(changes.length, 412004);
   final writing = Stopwatch()..start();
-  stdout.writeln('standard: storing 412002 records');
+  stdout.writeln('standard: storing ${changes.length} records');
   // A bulk initial package is the workload fixture, not an application commit.
   // Keep the production 100-change commit bound intact. All bodies still use
   // the normative codec, and ordinary recovery validates/rebuilds this package.
@@ -230,7 +240,7 @@ void main() {
         measured('branches', phase);
         List<RecordVersion> read(SqliteJournal journal) {
           final membership = journal.snapshot(continuity, revision);
-          expect(membership.length, 412002);
+          expect(membership.length, 412004);
           return [
             for (final version in membership.values)
               () {
@@ -248,6 +258,9 @@ void main() {
         phase = Stopwatch()..start();
         final records = read(kernel.journal);
         measured('snapshot read', phase);
+        final policy = UniversePolicySelection.fromRecords(universe, records);
+        expect(policy.rules, isEmpty);
+        expect(policy.inactiveRuleIds, isEmpty);
         phase = Stopwatch()..start();
         final index = EvaluationIndex(records);
         measured('evaluation index', phase);

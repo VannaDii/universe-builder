@@ -197,7 +197,7 @@ UB_RUN_STANDARD_WORKLOAD=1 dart test test/standard_workload_test.dart --reporter
 
 It creates a disposable normative SQLite package containing 10,000 entities,
 200,000 propositions and their 200,000 assertions, 2,000 rules and ten
-continuities (412,002 records). The initial fixture is already admitted data;
+continuities, including the root policy selection and definition (412,004 records). The initial fixture is already admitted data;
 it does not bypass or increase the application's 100-change commit limit.
 Ordinary recovery validates its retained data and rebuilds projections. The
 case evaluates all 2,000 rules, creates a complete physical backup, restarts
@@ -233,7 +233,7 @@ umask 077
 UB_TEST_POSTGRES_PORT=PORT UB_RUN_STANDARD_WORKLOAD=1 dart test test/postgres_standard_workload_test.dart --reporter expanded
 ```
 
-It reuses the 412,002-record admitted SQLite fixture and ten continuities,
+It reuses the 412,004-record admitted SQLite fixture and ten continuities,
 imports them through the core PostgreSQL transfer path, rebuilds projections,
 evaluates all 2,000 indexed rules, reopens the connection and restores a complete
 portable backup into a separate SQLite package. Exact version membership,

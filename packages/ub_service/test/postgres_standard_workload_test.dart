@@ -76,7 +76,7 @@ void main() {
         source.database.execute('COMMIT');
         final heads = sourceJournal.heads();
         final membership = sourceJournal.snapshot(fixture.continuity, revision);
-        expect(membership, hasLength(412002));
+        expect(membership, hasLength(412004));
         expect(heads, hasLength(10));
         measured('prepare SQLite source', phase);
         connection = await Connection.open(endpoint, settings: settings);
@@ -104,7 +104,7 @@ void main() {
           (await observer.execute(
             'SELECT count(*) FROM $schema.record_versions',
           )).single.single,
-          412002,
+          412004,
         );
 
         Future<List<RecordVersion>> read(
@@ -130,7 +130,7 @@ void main() {
             }
             count++;
           }
-          expect(count, 412002);
+          expect(count, 412004);
           return records;
         }
 
@@ -149,6 +149,12 @@ void main() {
             PostgresJournal(tx, fixture.universe),
             materialize: true,
           );
+          final policy = UniversePolicySelection.fromRecords(
+            fixture.universe,
+            records,
+          );
+          expect(policy.rules, isEmpty);
+          expect(policy.inactiveRuleIds, isEmpty);
           final index = EvaluationIndex(records);
           final context = EvaluationContext(
             frame: Frame(
@@ -199,7 +205,7 @@ void main() {
             restored.package.database
                 .select('SELECT count(*) AS n FROM record_versions')
                 .single['n'],
-            412002,
+            412004,
           );
           final journal = SqliteJournal(
             restored.package.database,
@@ -213,7 +219,7 @@ void main() {
             expect(row.digest, digests[row.identity.recordId]);
             count++;
           }
-          expect(count, 412002);
+          expect(count, 412004);
         } finally {
           restored.close();
         }

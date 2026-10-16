@@ -665,7 +665,7 @@ Current 512 MiB logical archive bounds can obstruct the requested large-data Pos
 
 A large PostgreSQL installation still needs explicit limits, indexed historical access, paging, batch codec reads and bounded validation. The current recursive codec can issue a query per body node; measure representative deep records and historical reads before optimizing. Avoid an assumed universal speedup.
 
-Reuse the standard workload intent: 10,000 entities, 200,000 assertions, 2,000 rules and multiple continuities, along with the relevant real workflows. Its current ignored test includes previous-format archive construction, so first reconcile its input with the normative archive before relying on it. Do not count the presence of that test as a current passing result.
+Reuse the standard workload intent: 10,000 entities, 200,000 assertions, 2,000 rules and multiple continuities, along with the relevant real workflows. The opt-in Dart workloads seed the current normative store, including the required root policy, and cover ten continuities, indexed rules, restart and complete backup/restore. Run them explicitly; their presence does not establish a passing result.
 
 Measure startup, universe provisioning, pinned dossier reads, search/pagination, source staging, validation, publication, restart, backup/export/restore and memory. Track many-universe PostgreSQL catalog/migration overhead and network latency. Select practical target budgets after a representative slice; retain explicit partial output and admission errors.
 
