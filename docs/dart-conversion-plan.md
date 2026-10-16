@@ -4,10 +4,10 @@ Date: October 11, 2026.
 
 Status: implementation baseline approved by Vanna's conversion goal, subject to the explicitly unresolved decisions and subsequent instructions. Implementation and required platform checks with disposable data are authorized. Live-data conversion, hosting expenditure, production deployment and release publication require separate authorization. Unrelated paused work remains paused.
 
-October 15 scope update: Vanna is handling sign-in and billing. Windows support
-is deferred for this delivery. The remaining Dart conversion, Real World
-behavior, mobile workflows and runtime cutover remain in scope; these handoffs
-do not establish their completion.
+October 15 scope update: Vanna is choosing the sign-in and billing providers;
+their integration remains in scope. Windows support is deferred for this delivery.
+The remaining Dart conversion, Real World behavior, mobile workflows and runtime
+cutover remain in scope; provider selection does not establish their completion.
 
 ## 1. Intended outcome
 
@@ -22,6 +22,8 @@ Real World is an explicit evidence and constraint policy for universes/worlds ne
 The complete application includes the headless engine, author UI, local and remote clients, MCP adapters, CLI, database adapters, recovery/conversion paths, schema/contract generation, and maintained build/package tooling. Flutter, SQLite, database drivers and minimal operating-system integration will still include native dependencies; the objective is Dart ownership of application behavior.
 
 ## 2. Baseline and source precedence
+
+Universe Builder is unreleased v0. Maintain only the current data shapes; do not add prior-format readers, schema upgrades, or compatibility exceptions. Cross-backend transfer and backup/restore use the current format. Release compatibility policy starts after an adopted release.
 
 Source was inspected in this checkout on October 11. No application tests, installed author packages, credentials or running service were opened for this plan. Approximately 77,000 lines of Rust exist under crates, including tests. The typed schema has 886 CREATE TABLE declarations and its catalog contains 1,620 model entries. These are scope indicators, not migration progress or a schedule estimate.
 
